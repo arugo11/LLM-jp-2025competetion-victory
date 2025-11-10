@@ -1,0 +1,25 @@
+.env
+
+# Virtual environments created during local setup
+.venv/
+Skills/.venv/
+
+# Python cache / packaging artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Competition data & decoded artifacts
+data/**/*.jsonl
+decoded_outputs/
+*.decoded.json
+
+# Local-only third-party clones
+third_party/Math-Verify/
+
+# Machine-specific cluster configs
+cluster_configs/
+Skills/cluster_configs/local-*.yaml
+
+# Run logs and similar transient files
+*.log
