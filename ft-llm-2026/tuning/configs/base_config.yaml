@@ -3,14 +3,14 @@ defaults:
   - _self_
 
 project: fl-llm-2026-tuning  # wandbのプロジェクトネーム
-entity: Kotani Shinji  # wandbのユーザーネーム
+entity: hongo-hayato-6281k-university-of-tokyo  # wandbのユーザーネーム
 
 # path to original working directory
 # hydra hijacks working directory by changing it to the current log directory,
 # so it's useful to have this path as a special variable
 # https://hydra.cc/docs/next/tutorials/basic/running_your_app/working_directory
-work_dir: "~/LLM-jp-2025competetion-victory/test1"     # 学習結果出力ディレクトリ
-data_dir: "~/LLM-jp-2025competetion-victory/datasets" # データセット保存済みディレクトリ
+work_dir: "${oc.env:HOME}/LLM-jp-2025competetion-victory/results/sft1"     # 学習結果出力ディレクトリ
+data_dir: "${oc.env:HOME}/LLM-jp-2025competetion-victory/datasets" # データセット保存済みディレクトリ
 data_version: "tuning_data20251105" # データセット保存済みディレクトリのどのデータを使用するか
 # We assume that the dataset is stored in the following directory structure:
 # SFT (dev split is automatically created from the training data):

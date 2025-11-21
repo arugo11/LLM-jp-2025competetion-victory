@@ -1,10 +1,14 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q FIXME
-#PBS -N FIXME
-#PBS -l select=8:ncpus=192
+#PBS -q rt_HF
+#PBS -N llmjp-sft
+#PBS -l select=8:ncpus=192    
 #PBS -l walltime=168:00:00
 #PBS -m n
+
+# -p グループ名 (固定)
+# -q 資源タイプ名 rt_HF:1ノード, rt_HG:1GPU
+# -N ジョブ名
 
 # Setup logs
 cd $PBS_O_WORKDIR
