@@ -35,6 +35,8 @@ mkdir -p ${ENV_DIR}/src
 # Copy necessary scripts
 cp -r ${SCRIPT_DIR}/scripts ${ENV_DIR}
 
+TARGET_DIR=${ENV_DIR}
+
 # Set variables
 source ${ENV_DIR}/scripts/environment.sh
 set > ${ENV_DIR}/installer_envvar.log

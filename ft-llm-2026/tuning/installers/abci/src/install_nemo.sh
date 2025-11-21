@@ -11,7 +11,8 @@ pushd NeMo
 git checkout ${TUNING_NEMO_COMMIT}
 # Apply the patch
 git apply ${SCRIPT_DIR}/src/NeMo_v2.1.0rc0.patch
-
+module load cuda/12.1
+pip list
 python -m pip install -e .
 popd
 
