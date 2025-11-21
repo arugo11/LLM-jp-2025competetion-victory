@@ -1,12 +1,13 @@
 # Script for setup environment
 
-ENV_DIR="~/LLM-jp-2025competetion-victory/env"
+ENV_DIR="${HOME}/LLM-jp-2025competetion-victory/env"
 
 # Setup Python environment
 source ${ENV_DIR}/scripts/environment.sh
 source ${ENV_DIR}/venv/bin/activate
 
 # Set TMPDIR
+mkdir -p ${HOME}/tmp
 export TMPDIR=${HOME}/tmp
 
 # Determine master address:port
