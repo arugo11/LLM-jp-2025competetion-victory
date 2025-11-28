@@ -60,7 +60,7 @@ To install `uv`, follow the [UV Installation Guide](https://docs.astral.sh/uv/ge
 
 
 ```shell
-uv venv openr1 --python 3.11 && source openr1/bin/activate && uv pip install --upgrade pip
+uv venv openr1 --python 3.11 && source env/bin/activate && uv pip install --upgrade pip
 ```
 
 > [!TIP]

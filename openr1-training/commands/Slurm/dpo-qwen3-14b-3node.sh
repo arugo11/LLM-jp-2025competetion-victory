@@ -4,10 +4,10 @@
 #SBATCH --nodes=3              # 利用するノード数
 #SBATCH --gpus-per-node=8      # 1ノードあたりのGPU数
 #SBATCH --nodelist osk-gpu[54,56,91] # 利用するノードのリスト
-#SBATCH --job-name dpo-32b     # ジョブの名前
+#SBATCH --job-name dpo-14b     # ジョブの名前
 #SBATCH --time 1:00:00         # ジョブの最大実行時間
-#SBATCH --output orpo-32b.out   # 標準出力ファイル
-#SBATCH --error orpo-32b.err    # 標準エラーファイル
+#SBATCH --output dpo-14b.out   # 標準出力ファイル
+#SBATCH --error dpo-14b.err    # 標準エラーファイル
 #SBATCH --mem=0            # 各ノードのメモリサイズ
 #SBATCH --cpus-per-task=160         # number of cores per tasks
 
@@ -27,12 +27,12 @@ echo "MASTER_PORT: $MASTER_PORT"
 
 module load cuda/12.8           # nvccを使うためにCUDAをロード
 
-source openr1/bin/activate      # venvを有効化
+source env/bin/activate      # venvを有効化
 
 ulimit -v unlimited
 ulimit -m unlimited
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
     "accelerate launch \
@@ -43,6 +43,5 @@ srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
         --main_process_port \"$MASTER_PORT\" \
         --rdzv_backend c10d \
         open_r1/orpo.py \
-        --config ../../configs/Qwen3-32B/DPO/config_dpo.yaml \
-        --dataconfig ../../configs/data_configs/example.yaml"
+        --config ../../configs/Qwen3-14B/DPO/config_dpo.yaml \
     "

@@ -13,9 +13,9 @@ export WANDB_DISABLED="true"   # WANDBを一旦無効化
 # --- 環境設定 ---
 module load cuda/12.8           # nvccを使うためにCUDAをロード
 
-source openr1/bin/activate      # venvを有効化
+source env/bin/activate      # venvを有効化
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 
 accelerate launch \
@@ -23,7 +23,7 @@ accelerate launch \
     --num_machines 1 \
     --num_processes 8 \
     open_r1/dpo.py \
-    --config ../../configs/Qwen3-14B/DPO/config_dpo.yaml
+    --config ../../configs/Qwen3-32b/DPO/config_dpo.yaml
 
 # 複数GPUならzero3.yamlを使う
 # GPUが1つならzero2.yamlを使う

@@ -22,9 +22,9 @@ echo "MASTER_PORT: $MASTER_PORT"
 # --- 環境設定 ---
 module load cuda/12.8           # nvccを使うためにCUDAをロード
 
-source openr1/bin/activate      # venvを有効化
+source env/bin/activate      # venvを有効化
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 ulimit -v unlimited
 ulimit -m unlimited

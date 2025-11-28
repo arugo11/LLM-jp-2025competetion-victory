@@ -1,40 +1,17 @@
 #!/bin/bash
 #SBATCH --partition P02        # 利用するパーティション（キュー）
 #SBATCH --ntasks-per-node=1    # 1ノードあたりのタスク数
-#SBATCH --nodes=3              # 利用するノード数
+#SBATCH --nodes=1              # 利用するノード数
 #SBATCH --gpus-per-node=8      # 1ノードあたりのGPU数
-#SBATCH --nodelist osk-gpu[54,56,91] # 利用するノードのリスト
-#SBATCH --job-name sft-235b     # ジョブの名前
+#SBATCH --nodelist osk-gpu[56] # 利用するノードのリスト
+#SBATCH --job-name sft-30b     # ジョブの名前
 #SBATCH --time 1:00:00         # ジョブの最大実行時間
-#SBATCH --output sft-235b.out   # 標準出力ファイル
-#SBATCH --error sft-235b.err    # 標準エラーファイル
+#SBATCH --output sft-30b_n1.out   # 標準出力ファイル
+#SBATCH --error sft-30b_n1.err    # 標準エラーファイル
 #SBATCH --mem=0            # 各ノードのメモリサイズ
 #SBATCH --cpus-per-task=160         # number of cores per tasks
 
 # export WANDB_DISABLED="true"   # WANDBを一旦無効化
-
-### ====== デバッグ用情報出力 ======
-echo "=== [DEBUG] Job Start: $(date) ==="
-echo "SLURM_JOB_NODELIST: $SLURM_JOB_NODELIST"
-echo "HOSTNAME: $(hostname)"
-echo "WHOAMI: $(whoami)"
-echo "PWD: $(pwd)"
-echo
-echo "=== [DEBUG] Python & Pip 情報 ==="
-which python
-python --version
-which pip
-pip --version
-pip list | grep -E "torch|deepspeed|accelerate"
-echo
-echo "=== [DEBUG] PATH 確認 ==="
-echo $PATH | tr ':' '\n'
-echo
-echo "=== [DEBUG] GPU可視性確認 ==="
-nvidia-smi || echo "nvidia-smi コマンドが失敗しました"
-python -c "import torch; print('torch.cuda.is_available():', torch.cuda.is_available())"
-echo "=================================="
-### ===============================
 
 # Slurmで確保したノードリストの先頭をマスターノードのアドレスとして設定
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -46,32 +23,27 @@ echo "MASTER_PORT: $MASTER_PORT"
 
 export NCCL_DEBUG=WARN
 export NCCL_DEBUG_SUBSYS=ALL
-
-export NCCL_P2P_DISABLE=1
-export NCCL_P2P_LEVEL=NVL
-export NCCL_IB_GID_INDEX=3
-# export NCCL_SOCKET_IFNAME=^lo,docker,virbr
 #export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
 module load cuda/12.8           # nvccを使うためにCUDAをロード
 
-source openr1/bin/activate      # venvを有効化
+source env/bin/activate      # venvを有効化
 
 ulimit -v unlimited
 ulimit -m unlimited
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
     "accelerate launch \
         --config_file ../recipes/accelerate_configs/zero3.yaml \
-        --num_machines 3 \
-        --num_processes 24 \
+        --num_machines 1 \
+        --num_processes 8 \
         --main_process_ip \"$MASTER_ADDR\" \
         --main_process_port \"$MASTER_PORT\" \
         --rdzv_backend c10d \
-        open_r1/sft_muon.py \
-        --config ../../configs/Qwen3-235b/sft/config_test.yaml \
+        open_r1/sft.py \
+        --config ../../configs/Qwen3-30B-A3B/sft/config_test.yaml \
         --dataconfig ../../configs/data_configs/example.yaml"
 
 # 実行方法
@@ -81,4 +53,4 @@ srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
 # /home/Competition2025/P02/shareP02/scripts/scancel.sh 287614
 
 # 実行コマンド
-# sbatch ./llm2025compet/training/commands/sft-qwen-235b.sh
+# sbatch ./llm2025compet/training/commands/sft-qwen-30b.sh

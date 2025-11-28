@@ -36,12 +36,12 @@ mkdir -p ${HF_HOME}
 
 module load cuda/12.8           # nvccを使うためにCUDAをロード
 
-source openr1/bin/activate      # venvを有効化
+source env/bin/activate      # venvを有効化
 
 ulimit -v unlimited
 ulimit -m unlimited
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 if [ "$SLURM_PROCID" == "0" ]; then
     echo "Downloading model to NVMe on the first node..."

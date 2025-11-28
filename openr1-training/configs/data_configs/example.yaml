@@ -1,7 +1,8 @@
 neko_sft_datasets:
-  - name: neko-llm/HLE_SFT_OpenThoughts-114k
+  - name: nvidia/OpenMathInstruct-2
     config: default
-    question_field: question
-    answer_field: output
-    from_id: 1
-    to_id: 1000
+    split: train_1M
+    question_field: problem
+    answer_field: generated_solution
+    # from_id: 1
+    # to_id: 1000

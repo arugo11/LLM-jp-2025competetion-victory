@@ -18,9 +18,9 @@ export WANDB_DISABLED="true"
 # export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
 module load cuda/12.8
-source openr1/bin/activate
+source env/bin/activate
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 ################### GPU 利用ログ ###################
 #srun --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES \
@@ -40,7 +40,7 @@ srun --nodes=1 --ntasks=1 --nodelist="$VLLM_NODE" \
      --gres=gpu:8 --exclusive \
      bash -c "
        echo '[vLLM] Launch on \$HOSTNAME'
-       cd llm2025compet/training/open-r1/src || exit 1
+       cd open-r1/src || exit 1
        CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
        trl vllm-serve \
          --model Qwen/Qwen3-32B \
@@ -58,7 +58,7 @@ srun --nodes=2 --ntasks=2 --nodelist="$TRAIN_NODES" \
      --gres=gpu:8 --exclusive \
      bash -c "
        echo '[GRPO] Launch on \$HOSTNAME (SLURM_PROCID=\$SLURM_PROCID)'
-       cd llm2025compet/training/open-r1/src || exit 1
+       cd open-r1/src || exit 1
        accelerate launch \
          --config_file ../recipes/accelerate_configs/zero3.yaml \
          --num_machines 2 \

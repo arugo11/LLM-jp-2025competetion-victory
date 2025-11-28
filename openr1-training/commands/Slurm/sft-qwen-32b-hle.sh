@@ -4,10 +4,10 @@
 #SBATCH --nodes=3              # 利用するノード数
 #SBATCH --gpus-per-node=8      # 1ノードあたりのGPU数
 #SBATCH --nodelist osk-gpu[54,56,91] # 利用するノードのリスト
-#SBATCH --job-name dpo-14b     # ジョブの名前
-#SBATCH --time 1:00:00         # ジョブの最大実行時間
-#SBATCH --output dpo-14b.out   # 標準出力ファイル
-#SBATCH --error dpo-14b.err    # 標準エラーファイル
+#SBATCH --job-name sft-32b-hle     # ジョブの名前
+#SBATCH --time 24:00:00         # ジョブの最大実行時間
+#SBATCH --output sft-32b-hle.out   # 標準出力ファイル
+#SBATCH --error sft-32b-hle.err    # 標準エラーファイル
 #SBATCH --mem=0            # 各ノードのメモリサイズ
 #SBATCH --cpus-per-task=160         # number of cores per tasks
 
@@ -27,12 +27,12 @@ echo "MASTER_PORT: $MASTER_PORT"
 
 module load cuda/12.8           # nvccを使うためにCUDAをロード
 
-source openr1/bin/activate      # venvを有効化
+source env/bin/activate      # venvを有効化
 
 ulimit -v unlimited
 ulimit -m unlimited
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
     "accelerate launch \
@@ -42,6 +42,19 @@ srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
         --main_process_ip \"$MASTER_ADDR\" \
         --main_process_port \"$MASTER_PORT\" \
         --rdzv_backend c10d \
-        open_r1/orpo.py \
-        --config ../../configs/Qwen3-14B/DPO/config_dpo.yaml \
-    "
+        open_r1/sft.py \
+        --config ../../configs/Qwen3-32b/sft/config_main.yaml \
+        --output_dir data/Qwen3-32B-HLE \
+        --hub_model_id neko-llm/Qwen3-32B-HLE \
+        --num_train_epochs 5 \
+        --max_length 32768 \
+        --dataconfig ../../configs/data_configs/hle_ver1_0.yaml" \
+
+# 実行方法
+# HOMEで以下を実行する。自動でopen-r1のソースコードディレクトリに移動することに注意
+
+# 以下のコマンドでダミージョブをキャンセルする必要がある。
+# /home/Competition2025/P02/shareP02/scripts/scancel.sh 287614
+
+# 実行コマンド
+# sbatch ./llm2025compet/training/commands/sft-qwen-32b-hle.sh

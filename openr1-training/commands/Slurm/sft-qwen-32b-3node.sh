@@ -4,10 +4,10 @@
 #SBATCH --nodes=3              # 利用するノード数
 #SBATCH --gpus-per-node=8      # 1ノードあたりのGPU数
 #SBATCH --nodelist osk-gpu[54,56,91] # 利用するノードのリスト
-#SBATCH --job-name sft-30b     # ジョブの名前
+#SBATCH --job-name sft-32b     # ジョブの名前
 #SBATCH --time 1:00:00         # ジョブの最大実行時間
-#SBATCH --output sft-30b.out   # 標準出力ファイル
-#SBATCH --error sft-30b.err    # 標準エラーファイル
+#SBATCH --output sft-32b.out   # 標準出力ファイル
+#SBATCH --error sft-32b.err    # 標準エラーファイル
 #SBATCH --mem=0            # 各ノードのメモリサイズ
 #SBATCH --cpus-per-task=160         # number of cores per tasks
 
@@ -21,18 +21,18 @@ echo "MASTER_ADDR: $MASTER_ADDR"
 export MASTER_PORT=29500
 echo "MASTER_PORT: $MASTER_PORT"
 
-export NCCL_DEBUG=WARN
-export NCCL_DEBUG_SUBSYS=ALL
+#export NCCL_DEBUG=INFO
+#export NCCL_DEBUG_SUBSYS=ALL
 #export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
 module load cuda/12.8           # nvccを使うためにCUDAをロード
 
-source openr1/bin/activate      # venvを有効化
+source env/bin/activate      # venvを有効化
 
 ulimit -v unlimited
 ulimit -m unlimited
 
-cd llm2025compet/training/open-r1/src || exit 1
+cd open-r1/src || exit 1
 
 srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
     "accelerate launch \
@@ -43,7 +43,7 @@ srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
         --main_process_port \"$MASTER_PORT\" \
         --rdzv_backend c10d \
         open_r1/sft.py \
-        --config ../../configs/Qwen3-30B-A3B/sft/config_test.yaml \
+        --config ../../configs/Qwen3-30B-A3B/sft/config_test_2.yaml \
         --dataconfig ../../configs/data_configs/example.yaml"
 
 # 実行方法
@@ -53,4 +53,4 @@ srun --jobid $SLURM_JOB_ID --mem=0 bash -c \
 # /home/Competition2025/P02/shareP02/scripts/scancel.sh 287614
 
 # 実行コマンド
-# sbatch ./llm2025compet/training/commands/sft-qwen-30b.sh
+# sbatch ./llm2025compet/training/commands/sft-qwen-32b-node3.sh
