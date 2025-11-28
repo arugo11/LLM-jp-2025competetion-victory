@@ -11,7 +11,7 @@ entity: hongo-hayato-6281k-university-of-tokyo  # wandbのユーザーネーム
 # https://hydra.cc/docs/next/tutorials/basic/running_your_app/working_directory
 work_dir: "${oc.env:HOME}/LLM-jp-2025competetion-victory/results/sft1"     # 学習結果出力ディレクトリ
 data_dir: "${oc.env:HOME}/LLM-jp-2025competetion-victory/datasets" # データセット保存済みディレクトリ
-data_version: "tuning_data20251105" # データセット保存済みディレクトリのどのデータを使用するか
+data_version: "OpenMathInstruct-1/correct_solutions" # データセット保存済みディレクトリのどのデータを使用するか
 # We assume that the dataset is stored in the following directory structure:
 # SFT (dev split is automatically created from the training data):
 # - ${data_dir}/${data_version}/tuning/train/dataset_a.jsonl

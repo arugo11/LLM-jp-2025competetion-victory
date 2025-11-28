@@ -15,6 +15,8 @@ from nemo.utils import logging
 from nemo.utils.get_rank import is_global_rank_zero
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader
+from datasets import load_dataset
+from tqdm import tqdm
 
 
 def create_sft_dataloader(
@@ -57,18 +59,36 @@ def tokenize_sft_examples(
     cached_dataset_path: Path,
     tokenizer: TokenizerSpec,
     model_name: str,
+    raw_data: Optional[list[dict]] = None,
+    cfg: Optional[DictConfig] = None,
 ) -> list[dict[str, list[int]]]:
     loaded_examples: list[dict] = []
-    with orig_dataset_path.open(encoding="utf-8") as f:
-        for line in f:
-            loaded_examples.append(json.loads(line))
+    if raw_data is not None:
+        loaded_examples = raw_data
+    else:
+        # 既存のファイル読み込みロジック
+        with orig_dataset_path.open(encoding="utf-8") as f:
+            for line in f:
+                loaded_examples.append(json.loads(line))
 
     tokenized_examples: list[dict[str, list[int]]] = []
     if is_global_rank_zero():
         logging.info("Tokenizing for llm-jp-tokenizer v4.0 alpha1.0")
 
-    for example_idx, loaded_example in enumerate(loaded_examples):
-        conversation: list[dict[str, str]] = loaded_example["messages"]
+    for example_idx, loaded_example in tqdm(enumerate(loaded_examples)):
+        if raw_data is None:
+            conversation: list[dict[str, str]] = loaded_example["messages"]
+        else:
+            conversation: list[dict[str, str]] = [{
+                    "role": "system",
+                    "content": cfg.data.huggingface.instruction,
+                },{
+                    "role": "user",
+                    "content": loaded_example[cfg.data.huggingface.question_field],
+                },{
+                    "role": "assistant",
+                    "content": loaded_example[cfg.data.huggingface.answer_field],
+                }]
         assert len(conversation) >= 3
         assert conversation[0]["role"] == "system"
 
@@ -108,11 +128,15 @@ def tokenize_sft_examples(
 def load_sft_datasets(
     cfg: DictConfig, tokenizer: TokenizerSpec
 ) -> tuple[list[dict[str, list[int]]], list[dict[str, list[int]]]]:
+
     data_name2num_examples: dict[str, dict[str, int]] = {}
     total_train_examples: list[dict] = []
     total_dev_examples: list[dict] = []
+
+    hf_data_path = getattr(cfg.data.huggingface, "data_path", None)
+
     for data_name, data_info in cfg.datasets.items():
-        dataset_dir: Path = Path(f"{cfg.data_dir}/{cfg.data_version}/tuning/train")
+        dataset_dir: Path = Path(f"{cfg.data_dir}/{cfg.data_version}")
         cached_dataset_path: Path = dataset_dir / f"{data_name}.pkl"
         orig_dataset_path: Path = dataset_dir / f"{data_name}.jsonl"
 
@@ -121,6 +145,32 @@ def load_sft_datasets(
                 logging.info(f"Load from cached dataset: {cached_dataset_path}")
             with cached_dataset_path.open("rb") as f:
                 tokenized_examples: list[dict[str, list[int]]] = pickle.load(f)
+        elif hf_data_path is not None:
+            if is_global_rank_zero():
+                logging.info(
+                    f"Loading dataset from Hugging Face: {hf_data_path} (ignoring local jsonl path)"
+                )
+            
+            # datasetsライブラリでロード (split="train"と仮定)
+            # 注: data_name を subset として使うか、単に hf_data_path をロードするかは要件次第ですが、
+            # ここではシンプルに hf_data_path をロードします。
+            raw_dataset = load_dataset(
+                cfg.data.huggingface.data_path, 
+                split=cfg.data.huggingface.split, 
+                cache_dir=cfg.data.huggingface.cache_dir
+            )
+            
+            # datasetsの形式をリスト形式に変換 (メモリに乗る前提)
+            raw_data_list = list(raw_dataset)
+
+            tokenized_examples = tokenize_sft_examples(
+                orig_dataset_path, # ダミーとして渡すが使われない
+                cached_dataset_path,
+                tokenizer,
+                Path(cfg.model.restore_from_path).stem,
+                raw_data=raw_data_list, # 【変更点】ロードしたデータを渡す
+                cfg=cfg,
+            )
         elif orig_dataset_path.exists():
             if data_info.max_train_samples == 0:
                 if is_global_rank_zero():

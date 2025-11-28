@@ -6,12 +6,19 @@ defaults:
   - _self_
 
 data:
+  huggingface:
+    data_path: nvidia/OpenMathInstruct-2
+    split: train_1M
+    cache_dir: ${data_dir}/hf_cache
+    instruction: 以下は、タスクを説明する指示です。要求を適切に満たす応答を書きなさい。
+    question_field: "problem"
+    answer_field: "generated_solution"
   train_ds:
-    data_dir: ${data_dir}/tuning/train
+    data_dir: ${data_dir}/correct_solutions
     global_batch_size: ${gbs}
     micro_batch_size: ${mbs}
   validation_ds:
-    data_dir: ${data_dir}/tuning/dev
+    data_dir: ${data_dir}/correct_solutions
     global_batch_size: ${gbs}
     micro_batch_size: ${mbs}
 
@@ -20,11 +27,11 @@ data:
   # split_dev: whether to split the dataset into training and validation datasets. If false, the dataset is used for training only.
   # upsampling_factor: upsampling factor for the dataset. 1 means no upsampling. Valid for both training and validation datasets.
 datasets:
-  llmjp_extraction_wiki_ja_v0.2:
+  train:
     max_train_samples: -1 # -1 means all
     split_dev: true
     upsampling_factor: 1
-  llmjp_extraction_wiki_ja_v0.3:
+  validation:
     max_train_samples: -1 # -1 means all
     split_dev: true
     upsampling_factor: 1
