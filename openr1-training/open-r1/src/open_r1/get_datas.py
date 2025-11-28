@@ -36,7 +36,27 @@ def get_datas_from_config(config: DataConfig, seed: int = 42):
         #     print(f"  ({i+1}/{len(config.datasets)}) ロード中: {dataset_info.name}, 分割: {split_spec} (全件)")
 
         # 1. データセットをロード
-        dataset = datasets.load_dataset(dataset_info.name, name=dataset_info.config)
+        # 設定オブジェクトに 'split' 属性があればそれを取得、なければ None
+        target_split = getattr(dataset_info, 'split', None)
+
+        if target_split:
+            print(f"    -> 指定Split: {target_split} のみをロードします")
+            # splitを指定してロード（戻り値は単体の Dataset オブジェクト）
+            single_dataset = datasets.load_dataset(
+                dataset_info.name, 
+                name=dataset_info.config, 
+                split=target_split
+            )
+            # 後続の処理が DatasetDict 形式（dataset['train']）を期待しているため、
+            # 単体Datasetを 'train' キーを持つ DatasetDict にラップする
+            dataset = DatasetDict({'train': single_dataset})
+        else:
+            # split指定がない場合は通常通りロード（戻り値は DatasetDict）
+            print(f"    -> 全Splitをロードします")
+            dataset = datasets.load_dataset(
+                dataset_info.name, 
+                name=dataset_info.config
+            )
         
         print(f"  データセット '{dataset_info.name}' の分割: {list(dataset.keys())}")
         print(f"  データセット '{dataset_info.name}' のカラム: {list(dataset.column_names.values())}")
@@ -115,9 +135,9 @@ def get_datas_from_config(config: DataConfig, seed: int = 42):
 
     #print("  最初のサンプル:", combined_dataset['train'][0])
     print("  最初のサンプルの文字数:", len(json.dumps(combined_dataset['train'][0]['messages'], ensure_ascii=False)))
-    print("  文字数の平均:", sum(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']) / len(combined_dataset['train']))
-    print("  文字数の最大値:", max(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']))
-    print("  文字数の最小値:", min(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']))
+    #print("  文字数の平均:", sum(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']) / len(combined_dataset['train']))
+    #print("  文字数の最大値:", max(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']))
+    #print("  文字数の最小値:", min(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']))
     print("  サンプル数:", len(combined_dataset['train']))
 
     return combined_dataset
