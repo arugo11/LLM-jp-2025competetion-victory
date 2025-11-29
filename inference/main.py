@@ -7,13 +7,10 @@ from vllm import LLM, SamplingParams
 
 PROMPT_TEMPLATE = """\
 以下は数学の問題です。
-問題に対する解答のみを出力してください。
-推論過程は出力しないでください。
+解答を段階的に考え、最終的な解答の数値のみを\\boxタグ内に記述してください。
 
 # 問題
 {question}
-
-# 解答
 """
 
 
@@ -48,7 +45,7 @@ def main():
         )
 
     outputs = llm.chat(
-        messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=64)
+        messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=4096)
     )
 
     for problem, output in zip(problems, outputs):
