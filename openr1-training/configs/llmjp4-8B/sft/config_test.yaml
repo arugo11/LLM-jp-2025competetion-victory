@@ -46,9 +46,9 @@ logging_strategy: steps # ログを出力するタイミング ('no' or 'steps' 
 lr_scheduler_type: cosine_with_min_lr # 学習率スケジューラのタイプ 
 lr_scheduler_kwargs:
   min_lr_rate: 0.1
-packing: false
+packing: true
 max_grad_norm: 0.2
-max_length: 16384 # 32768 # 最大シーケンス長
+max_length: 4096 # 32768 # 最大シーケンス長
 max_steps: -1
 num_train_epochs: 10 # 学習エポック数
 output_dir: data/llm-jp-4-8b-instruct-sft-test # 結果の出力ディレクトリ
