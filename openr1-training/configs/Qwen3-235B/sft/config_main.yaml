@@ -39,6 +39,7 @@ eos_token: <|im_end|> # シーケンスの終端トークン
 use_cpu: false # CPUを使うかどうか (GPUがない場合はtrueにする)
 data_seed: 42 # データセットの乱数シード
 bf16: true # bf16を使う
+completion_only_loss: true
 do_eval: false # 評価を行うかどうか
 eval_strategy: 'no' # 評価を行うタイミング ('no' or 'steps' or 'epoch')
 gradient_accumulation_steps: 8 # 勾配蓄積のステップ数

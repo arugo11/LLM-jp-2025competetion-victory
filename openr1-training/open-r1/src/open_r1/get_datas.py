@@ -87,20 +87,20 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
             """
             'prompt' と 'completion' の内容から指定のJSON形式の文字列を作成する。
             """
-            raw_prompt = example.get('prompt')
+            raw_prompt = example.get('prompt', "")
+            raw_completion = example.get('completion', "")
             
             # system_promptが指定されている場合、テンプレートの{question}を実際のプロンプトで埋める
             if system_prompt:
-                user_content = system_prompt.format(question=raw_prompt)
+                # 文字列型であることを保証してformat
+                final_prompt = system_prompt.format(question=str(raw_prompt))
             else:
-                user_content = raw_prompt
+                final_prompt = str(raw_prompt)
                 
-            messages = [
-                {"role": "user", "content": user_content},
-                {"role": "assistant", "content": example.get('completion')}
-            ]
-            # json.dumpsでJSON文字列に変換（ensure_ascii=Falseで日本語を正しく扱う）
-            return {"messages": messages}
+            return {
+                "prompt": final_prompt,
+                "completion": str(raw_completion)
+            }
 
         # 4. map関数を適用して全データセットの各分割に新しいフォーマットを適用
         #    同時に、整形に使った 'prompt', 'completion' やその他不要なカラムをすべて削除
@@ -141,11 +141,10 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
     print(combined_dataset)
     print(combined_dataset['train'])
 
-    #print("  最初のサンプル:", combined_dataset['train'][0])
-    print("  最初のサンプルの文字数:", len(json.dumps(combined_dataset['train'][0]['messages'], ensure_ascii=False)))
-    #print("  文字数の平均:", sum(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']) / len(combined_dataset['train']))
-    #print("  文字数の最大値:", max(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']))
-    #print("  文字数の最小値:", min(len(json.dumps(sample['messages'], ensure_ascii=False)) for sample in combined_dataset['train']))
+    # messagesキーは存在しないため、promptとcompletionの内容を表示するように変更
+    sample = combined_dataset['train'][0]
+    print("  最初のサンプル:", sample)
+    print("  最初のサンプルの合計文字数:", len(sample['prompt']) + len(sample['completion']))
     print("  サンプル数:", len(combined_dataset['train']))
 
     return combined_dataset
