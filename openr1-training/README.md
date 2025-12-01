@@ -11,5 +11,11 @@ $ . ./create_open-r1_env.sh
 ### Slrum
 HOMEで以下を実行する。
 ```bash
-$ sbatch ./commands/sft-qwen-0.5b.sh
+$ sbatch ./commands/PBS/sft-llmjp4-8b.sh
+```
+
+### PBS
+HOMEで以下を実行する。
+```bash
+$ qsub ./commands/PBS/sft-llmjp4-8b.sh
 ```
