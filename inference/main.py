@@ -7,10 +7,11 @@ from vllm import LLM, SamplingParams
 
 PROMPT_TEMPLATE = """\
 以下は数学の問題です。
-解答を段階的に考え、最終的な解答の数値のみを\\boxタグ内に記述してください。
+解答を段階的に考え、最後に解答の数値のみを\\boxタグ内に記述してください。
 
 # 問題
 {question}
+# 解答
 """
 
 
