@@ -46,7 +46,7 @@ from open_r1.configs import ScriptArguments, SFTConfig, DatasetClass, DataConfig
 from open_r1.utils import get_dataset, get_model, get_tokenizer
 from open_r1.utils.callbacks import get_callbacks
 from open_r1.utils.wandb_logging import init_wandb_training
-from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_format
+from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_format, DataCollatorForCompletionOnlyLM
 
 from open_r1.get_datas import get_datas_from_config
 
@@ -136,7 +136,7 @@ def main(script_args, training_args, model_args, data_config: DataConfig):
     if data_config is None:
         dataset = get_dataset(script_args)
     else:
-        dataset = get_datas_from_config(data_config)
+        dataset = get_datas_from_config(data_config, training_args.system_prompt)
     print(f"Loaded dataset: {dataset}")
     tokenizer = get_tokenizer(model_args, training_args)
     model = get_model(model_args, training_args)

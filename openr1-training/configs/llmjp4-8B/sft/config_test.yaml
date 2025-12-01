@@ -25,6 +25,7 @@ dataset_name: openai/gsm8k # データセット名
 dataset_config: main # データセットのサブセット
 dataset_num_proc: 12 # データセットの前処理に使うプロセス(CPUコア)数
 dataset_text_field: answer # データセットのテキストフィールド名
+system_prompt: "以下は数学の問題です。\n解答を段階的に考え、最終的な解答の数値のみを\\boxタグ内に記述してください。\n\n# 問題\n{question}"
 #eos_token: <|im_end|> # シーケンスの終端トークン
 
 # SFT trainer config

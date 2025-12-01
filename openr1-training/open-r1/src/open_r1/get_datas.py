@@ -8,7 +8,7 @@ from configs import DataConfig
 
 logger = logging.getLogger(__name__)
 
-def get_datas_from_config(config: DataConfig, seed: int = 42):
+def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: int = 42):
     """
     設定オブジェクトに基づき、複数のデータセットをロードして結合する。
     最終的なカラム名は 'prompt' と 'completion' に統一される。
@@ -87,8 +87,16 @@ def get_datas_from_config(config: DataConfig, seed: int = 42):
             """
             'prompt' と 'completion' の内容から指定のJSON形式の文字列を作成する。
             """
+            raw_prompt = example.get('prompt')
+            
+            # system_promptが指定されている場合、テンプレートの{question}を実際のプロンプトで埋める
+            if system_prompt:
+                user_content = system_prompt.format(question=raw_prompt)
+            else:
+                user_content = raw_prompt
+                
             messages = [
-                {"role": "user", "content": example.get('prompt')},
+                {"role": "user", "content": user_content},
                 {"role": "assistant", "content": example.get('completion')}
             ]
             # json.dumpsでJSON文字列に変換（ensure_ascii=Falseで日本語を正しく扱う）
@@ -100,7 +108,7 @@ def get_datas_from_config(config: DataConfig, seed: int = 42):
         dataset = dataset.map(format_to_text_column, remove_columns=current_columns)
         
         # 一番目をprint
-        # print(f"  データセット '{dataset_info.name}' の最初のサンプル: {dataset['train'][0]}")
+        print(f"  データセット '{dataset_info.name}' の最初のサンプル: {dataset['train'][0]}")
         print(f"  データセット '{dataset_info.name}' のカラム: {list(dataset.column_names.values())}")
 
         loaded_datasets.append(dataset)
