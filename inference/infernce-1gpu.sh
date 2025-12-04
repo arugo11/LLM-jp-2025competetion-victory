@@ -29,14 +29,14 @@ mkdir -p "$UV_CACHE_DIR"
 # コードを書き替えるたびにビルドする必要があるそうです。
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
-       --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct" \
        dist/submission.sif submission.def
 
 # 推論を実行します。
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none \
+    --bind "$(pwd)/models:/app/models" \
     dist/submission.sif \
-    --model_path models/team-victory/llm-jp-4-8b-instruct \
+    --model_path models/openai/gpt-oss-20b \
     --input_path "$(pwd)/input/dev.jsonl" \
-    --output_path "$(pwd)/output/output_4_1_instruction.jsonl" \
+    --output_path "$(pwd)/output/output_20b.jsonl" \
     --max_tokens 1024

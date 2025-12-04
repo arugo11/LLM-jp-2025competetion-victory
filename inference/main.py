@@ -60,7 +60,7 @@ def main():
     inference_start_time = time.time()
     # 推論処理
     outputs = llm.chat(
-        messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=args.max_tokens)
+        messages, sampling_params=SamplingParams(temperature=1.0, max_tokens=args.max_tokens)
     )
     # 推論時間の表示
     inference_finish_time = time.time()
