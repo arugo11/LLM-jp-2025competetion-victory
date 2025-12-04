@@ -1,0 +1,30 @@
+--- a/nemo_skills/inference/server/serve_vllm.py
++++ b/nemo_skills/inference/server/serve_vllm.py
+@@ -23,6 +23,11 @@ def main():
+     parser.add_argument("--num_nodes", type=int, required=False, default=1)
+     parser.add_argument("--port", type=int, default=5000, help="Server port")
+     parser.add_argument("--no_verbose", action="store_true", help="Print verbose logs")
++    parser.add_argument(
++        "--enforce-eager",
++        action="store_true",
++        help="Force vLLM to run in eager mode (useful for some kernels/driver combos)",
++    )
+     args, unknown = parser.parse_known_args()
+ 
+     extra_arguments = f"{' '.join(unknown)}"
+@@ -34,6 +39,7 @@ def main():
+         logging_args = " --disable-log-requests --disable-log-stats "
+     else:
+         logging_args = ""
++    enforce_eager_arg = " --enforce-eager " if args.enforce_eager else ""
+ 
+     cmd = (
+         f"python3 -m vllm.entrypoints.openai.api_server "
+@@ -43,6 +49,7 @@ def main():
+         f'    --host="0.0.0.0" '
+         f"    --port={args.port} "
+         f"    --tensor-parallel-size={args.num_gpus * args.num_nodes} "  # TODO: is this a good default for multinode setup?
++        f"    {enforce_eager_arg}"
+         f"    {logging_args} "
+         f"    {extra_arguments} " + (' | grep -v "200 OK"' if args.no_verbose else "")
+     )
