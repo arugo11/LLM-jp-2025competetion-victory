@@ -217,3 +217,7 @@ __marimo__/
 
 # .DS_Store files by macOS
 .DS_Store
+
+# Cluster job logs
+ft-llm-2026/tir/run_tir_interactive.sh.e*
+ft-llm-2026/tir/run_tir_interactive.sh.o*
