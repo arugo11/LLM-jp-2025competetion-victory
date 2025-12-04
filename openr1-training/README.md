@@ -8,14 +8,11 @@ $ . ./create_open-r1_env.sh
 
 ## 学習の実行
 
-### Slrum
-HOMEで以下を実行する。
-```bash
-$ sbatch ./commands/PBS/sft-llmjp4-8b.sh
-```
-
 ### PBS
-HOMEで以下を実行する。
+openr1-trainingディレクトリで以下を実行する。
 ```bash
+$ source env/bin/activate
+$ module load python/3.12/3.12.9
+$ module load cuda/12.8
 $ qsub ./commands/PBS/sft-llmjp4-8b.sh
 ```
