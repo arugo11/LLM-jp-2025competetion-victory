@@ -12,7 +12,7 @@
    - モデル取得には `HF_TOKEN` が環境変数で渡っている必要があります (ファイルには書き込みません)。
 
 ## コンテナ内で手動確認したい場合
-1. 計算ノードに入る (例: `qsub -I -q rt_HG -l select=1 -l walltime=2:00:00 -P gch51701`)
+1. 計算ノードに入る (例: `qsub -I -q rt_HG -l select=1 -l walltime=1:00:00 -P gch51701`)
 2. 環境ロード  (`LLM-jp-2025competetion-victory/ft-llm-2026/tir/`のディレクトリで実行)
    `source scripts/abci/environment.sh`
 3. コンテナへ入る  
