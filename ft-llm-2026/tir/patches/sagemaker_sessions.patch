@@ -1,0 +1,17 @@
+--- a/model_hosting_container_standards/sagemaker/sessions/manager.py
++++ b/model_hosting_container_standards/sagemaker/sessions/manager.py
+@@ -131,11 +131,9 @@ class SessionManager:
+         # Session expiration time in seconds (default: 20 minutes)
+         self.expiration = int(properties.get("sessions_expiration", str(20 * 60)))
+ 
+-        # Prefer /dev/shm (memory-backed filesystem) for performance
+-        if os.path.exists("/dev/shm"):
+-            session_dir = "/dev/shm/sagemaker_sessions"
+-        else:
+-            session_dir = os.path.join(tempfile.gettempdir(), "sagemaker_sessions")
++        # Use a temp-backed directory (works inside restricted containers that lack /dev/shm)
++        session_dir = os.path.join(tempfile.gettempdir(), "sagemaker_sessions")
++        os.makedirs(session_dir, exist_ok=True)
+ 
+         self.sessions_path = properties.get("sessions_path", session_dir)
+         self.sessions: dict[str, Session] = {}
