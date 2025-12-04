@@ -1,0 +1,24 @@
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[project]
+name = "ft-llm-2026-tir"
+version = "0.1.0"
+description = "TIR demo stack for ABCI + Singularity using NeMo-Skills and vLLM."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Git source because nemo-skills is not yet published on PyPI
+    "nemo-skills @ git+https://github.com/NVIDIA-NeMo/Skills@df9fbd97c710504bdfd085e88db2535433cfb6ce",
+    # Needed for SageMaker session manager patch
+    "model-hosting-container-standards>=0.1.7",
+    "vllm==0.11.2",
+    "httpx>=0.27",
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=8.0",
+]
