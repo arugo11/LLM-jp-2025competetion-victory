@@ -5,7 +5,12 @@
 ## 使い方 (最速経路)
 1. ログインノードでリポジトリ直下へ移動  
    `cd ~/LLM-jp-2025competetion-victory/ft-llm-2026/tir`
-2. インタラクティブ TIR デモを投入  
+2. meta-llama/Meta-Llama-3.1-8B-Instructにアクセスできる権限をもつHF_TOKENを環境変数として設定する
+   ```
+   export HF_TOKEN=YOUR_HF_TOKEN
+   echo $HF_TOKEN
+   ```
+3. インタラクティブ TIR デモを投入  
    `qsub scripts/abci/run_tir_interactive.sh`
    - ジョブ内で `uv lock --python 3.10 && uv sync` し、`scripts/apply_patches.py` が必要なパッチを当てます。
    - ローカルサンドボックス (port 6000) と vLLM OpenAI API (port 8000) を起動し、`tir_demo.py` を実行します。
@@ -29,7 +34,12 @@
    export NVIDIA_VISIBLE_DEVICES=0
    export VLLM_GPU_IDS=0
    ```
-5. サーバ起動とデモ実行  
+5. meta-llama/Meta-Llama-3.1-8B-Instructにアクセスできる権限をもつHF_TOKENを環境変数として設定する
+   ```
+   export HF_TOKEN=YOUR_HF_TOKEN
+   echo $HF_TOKEN
+   ```
+6. サーバ起動とデモ実行  
    ```
    nohup uv run python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server --port 6000 > sandbox.log 2>&1 &
    nohup uv run python -m nemo_skills.inference.server.serve_vllm --model meta-llama/Meta-Llama-3.1-8B-Instruct --num_gpus 1 --num_nodes 1 --port 8000 --enforce-eager > vllm.log 2>&1 &
