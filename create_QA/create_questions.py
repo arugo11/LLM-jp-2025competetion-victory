@@ -1,11 +1,8 @@
 import argparse
-import json
-from pathlib import Path
 import time
-import os
-
+from datasets import Dataset, DatasetDict
 from vllm import LLM, SamplingParams
-from huggingface_hub import HfApi
+from category import category
 
 PROMPT_TEMPLATE = """\
 あなたは日本の数学における入試テスト問題を作成する専門家である。
@@ -19,27 +16,17 @@ PROMPT_TEMPLATE = """\
 
 """
 
-from category import category
-
 Question_Count = 100
-
 
 def main():
     # プログラム開始時間を記録
     program_start_time = time.time()
 
     # コマンドライン引数のパース
-    parser = argparse.ArgumentParser(description="Singularity Submission Example")
+    parser = argparse.ArgumentParser(description="Create Math Questions")
     parser.add_argument(
-        "--model_path", type=Path, required=True, help="Path to the model directory"
+        "--model_path", type=str, required=True, help="Path to the model directory"
     )
-    parser.add_argument(
-        "--input_path", type=Path, required=False, help="Path to the input file"
-    )
-    parser.add_argument(
-        "--output_path", type=Path, required=True, help="Path to the output file"
-    )
-    # 最大トークン数の引数を追加
     parser.add_argument(
         "--max_tokens", type=int, default=4096, help="Maximum number of tokens"
     )
@@ -53,7 +40,7 @@ def main():
     args = parser.parse_args()
 
     # LLMの初期化
-    llm = LLM(model=str(args.model_path.resolve()))
+    llm = LLM(model=args.model_path)
 
     # 問題のメタデータ作成
     problems = []
@@ -79,36 +66,41 @@ def main():
 
     # 推論時間の計測
     inference_start_time = time.time()
+    
     # 推論処理
     outputs = llm.chat(
         messages, sampling_params=SamplingParams(temperature=1.0, max_tokens=args.max_tokens)
     )
+    
     # 推論時間の表示
     inference_finish_time = time.time()
-    print("Inference time: {}(s)".format(inference_finish_time - inference_start_time))
+    print(f"Inference time: {inference_finish_time - inference_start_time}(s)")
 
-    # 結果の後処理と保存
+    # 結果の整形
+    data = []
     for problem, output in zip(problems, outputs):
-        problem["problem"] = output.outputs[0].text
+        data.append({
+            "id": problem["id"],
+            "category": problem["category"],
+            "unit": problem["unit"],
+            "problem": output.outputs[0].text
+        })
 
-    with open(args.output_path, "w") as f:
-        for problem in problems:
-            f.write(json.dumps(problem, ensure_ascii=False) + "\n")
-    
+    # DatasetDictの作成とデータの追加
+    dataset_dict = DatasetDict()
+    dataset = Dataset.from_list(data)
+    dataset_dict["train"] = dataset
+
     # Hugging Faceへのアップロード
     if args.hf_token:
-        api = HfApi(token=args.hf_token)
-        api.upload_file(
-            path_or_fileobj=args.output_path,
-            path_in_repo=args.output_path.name,
-            repo_id=args.repo_id,
-            repo_type="dataset"
-        )
-        print(f"Uploaded {args.output_path} to {args.repo_id}")
+        dataset_dict.push_to_hub(args.repo_id, token=args.hf_token)
+        print(f"Uploaded dataset to {args.repo_id}")
+    else:
+        print("HF token not provided. Skipping upload.")
 
     # プログラムの総実行時間を表示
     program_finish_time = time.time()
-    print("Total time: {}(s)".format(program_finish_time - program_start_time))
+    print(f"Total time: {program_finish_time - program_start_time}(s)")
 
 if __name__ == "__main__":
     main()

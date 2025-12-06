@@ -33,7 +33,7 @@ singularity build --fakeroot --force \
        dist/create_qa.sif create_qa.def
 
 # 推論を実行します。
-REPO_ID="team-victory/test_questions"
+REPO_ID="team-victory/test_qa"
 
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0\
@@ -41,7 +41,6 @@ singularity run --nv --writable-tmpfs \
     --bind "$(pwd)/models:/app/models" \
     dist/create_qa.sif \
     --model_path models/openai/gpt-oss-20b \
-    --output_path "$(pwd)/output/create_qa_gpt-oss-20b.jsonl" \
-    --max_tokens 1024 \
+    --max_tokens 4096 \
     --repo_id $REPO_ID \
     --hf_token $HF_TOKEN
