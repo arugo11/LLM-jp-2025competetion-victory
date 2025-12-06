@@ -39,8 +39,10 @@ singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0\
     --env HF_TOKEN=$HF_TOKEN \
     --bind "$(pwd)/models:/app/models" \
+    --bind "$(pwd)/output:/app/output" \
     dist/create_qa.sif \
     --model_path models/openai/gpt-oss-20b \
     --max_tokens 4096 \
     --repo_id $REPO_ID \
-    --hf_token $HF_TOKEN
+    --hf_token $HF_TOKEN \
+    --output_jsonl output/test_qa.jsonl

@@ -52,3 +52,4 @@ Stage: final
 %runscript
     cd /app
     python3 create_questions.py "$@"
+    python3 create_answers.py "$@"

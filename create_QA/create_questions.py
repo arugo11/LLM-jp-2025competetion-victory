@@ -5,14 +5,15 @@ from vllm import LLM, SamplingParams
 from category import category
 
 PROMPT_TEMPLATE = """\
-あなたは日本の数学における入試テスト問題を作成する専門家である。
-以下に基づき日本の数学における入試テスト問題を作成しなさい。
+以下に基づき日本の数学における入試テスト問題を一つ作成しなさい。
 - レベル: {category}
 - ジャンル: {unit}
-- 出力形式: 問題文のみの出力
+- 出力形式: 問題文のみ出力
 
 ## 制約事項
 - 数式は必ずlatex表記で出力する。
+- 問題文以外は出力してはならない。
+- 必ず日本語で出力する。
 
 """
 
@@ -35,6 +36,9 @@ def main():
     )
     parser.add_argument(
         "--hf_token", type=str, default=None, help="Hugging Face token"
+    )
+    parser.add_argument(
+        "--output_jsonl", type=str, default=None, help="Path to save the output dataset as JSONL"
     )
 
     args = parser.parse_args()
