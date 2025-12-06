@@ -9,8 +9,7 @@
 #PBS -e /dev/null
 
 # cd inference
-# qsub ./create_qa-1gpu.sh
-# ~/LLM-jp-2025competetion-victory/inferenceで実行する
+# qsub -v HF_TOKEN="your_token_here" ./create_qa-1gpu.sh
 cd $PBS_O_WORKDIR #実行したディレクトリに移動
 
 JOBID=${PBS_JOBID%%.*}
@@ -34,11 +33,15 @@ singularity build --fakeroot --force \
        dist/create_qa.sif create_qa.def
 
 # 推論を実行します。
+REPO_ID="team-victory/test_questions"
+
 singularity run --nv --writable-tmpfs \
-    --env CUDA_VISIBLE_DEVICES=0 --net --network none \
+    --env CUDA_VISIBLE_DEVICES=0\
+    --env HF_TOKEN=$HF_TOKEN \
     --bind "$(pwd)/models:/app/models" \
     dist/create_qa.sif \
     --model_path models/openai/gpt-oss-20b \
-    --input_path "$(pwd)/input/dev.jsonl" \
     --output_path "$(pwd)/output/create_qa_gpt-oss-20b.jsonl" \
-    --max_tokens 1024
+    --max_tokens 1024 \
+    --repo_id $REPO_ID \
+    --hf_token $HF_TOKEN
