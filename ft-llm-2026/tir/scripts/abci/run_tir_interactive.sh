@@ -6,7 +6,8 @@
 
 set -eux
 
-source "$(dirname "$0")/environment.sh"
+# ジョブ実行時には $0 が /var/spool/pbs/mom_priv/jobs/... になるため、絶対パスで指定する
+source "$HOME/LLM-jp-2025competetion-victory/ft-llm-2026/tir/scripts/abci/environment.sh"
 
 singularity exec --nv \
   --env CUDA_VISIBLE_DEVICES=${SINGULARITYENV_CUDA_VISIBLE_DEVICES} \
@@ -18,14 +19,17 @@ cd \"\$PROJECT_ROOT\"
 
 pip install --user uv
 
+# uvを認識させるためにPATHを通す
+export PATH="$HOME/.local/bin:$PATH"
+
 # Generate or refresh the lock file with the container's Python (3.10 in 24.08 image)
 uv lock --python 3.10
 uv sync --python 3.10
 
 uv run python scripts/apply_patches.py
 
-# Raise fd limit if permitted to avoid "Too many open files" warnings.
-ulimit -n 65536 || true
+# ulimitはABCI環境では設定できず、ジョブが途中でハングするのでコメントアウトで無効化する
+# ulimit -n 65536 || true
 
 nohup uv run python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server --port 6000 > sandbox.log 2>&1 &
 nohup uv run python -m nemo_skills.inference.server.serve_vllm --model meta-llama/Meta-Llama-3.1-8B-Instruct --num_gpus 1 --num_nodes 1 --port 8000 --enforce-eager > vllm.log 2>&1 &
