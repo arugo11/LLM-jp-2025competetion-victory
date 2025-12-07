@@ -14,6 +14,10 @@ PROMPT_TEMPLATE = """\
 - 数式は必ずlatex表記で出力する。
 - 問題文以外は出力してはならない。
 - 必ず日本語で出力する。
+- \displaystyleを用いてはいけない。
+- 一つの数値または数式で解答できる問題にする。
+- 問題は必ず一つのみ出力する。
+-「問題」という文字列は出力してはならない。
 
 """
 
@@ -83,11 +87,12 @@ def main():
     # 結果の整形
     data = []
     for problem, output in zip(problems, outputs):
+        raw_text = output.outputs[0].text
         data.append({
             "id": problem["id"],
             "category": problem["category"],
             "unit": problem["unit"],
-            "problem": output.outputs[0].text
+            "problem": raw_text.split("assistantfinal")[-1].strip()
         })
 
     # DatasetDictの作成とデータの追加
