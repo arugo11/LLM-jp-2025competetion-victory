@@ -34,7 +34,9 @@ Stage: final
                 echo "Requested model directory models/${model} was not found" >&2
                 exit 1
             fi
-            rsync -av "models/${model}/" "${SINGULARITY_ROOTFS}/app/models/${model}/"
+            target_dir="${SINGULARITY_ROOTFS}/app/models/${model}"
+            mkdir -p "${target_dir}"
+            rsync -av "models/${model}/" "${target_dir}/"
         done
     else
         echo "No models were copied into the image. Use --build-arg MODEL_NAMES=\"name1 name2\"" >&2
