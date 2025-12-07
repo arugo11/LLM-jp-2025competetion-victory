@@ -12,6 +12,7 @@ PROMPT_TEMPLATE = """\
 - 最終的な解答は必ず一つの数値または数式で出力する。
 - \displaystyleを用いてはいけない。
 - 最終的な解答では単位を出力してはならない。
+- 数式は必ずlatex表記で出力する。
 
 # 問題
 {problem}
@@ -118,6 +119,8 @@ def main():
         generated_text = output.outputs[0].text
         new_row["generated_solution"] = generated_text
         new_row["expected_answer"] = extract_answer(generated_text)
+        if new_row["expected_answer"] is None:
+            continue
         data.append(new_row)
 
     # DatasetDictの作成とデータの追加
