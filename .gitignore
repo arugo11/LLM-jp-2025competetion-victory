@@ -217,7 +217,3 @@ __marimo__/
 
 # .DS_Store files by macOS
 .DS_Store
-
-wandb/
-logs/
-result/
