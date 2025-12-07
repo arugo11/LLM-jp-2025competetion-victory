@@ -52,13 +52,17 @@ def main():
 
     # 問題のメタデータ作成
     problems = []
+    for i in category:
+        problems.append([])
     category_count = len(category)
     for i in range(Question_Count):
-        problems.append({
-            "id": i,
+        problems[i % category_count].append({
             "category": category[i % category_count]["category"],
             "unit": category[i % category_count]["unit"]
         })
+    problems = [item for sublist in problems for item in sublist]
+    for i in range(len(problems)):
+        problems[i]["id"] = i
 
     # 各問題に対してプロンプトを作成
     messages = []
@@ -92,7 +96,8 @@ def main():
             "id": problem["id"],
             "category": problem["category"],
             "unit": problem["unit"],
-            "problem": raw_text.split("assistantfinal")[-1].strip()
+            "problem": raw_text.split("assistantfinal")[-1].strip(),
+            "problem_source": args.model_path
         })
 
     # DatasetDictの作成とデータの追加
