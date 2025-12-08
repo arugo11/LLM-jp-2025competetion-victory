@@ -66,6 +66,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tir-sandbox-port", type=int, default=6000)
     parser.add_argument("--max-new-tokens", type=int, default=512)
     parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument(
+        "--log_path",
+        type=Path,
+        default=None,
+        help="Optional path to append per-problem inference logs as JSONL",
+    )
     return parser.parse_args()
 
 
@@ -122,6 +128,14 @@ def _log(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+def _append_log(log_path: Path | None, record: dict[str, Any]) -> None:
+    if not log_path:
+        return
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 def _resolve_model_name(args: argparse.Namespace) -> str:
     if args.tir_model_name:
         return args.tir_model_name
@@ -155,6 +169,10 @@ async def run_inference(args: argparse.Namespace) -> None:
         question = problem.get("problem", "")
         session_id = str(problem.get("id", idx))
         prompt = _build_prompt(question)
+        stdout = ""
+        stderr = ""
+        generation_text = ""
+        error_message: str | None = None
 
         try:
             base_result = await llm.model.generate_async(
@@ -162,19 +180,42 @@ async def run_inference(args: argparse.Namespace) -> None:
                 tokens_to_generate=args.max_new_tokens,
                 temperature=args.temperature,
             )
+            generation_text = (base_result.get("generation") or "").strip()
         except Exception as exc:  # pragma: no cover - runtime guard in Singularity
             _log(f"[TIR] Generation failed for {session_id}: {exc}")
             problem["output"] = ""
+            error_message = str(exc)
+            _append_log(
+                args.log_path,
+                {
+                    "id": session_id,
+                    "prompt": prompt,
+                    "generation": generation_text,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "error": error_message,
+                },
+            )
             continue
 
-        output_text = (base_result.get("generation") or "").strip()
+        output_text = generation_text
         if not output_text:
             _log(f"[TIR] Empty generation for {session_id}")
             problem["output"] = ""
+            _append_log(
+                args.log_path,
+                {
+                    "id": session_id,
+                    "prompt": prompt,
+                    "generation": generation_text,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "error": "empty generation",
+                },
+            )
             continue
 
         code_block = _extract_block(output_text, PYTHON_BLOCK_RE)
-        stdout = ""
 
         if code_block:
             try:
@@ -187,6 +228,7 @@ async def run_inference(args: argparse.Namespace) -> None:
                 )
             except Exception as exc:  # pragma: no cover - runtime guard
                 _log(f"[TIR] Execution failed for {session_id}: {exc}")
+                error_message = f"execution failed: {exc}"
             else:
                 stdout = execution_dict.get("stdout", "") or ""
                 stderr = execution_dict.get("stderr", "") or ""
@@ -196,6 +238,19 @@ async def run_inference(args: argparse.Namespace) -> None:
             _log(f"[TIR] Missing <python> block for {session_id}; using raw text.")
 
         problem["output"] = _derive_answer(output_text, stdout)
+
+        _append_log(
+            args.log_path,
+            {
+                "id": session_id,
+                "prompt": prompt,
+                "generation": generation_text,
+                "stdout": stdout,
+                "stderr": stderr,
+                "error": error_message,
+                "final_output": problem["output"],
+            },
+        )
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
     with args.output_path.open("w") as f:
