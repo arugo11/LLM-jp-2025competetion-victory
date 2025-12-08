@@ -9,7 +9,7 @@ def main():
     parser.add_argument(
         "--model_name",
         type=str,
-        default="openai/gpt-oss-20b",
+        default="openai/gpt-oss-120b",
         help="Model name on Hugging Face Hub",
     )
     args = parser.parse_args()

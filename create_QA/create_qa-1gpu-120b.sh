@@ -1,21 +1,21 @@
 #!/bin/bash
 #PBS -P gch51701
 #PBS -q rt_HG
-#PBS -N inference-1gpu
+#PBS -N create_qa-1gpu
 #PBS -l select=1:ncpus=192:ngpus=1
 #PBS -l walltime=168:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
 
-# ~/LLM-jp-2025competetion-victory/inferenceで実行する
-# qsub ./infernce-1gpu.sh
+# cd inference
+# qsub -v HF_TOKEN="your_token_here" ./create_qa-1gpu.sh
 cd $PBS_O_WORKDIR #実行したディレクトリに移動
 
 JOBID=${PBS_JOBID%%.*}
 mkdir -p ./.log
-LOGFILE=./.log/inference-$JOBID.out
-ERRFILE=./.log/inference-$JOBID.err
+LOGFILE=./.log/create_qa-$JOBID.out
+ERRFILE=./.log/create_qa-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -30,14 +30,19 @@ mkdir -p "$UV_CACHE_DIR"
 # コードを書き替えるたびにビルドする必要があるそうです。
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
-       dist/submission.sif submission.def
+       dist/create_qa.sif create_qa.def
 
 # 推論を実行します。
+REPO_ID="team-victory/test_qa"
+
 singularity run --nv --writable-tmpfs \
-    --env CUDA_VISIBLE_DEVICES=0 --net --network none \
+    --env CUDA_VISIBLE_DEVICES=0\
+    --env HF_TOKEN=$HF_TOKEN \
     --bind "$(pwd)/models:/app/models" \
-    dist/submission.sif \
+    --bind "$(pwd)/output:/app/output" \
+    dist/create_qa.sif \
     --model_path models/openai/gpt-oss-120b \
-    --input_path "$(pwd)/input/dev.jsonl" \
-    --output_path "$(pwd)/output/output_120b.jsonl" \
-    --max_tokens 1024
+    --max_tokens 4096 \
+    --repo_id $REPO_ID \
+    --hf_token $HF_TOKEN \
+    --output_jsonl output/test_qa.jsonl
