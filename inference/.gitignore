@@ -13,6 +13,7 @@ wheels/
 .venv
 
 # Others
-output/
+output/*
 input/*
 !input/dev.jsonl
+!output/output_20b.jsonl
