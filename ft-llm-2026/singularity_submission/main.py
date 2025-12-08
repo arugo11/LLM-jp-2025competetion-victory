@@ -70,8 +70,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tir-sandbox-type", default="local")
     parser.add_argument("--tir-sandbox-host", default="127.0.0.1")
     parser.add_argument("--tir-sandbox-port", type=int, default=6000)
-    parser.add_argument("--max-new-tokens", type=int, default=512)
-    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--max-new-tokens", type=int, default=64)
+    parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument(
+        "--retry-temperature",
+        type=float,
+        default=0.2,
+        help="Temperature to use when retrying empty generations.",
+    )
+    parser.add_argument(
+        "--min-tokens",
+        type=int,
+        default=8,
+        help="Min tokens to request via vLLM extra_body (avoids empty generations).",
+    )
+    parser.add_argument(
+        "--empty-retry",
+        type=int,
+        default=2,
+        help="Number of retries when generation is empty. 0 disables retries.",
+    )
     parser.add_argument(
         "--log_path",
         type=Path,
@@ -180,6 +198,9 @@ async def run_inference(args: argparse.Namespace) -> None:
         sandbox=sandbox,
     )
 
+    # vLLM extra body: enforce minimum tokens to reduce empty generations
+    extra_body = {"min_tokens": args.min_tokens} if args.min_tokens and args.min_tokens > 0 else None
+
     for idx, problem in enumerate(problems):
         question = problem.get("problem", "")
         session_id = str(problem.get("id", idx))
@@ -196,13 +217,24 @@ async def run_inference(args: argparse.Namespace) -> None:
         multiple_result_blocks = False
         result_block_valid = False
 
+        # Retry loop for empty generations
         try:
-            base_result = await llm.model.generate_async(
-                prompt=prompt,
-                tokens_to_generate=args.max_new_tokens,
-                temperature=args.temperature,
-            )
-            generation_text = (base_result.get("generation") or "").strip()
+            for attempt in range(args.empty_retry + 1):
+                temp = args.temperature if attempt == 0 else args.retry_temperature
+                base_result = await llm.model.generate_async(
+                    prompt=prompt,
+                    tokens_to_generate=args.max_new_tokens,
+                    temperature=temp,
+                    extra_body=extra_body,
+                )
+                generation_text = (base_result.get("generation") or "").strip()
+                if generation_text:
+                    break
+                if attempt < args.empty_retry:
+                    _log(
+                        f"[TIR] Empty generation for {session_id}; retry {attempt + 1}/{args.empty_retry} "
+                        f"with temperature {temp}"
+                    )
         except Exception as exc:  # pragma: no cover - runtime guard in Singularity
             _log(f"[TIR] Generation failed for {session_id}: {exc}")
             problem["output"] = ""
