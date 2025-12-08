@@ -1,4 +1,4 @@
-EXAMPLE_MODEL := llm-jp/llm-jp-3.1-1.8b-instruct4
+EXAMPLE_MODEL := team-victory/llm-jp-4-8b-instruct
 
 MODEL_NAMES := $(EXAMPLE_MODEL)
 MODEL_DIRS := $(MODEL_NAMES:%=models/%)
