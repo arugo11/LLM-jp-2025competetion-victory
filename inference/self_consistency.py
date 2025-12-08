@@ -61,28 +61,36 @@ def main():
     # 各問題に対してプロンプトを作成
     messages = []
     for problem in problems:
-        # サンプリング数分だけ同じプロンプトを追加
         messages.append(
             [
                 {
                     "role": "user",
                     "content": PROMPT_TEMPLATE.format(question=problem["problem"]),
-                } for _ in range(args.num_samples)
+                }
             ]
         )
 
     # 推論時間の計測
     inference_start_time = time.time()
-    # 推論処理
-    sampling_params = SamplingParams(
-        temperature=0.8,
-        min_p=0.05,
-        top_p=0.90,
-        max_tokens=args.max_tokens,
-    )
-    outputs = llm.chat(
-        messages, sampling_params=sampling_params
-    )
+
+    # サンプリング回数分の推論処理を実行
+    all_outputs = []
+    for i in range(args.num_samples):
+        # 推論処理
+        sampling_params = SamplingParams(
+            temperature=0.8,
+            min_p=0.05,
+            top_p=0.90,
+            max_tokens=args.max_tokens,
+        )
+        outputs = llm.chat(
+            messages, sampling_params=sampling_params
+        )
+        all_outputs.append(outputs)
+    
+    # Self-Consistencyによる最終解答の決定
+    final_outputs = []
+    # MARK: 最終解答の決定ロジックを実装
 
     # 推論時間の表示
     inference_finish_time = time.time()

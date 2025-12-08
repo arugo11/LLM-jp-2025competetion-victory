@@ -15,7 +15,7 @@ PROMPT_TEMPLATE = """\
 - 最終的な解答は必ず一つの数値または数式で出力する。
 - \\displaystyleを用いてはいけない。
 - 最終的な解答では単位を出力してはならない。
-- 数式は必ずlatex表記で出力する。
+- 数式は必ずLaTeX表記で出力する。
 
 # 問題
 {question}
@@ -44,7 +44,7 @@ def main():
 
     args = parser.parse_args()
 
-    # LLMの初期化
+    # LLMクラスの初期化
     llm = LLM(model=str(args.model_path.resolve()))
 
     # 問題ファイルの読み込み
