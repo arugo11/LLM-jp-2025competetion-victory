@@ -15,6 +15,36 @@
 
 - Singularity (ABCIでは `singularity-ce version 4.1.5-1.el9` が利用可能)
 - [uv](https://docs.astral.sh/uv/)
+- NeMo-Skills のローカルサンドボックスおよび vLLM サーバを起動できるGPU環境
+
+## TIRランタイムの起動
+
+`main.py` は NeMo-Skills の `get_sandbox` / `get_code_execution_model` を使用します。
+推論を実行する前に、以下のように Python サンドボックスと vLLM サーバを立ち上げてください。
+
+1. GPU ID を UUID ではなく数値に固定します (`tir/README.md` と同様)。
+   ```bash
+   export CUDA_VISIBLE_DEVICES=0
+   export NVIDIA_VISIBLE_DEVICES=0
+   export VLLM_GPU_IDS=0
+   # 任意: open files の警告を抑えるために ulimit を引き上げ
+   ulimit -n 65536 || true
+   ```
+   - ABCI などで `CUDA_VISIBLE_DEVICES` が `GPU-xxxx` 形式の UUID のままだと、vLLM 起動時に
+     `invalid literal for int(): 'GPU-…'` というエラーが発生します。必ず上記のように数値へ固定してください。
+   - Singularity を使う場合は、必要に応じて `SINGULARITYENV_CUDA_VISIBLE_DEVICES` なども同じ値に設定します。
+
+```bash
+# 例: それぞれ別シェルで実行 (モデル名やGPU割り当ては環境に合わせて変更)
+uv run python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server --port 6000 > sandbox.log 2>&1 &
+uv run python -m nemo_skills.inference.server.serve_vllm \
+    --model llm-jp/llm-jp-3.1-1.8b-instruct4 \
+    --num_gpus 1 --num_nodes 1 --port 8000 --enforce-eager > vllm.log 2>&1 &
+```
+
+- モデル取得に必要な `HF_TOKEN` などの環境変数は適宜設定してください。
+- ポートやホストを変えた場合は、`main.py` の `--tir-llm-host/--tir-llm-port`、`--tir-sandbox-host/--tir-sandbox-port` で接続先を上書きできます。
+- より詳しいセットアップ手順は `../tir/README.md` も参照してください。
 
 ## 1. モデルの準備
 
@@ -52,10 +82,13 @@ singularity run --nv --writable-tmpfs \
     dist/submission.sif \
     --model_path models/llm-jp/llm-jp-3.1-1.8b-instruct4 \
     --input_path sample_problems.jsonl \
-    --output_path "$(pwd)/output.jsonl"
+    --output_path "$(pwd)/output.jsonl" \
+    --tir-llm-host 127.0.0.1 --tir-llm-port 8000 \
+    --tir-sandbox-host 127.0.0.1 --tir-sandbox-port 6000
 ```
 
 `--model_path` にはイメージに同梱したモデルディレクトリを指定します。
+NeMo-Skills サーバ/サンドボックスを別ノードで動かしている場合は、上記の `--tir-*` 引数で接続先を変更してください。
 推論結果は `output.jsonl` に書き出されます。
 
 ## 応用

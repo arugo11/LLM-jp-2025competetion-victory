@@ -10,6 +10,8 @@ Stage: builder
     mkdir -p ${SINGULARITY_ROOTFS}/root/.cache/uv
 
 %post
+    apt-get update && apt-get install -y --no-install-recommends git \
+        && rm -rf /var/lib/apt/lists/*
     export UV_COMPILE_BYTECODE=1
     export UV_LINK_MODE=copy
     export UV_NO_EDITABLE=1
