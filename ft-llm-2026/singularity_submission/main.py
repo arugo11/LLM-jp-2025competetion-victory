@@ -15,20 +15,26 @@ PYTHON_END = "</python>"
 RESULT_BEGIN = "<result>"
 RESULT_END = "</result>"
 
-SYSTEM_PROMPT = (
-    "Environment: ipython\n\n"
-    "You are a careful math assistant that MUST use Python for every task.\n"
-    "Always respond with a single <python> block that prints the final answer,\n"
-    "then echo the same value inside <result> tags on the next line."
-)
-
-USER_PROMPT_TEMPLATE = textwrap.dedent(
+SYSTEM_PROMPT = textwrap.dedent(
     """
-    次の数学の問題をPythonだけで解き、printで最終解のみを出力してください。
-    自然言語での解説は禁止です。<python>...</python> と <result>...</result> を必ず含めてください。
+    Environment: ipython
 
-    # 問題
-    {question}
+    You are a strict math solver. You MUST use Python and you MUST obey the ONLY allowed format below.
+    唯一許可された出力テンプレートは次のとおりです。他の文字・説明・Markdown・フェンスは禁止です。
+
+    Output template (exactly, nothing before/after):
+    <python>
+    # write Python code that computes the final numeric answer
+    print(answer)
+    </python>
+    <result>answer</result>
+
+    Rules / ルール:
+    - Do NOT emit any text before <python> or after </result>.
+    - Do NOT use Markdown fences like ```python or any language tags.
+    - No natural-language explanations or summaries; Python only.
+    - Exactly one <python> block and one <result> block. Nothing else.
+    - If you deviate from this format, the answer is invalid. Format first line must be '<python>'.
     """,
 ).strip()
 
@@ -87,7 +93,12 @@ def _read_problems(path: Path) -> list[dict[str, Any]]:
 
 
 def _build_prompt(question: str) -> str:
-    return f"{SYSTEM_PROMPT}\n\nUser question:\n{question.strip()}\n"
+    return (
+        f"{SYSTEM_PROMPT}\n\n"
+        "User question (solve only with Python and REQUIRED tags):\n"
+        f"{question.strip()}\n"
+        "Remember: output must be exactly the <python>...</python> then <result>...</result> lines, nothing else."
+    )
 
 
 def _extract_block(text: str, pattern: re.Pattern[str]) -> str | None:
@@ -112,16 +123,20 @@ def _last_non_empty_line(text: str) -> str | None:
     return None
 
 
-def _derive_answer(response_text: str, stdout: str) -> str:
+def _derive_answer(
+    response_text: str,
+    stdout: str,
+    result_block: str | None,
+) -> tuple[str, bool, bool]:
+    # Priority is explicitly stdout > <result> block > raw response to avoid future accidental changes.
     stdout_line = _last_non_empty_line(stdout)
     if stdout_line:
-        return _strip_result_wrappers(stdout_line)
+        return _strip_result_wrappers(stdout_line), True, False
 
-    result_block = _extract_block(response_text, RESULT_BLOCK_RE)
     if result_block:
-        return result_block
+        return result_block.strip(), False, True
 
-    return response_text.strip()
+    return response_text.strip(), False, False
 
 
 def _log(message: str) -> None:
@@ -173,6 +188,13 @@ async def run_inference(args: argparse.Namespace) -> None:
         stderr = ""
         generation_text = ""
         error_message: str | None = None
+        used_stdout = False
+        used_result_block = False
+        has_python_block = False
+        has_result_block = False
+        multiple_python_blocks = False
+        multiple_result_blocks = False
+        result_block_valid = False
 
         try:
             base_result = await llm.model.generate_async(
@@ -194,6 +216,14 @@ async def run_inference(args: argparse.Namespace) -> None:
                     "stdout": stdout,
                     "stderr": stderr,
                     "error": error_message,
+                    "final_output": "",
+                    "has_python_block": False,
+                    "has_result_block": False,
+                    "multiple_python_blocks": False,
+                    "multiple_result_blocks": False,
+                    "result_block_valid": False,
+                    "used_stdout": False,
+                    "used_result_block": False,
                 },
             )
             continue
@@ -211,33 +241,124 @@ async def run_inference(args: argparse.Namespace) -> None:
                     "stdout": stdout,
                     "stderr": stderr,
                     "error": "empty generation",
+                    "final_output": problem["output"],
+                    "has_python_block": False,
+                    "has_result_block": False,
+                    "multiple_python_blocks": False,
+                    "multiple_result_blocks": False,
+                    "result_block_valid": False,
+                    "used_stdout": False,
+                    "used_result_block": False,
                 },
             )
             continue
 
-        code_block = _extract_block(output_text, PYTHON_BLOCK_RE)
+        python_blocks = PYTHON_BLOCK_RE.findall(output_text)
+        result_blocks = RESULT_BLOCK_RE.findall(output_text)
+        has_python_block = bool(python_blocks)
+        has_result_block = bool(result_blocks)
+        multiple_python_blocks = len(python_blocks) > 1
+        multiple_result_blocks = len(result_blocks) > 1
+        code_block = (
+            textwrap.dedent(python_blocks[0]).strip() if has_python_block else None
+        )
+        result_block_raw = (
+            textwrap.dedent(result_blocks[0]).strip() if has_result_block else None
+        )
+        if multiple_python_blocks:
+            _log(f"[TIR] Multiple <python> blocks for {session_id}; using first only.")
+        if multiple_result_blocks:
+            _log(f"[TIR] Multiple <result> blocks for {session_id}; using first only.")
+        result_block = None
+        if (
+            result_block_raw
+            and "<python>" not in result_block_raw.lower()
+            and "=" not in result_block_raw
+        ):
+            result_block_valid = True
+            result_block = result_block_raw
 
+        if not code_block:
+            _log(f"[TIR] Missing <python> block for {session_id}; skipping execution.")
+            problem["output"] = "no_python_block"
+            _append_log(
+                args.log_path,
+                {
+                    "id": session_id,
+                    "prompt": prompt,
+                    "generation": generation_text,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "error": "missing python block",
+                    "final_output": problem["output"],
+                    "has_python_block": has_python_block,
+                    "has_result_block": has_result_block,
+                    "multiple_python_blocks": multiple_python_blocks,
+                    "multiple_result_blocks": multiple_result_blocks,
+                    "result_block_valid": result_block_valid,
+                    "used_stdout": used_stdout,
+                    "used_result_block": used_result_block,
+                },
+            )
+            continue
+
+        generated_code_text = f"{PYTHON_BEGIN}\n{code_block}\n{PYTHON_END}"
         if code_block:
             try:
                 _, execution_dict, _ = await llm.execute_generated_code(
                     prompt,
                     PYTHON_BEGIN,
                     PYTHON_END,
-                    output_text,
+                    generated_code_text,
                     session_id=session_id,
                 )
             except Exception as exc:  # pragma: no cover - runtime guard
                 _log(f"[TIR] Execution failed for {session_id}: {exc}")
                 error_message = f"execution failed: {exc}"
+                problem["output"] = "execution_error"
+                _append_log(
+                    args.log_path,
+                    {
+                        "id": session_id,
+                        "prompt": prompt,
+                        "generation": generation_text,
+                        "stdout": stdout,
+                        "stderr": stderr,
+                        "error": error_message,
+                        "final_output": problem["output"],
+                        "has_python_block": has_python_block,
+                        "has_result_block": has_result_block,
+                        "multiple_python_blocks": multiple_python_blocks,
+                        "multiple_result_blocks": multiple_result_blocks,
+                        "result_block_valid": result_block_valid,
+                        "used_stdout": used_stdout,
+                        "used_result_block": used_result_block,
+                    },
+                )
+                continue
             else:
                 stdout = execution_dict.get("stdout", "") or ""
                 stderr = execution_dict.get("stderr", "") or ""
                 if stderr.strip():
                     _log(f"[TIR] stderr for {session_id}: {stderr.strip()}")
-        else:
-            _log(f"[TIR] Missing <python> block for {session_id}; using raw text.")
 
-        problem["output"] = _derive_answer(output_text, stdout)
+        if (
+            "syntaxerror" in stderr.lower()
+            or "traceback" in stderr.lower()
+            or "syntaxerror" in stdout.lower()
+            or "traceback" in stdout.lower()
+        ):
+            problem["output"] = "execution_error"
+            error_message = (
+                f"{error_message}; " if error_message else ""
+            ) + "syntax error detected"
+        else:
+            answer, used_stdout, used_result_block = _derive_answer(
+                output_text,
+                stdout,
+                result_block,
+            )
+            problem["output"] = answer
 
         _append_log(
             args.log_path,
@@ -249,6 +370,13 @@ async def run_inference(args: argparse.Namespace) -> None:
                 "stderr": stderr,
                 "error": error_message,
                 "final_output": problem["output"],
+                "has_python_block": has_python_block,
+                "has_result_block": has_result_block,
+                "multiple_python_blocks": multiple_python_blocks,
+                "multiple_result_blocks": multiple_result_blocks,
+                "result_block_valid": result_block_valid,
+                "used_stdout": used_stdout,
+                "used_result_block": used_result_block,
             },
         )
 

@@ -5,9 +5,9 @@
 
 ## 同梱物
 
-- `main.py` : Singularityから実行される推論スクリプト
+- `main.py` : Singularityから実行される推論スクリプト（Python/結果タグの厳格テンプレートを強制）
 - `download_model.py` : Hugging Face Hubからモデルを取得するユーティリティ
-- `sample_problems.jsonl` : 推論手順を確認するためのサンプル入力
+- `sample_problems.jsonl`, `sample_problems_2.jsonl` : 推論手順を確認するためのサンプル入力
 - `submission.def` : Singularity定義ファイル
 - `pyproject.toml`, `uv.lock` : Python 依存関係定義
 
@@ -78,11 +78,13 @@ uv run python download_model.py --model_name llm-jp/llm-jp-3.1-1.8b-instruct4
 
 ```bash
 singularity run --nv --writable-tmpfs \
-    --env CUDA_VISIBLE_DEVICES=0 --net --network none \
+    --env CUDA_VISIBLE_DEVICES=0 \
     dist/submission.sif \
     --model_path models/llm-jp/llm-jp-3.1-1.8b-instruct4 \
+    --tir-model-name "llm-jp/llm-jp-3.1-1.8b-instruct4" \
     --input_path sample_problems.jsonl \
     --output_path "$(pwd)/output.jsonl" \
+    --log_path "$(pwd)/inference_log.jsonl" \
     --tir-llm-host 127.0.0.1 --tir-llm-port 8000 \
     --tir-sandbox-host 127.0.0.1 --tir-sandbox-port 6000
 ```
@@ -90,6 +92,27 @@ singularity run --nv --writable-tmpfs \
 `--model_path` にはイメージに同梱したモデルディレクトリを指定します。
 NeMo-Skills サーバ/サンドボックスを別ノードで動かしている場合は、上記の `--tir-*` 引数で接続先を変更してください。
 推論結果は `output.jsonl` に書き出されます。
+推論ログはデフォルトでカレントディレクトリの `inference_log.jsonl` に追記されます（`--log_path` で変更可能）。
+
+### 出力フォーマットと実行ポリシー（重要）
+
+- LLMの出力は必ず次の2ブロックのみを許可します。余計な文章・Markdownフェンスは禁止です。
+  ```
+  <python>
+  print(answer)
+  </python>
+  <result>answer</result>
+  ```
+- `<python>` / `<result>` が複数返った場合は最初の1つだけを採用し、ログにフラグを残します。
+- `<python>` が欠落、または実行時に `SyntaxError` / `Traceback` が出た場合は出力を `no_python_block` / `execution_error` として扱い、詳細は `inference_log.jsonl` に記録します。
+- 解答採用の優先順位は「stdout の最後の非空行 > `<result>` ブロック > 生テキスト」です。
+- `--log_path` を指定すると JSONL で `has_python_block`, `multiple_python_blocks`, `used_stdout`, `error`, `final_output` などのメタ情報が追記されます。
+
+### トラブルシュート
+
+- vLLM サーバやサンドボックスをホスト側で動かす場合、`--net --network none` を付けるとコンテナから 127.0.0.1 へ接続できず **Connection error** になります。上記のように `--net` を付けずに実行してください。別ホストにサーバを立てている場合は `--tir-llm-host` / `--tir-sandbox-host` にそのホスト名を指定してください。
+- `ulimit -n` が権限不足で失敗しても実行自体は続行可能です。
+- vLLM に登録されたモデル名と `--tir-model-name` を必ず一致させてください。`serve_vllm --model llm-jp/llm-jp-3.1-1.8b-instruct4` のようにスラッシュ付きで起動した場合、デフォルトでは `model_path` の末尾名（スラッシュ無し）が送られて 404 になります。上記の例のように `--tir-model-name "llm-jp/llm-jp-3.1-1.8b-instruct4"` を明示指定してください。
 
 ## 応用
 
