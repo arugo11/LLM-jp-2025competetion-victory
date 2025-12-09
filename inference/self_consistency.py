@@ -18,7 +18,7 @@ PROMPT_TEMPLATE = """\
 
 # 制約事項
 - 必ず最終的な解答を\\boxedタグ内に記述する。
-- 最終的な解答は必ず一つの数値または数式で出力する。
+- 最終的な解答は必ず数値または数式で出力する。
 - \\displaystyleを用いてはいけない。
 - 最終的な解答では単位を出力してはならない。
 - 数式は必ずlatex表記で出力する。
@@ -102,8 +102,8 @@ def main():
 
     # サンプリング回数分の推論処理を実行
     all_outputs = [[] for _ in range(len(messages))]
+    tmp_outputs = [] # 各イテレーションの出力を保存するリスト
     for i in range(args.num_samples):
-        # 推論処理
         sampling_params = SamplingParams(
             temperature=0.9,
             max_tokens=args.max_tokens,
@@ -111,6 +111,7 @@ def main():
         outputs = llm.chat(
             messages, sampling_params=sampling_params
         )
+        tmp_outputs.append(outputs)
         # \\boxedタグ内の内容を抽出
         extracted_contents = extract_boxed_content([output.outputs[0].text for output in outputs])
         # 抽出結果を保存
@@ -137,6 +138,9 @@ def main():
     # 結果の後処理と保存
     for problem, output in zip(problems, final_outputs):
         problem["output"] = output
+    for i, tmp_output in enumerate(tmp_outputs):
+        for problem, output in zip(problems, tmp_output):
+            problem[f"output_sample_{i}"] = output.outputs[0].text
 
     with open(args.output_path, "w") as f:
         for problem in problems:
