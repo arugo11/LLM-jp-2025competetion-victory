@@ -5,10 +5,12 @@ import argparse
 import json
 from pathlib import Path
 import time
+import re
 
 from vllm import LLM, SamplingParams
 
 
+# MARK: プロンプトテンプレート
 PROMPT_TEMPLATE = """\
 以下は数学の問題です。
 解答を段階的に考え、最終的な答えとなる数値や解を\\boxedタグ内に記述してください。
@@ -24,7 +26,31 @@ PROMPT_TEMPLATE = """\
 {question}
 """
 
+# MARK: ヘルパー関数
+def extract_boxed_content(outputs: list):
+    """
+    \\boxedタグ内の内容を抽出するヘルパー関数
+    Args:
+        outputs (list): vLLMの出力テキストのリスト
+    returns:
+        list: 抽出された\\boxedタグ内の内容のリスト
+    """
+    # 正規表現パターンの定義
+    pattern = re.compile(r"\\boxed\{(.*?)\}", re.DOTALL)
 
+    # 抽出処理
+    extracted_contents = []
+    for output in outputs:
+        match = pattern.search(output)
+        if match:
+            extracted_contents.append(match.group(1).strip())
+        else:
+            extracted_contents.append(None)  # \\boxedタグが見つからなかった場合
+    
+    return extracted_contents
+
+
+# MARK: main
 def main():
     # プログラム開始時間を記録
     program_start_time = time.time()
