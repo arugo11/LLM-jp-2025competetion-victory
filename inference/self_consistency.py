@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import time
 import re
+from collections import Counter
 
 from vllm import LLM, SamplingParams
 
@@ -100,7 +101,7 @@ def main():
     inference_start_time = time.time()
 
     # サンプリング回数分の推論処理を実行
-    all_outputs = []
+    all_outputs = [[] for _ in range(len(problems))]
     for i in range(args.num_samples):
         # 推論処理
         sampling_params = SamplingParams(
@@ -112,19 +113,32 @@ def main():
         outputs = llm.chat(
             messages, sampling_params=sampling_params
         )
-        all_outputs.append(outputs)
-    
+        # \\boxedタグ内の内容を抽出
+        extracted_contents = extract_boxed_content([output.outputs[0].text for output in outputs])
+        # 抽出結果を保存
+        for j, content in enumerate(extracted_contents):
+            all_outputs[j].append(content)
+
     # Self-Consistencyによる最終解答の決定
     final_outputs = []
-    # MARK: 最終解答の決定ロジックを実装
+    for outputs in all_outputs:
+        # Noneを除外してカウント
+        filtered_outputs = [output for output in outputs if output is not None]
+        if filtered_outputs:
+            # 最も頻出する解答を選択
+            most_common = Counter(filtered_outputs).most_common()[0][0]
+            final_outputs.append(most_common)
+        else:
+            final_outputs.append(None)  # すべてNoneの場合
+        
 
     # 推論時間の表示
     inference_finish_time = time.time()
     print("Inference time: {}(s)".format(inference_finish_time - inference_start_time))
 
     # 結果の後処理と保存
-    for problem, output in zip(problems, outputs):
-        problem["output"] = output.outputs[0].text
+    for problem, outputs in zip(problems, filtered_outputs):
+        problem["output"] = outputs
 
     with open(args.output_path, "w") as f:
         for problem in problems:
