@@ -84,10 +84,7 @@ uv run python download_model.py --model_name team-victory/llm-jp-4-8b-instruct
 
 ## 2. Singularity イメージのビルド
 ```bash
-   singularity build --fakeroot --force \
-       --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
-       --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct" \
-       dist/submission.sif submission.def
+   singularity build --fakeroot --force --bind "${UV_CACHE_DIR}:/root/.cache/uv" --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct" dist/submission.sif submission.def
 ```
 - --MODEL_NAMES: 推論に使用するモデル。1でダウンロードするときに指定したモデルと同じものを引数で与える。
 - dist/submission.sif は ビルドしたイメージの出力先。今回は dist ディレクトリに出力するので、あらかじめ dist フォルダを作成しておく。
@@ -95,12 +92,7 @@ uv run python download_model.py --model_name team-victory/llm-jp-4-8b-instruct
 ## 3. 推論処理
 GPU1台で推論処理を行うコマンド
 ``` bash
-singularity run --nv --writable-tmpfs \
-    --env CUDA_VISIBLE_DEVICES=0 --net --network none \
-    dist/submission.sif \
-    --model_path models/team-victory/llm-jp-4-8b-instruct \
-    --input_path input/dev.jsonl \
-    --output_path "$(pwd)/output.jsonl"
+singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/submission.sif --model_path models/team-victory/llm-jp-4-8b-instruct --input_path input/dev.jsonl --output_path "$(pwd)/output.jsonl"
 ```
 - --model_path: 推論に使用するモデルのパス
 - --input_path: 推論対象のデータのパス

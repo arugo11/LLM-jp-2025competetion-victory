@@ -101,13 +101,11 @@ def main():
     inference_start_time = time.time()
 
     # サンプリング回数分の推論処理を実行
-    all_outputs = [[] for _ in range(len(problems))]
+    all_outputs = [[] for _ in range(len(messages))]
     for i in range(args.num_samples):
         # 推論処理
         sampling_params = SamplingParams(
-            temperature=0.8,
-            min_p=0.05,
-            top_p=0.90,
+            temperature=0.9,
             max_tokens=args.max_tokens,
         )
         outputs = llm.chat(
@@ -137,8 +135,8 @@ def main():
     print("Inference time: {}(s)".format(inference_finish_time - inference_start_time))
 
     # 結果の後処理と保存
-    for problem, outputs in zip(problems, filtered_outputs):
-        problem["output"] = outputs
+    for problem, output in zip(problems, final_outputs):
+        problem["output"] = output
 
     with open(args.output_path, "w") as f:
         for problem in problems:
