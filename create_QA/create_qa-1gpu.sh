@@ -26,6 +26,7 @@ mkdir -p output
 # uvのキャッシュディレクトリを設定 (キャッシュはvscode内で見たいため、プロジェクト下とします。)
 export UV_CACHE_DIR="$HOME/LLM-jp-2025competetion-victory/.cache/uv"
 mkdir -p "$UV_CACHE_DIR"
+mkdir -p dist
 
 # コードを書き替えるたびにビルドする必要があるそうです。
 singularity build --fakeroot --force \
