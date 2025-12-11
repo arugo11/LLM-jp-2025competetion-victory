@@ -17,7 +17,7 @@ PROMPT_TEMPLATE = """\
 解答を段階的に考え、最終的な答えとなる数値や解を\\boxedタグ内に記述してください。
 
 # 制約事項
-- 必ず最終的な解答を\\boxedタグ内に記述する。
+- 最終的な解答を必ず\\boxedタグ内に記述する。
 - 最終的な解答は必ず数値または数式で出力する。
 - \\displaystyleを用いてはいけない。
 - 最終的な解答では単位を出力してはならない。
@@ -28,11 +28,11 @@ PROMPT_TEMPLATE = """\
 """
 
 # MARK: ヘルパー関数
-def extract_boxed_content(outputs: list):
+def extract_boxed_content(outputs: list[str]):
     """
-    \\boxedタグ内の内容を抽出するヘルパー関数
+    boxedタグ内の内容を抽出するヘルパー関数
     Args:
-        outputs (list): vLLMの出力テキストのリスト
+        outputs (list[str]): vLLMの出力テキストのリスト
     returns:
         list: 抽出された\\boxedタグ内の内容のリスト
     """
@@ -137,10 +137,12 @@ def main():
 
     # 結果の後処理と保存
     for problem, output in zip(problems, final_outputs):
-        problem["output"] = output
-    for i, tmp_output in enumerate(tmp_outputs):
-        for problem, output in zip(problems, tmp_output):
-            problem[f"output_sample_{i}"] = output.outputs[0].text
+        problem["output"] = f"$${output}$$"
+    # 以下は各サンプル出力を保存する場合のコード例
+    # だが、正答率の計算時に不具合が生じたためコメントアウト
+    #for i, tmp_output in enumerate(tmp_outputs):
+    #    for problem, output in zip(problems, tmp_output):
+    #        problem[f"output_sample_{i}"] = output.outputs[0].text
 
     with open(args.output_path, "w") as f:
         for problem in problems:
