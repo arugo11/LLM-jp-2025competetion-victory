@@ -1,6 +1,6 @@
 # Script for setup environment
 
-ENV_DIR="/path/to/your/environment" # FIXME: update this path
+ENV_DIR="${HOME}/LLM-jp-2025competition-victory/env" # FIXME: update this path
 
 # Setup Python environment
 source ${ENV_DIR}/scripts/environment.sh
