@@ -8,13 +8,17 @@ from configs import DataConfig
 
 logger = logging.getLogger(__name__)
 
-def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: int = 42):
+def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: int = 42, return_messages: bool = False):
     """
     設定オブジェクトに基づき、複数のデータセットをロードして結合する。
-    最終的なカラム名は 'prompt' と 'completion' に統一される。
+    最終的なカラム名は、return_messagesがFalseの場合は 'prompt' と 'completion' に、
+    Trueの場合は 'messages' に統一される。
 
     Args:
         config (DataConfig): ロードするデータセットの情報を含む設定オブジェクト。
+        system_prompt (str): システムプロンプト。
+        seed (int): シャッフル用のシード。
+        return_messages (bool): Trueの場合、'messages' カラム形式で返す。
 
     Returns:
         DatasetDict: 全てのデータセットを結合し、カラム名を整形した単一のDatasetオブジェクト。
@@ -82,30 +86,61 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
         # リネームを実行
         dataset = dataset.rename_columns(temp_rename_dict)
 
-        # 3. 'text' カラムに整形する関数を定義
-        def format_to_text_column(example):
-            """
-            'prompt' と 'completion' の内容から指定のJSON形式の文字列を作成する。
-            """
-            raw_prompt = example.get('prompt', "")
-            raw_completion = example.get('completion', "")
-            
-            # system_promptが指定されている場合、テンプレートの{question}を実際のプロンプトで埋める
-            if system_prompt:
-                # 文字列型であることを保証してformat
-                final_prompt = system_prompt.format(question=str(raw_prompt))
-            else:
-                final_prompt = str(raw_prompt)
+        if return_messages:
+            # 3. 'messages' カラムに整形する関数を定義
+            def format_to_messages(example):
+                """
+                'prompt' と 'completion' の内容から 'messages' 形式のリストを作成する。
+                """
+                raw_prompt = example.get('prompt', "")
+                raw_completion = example.get('completion', "")
                 
-            return {
-                "prompt": final_prompt,
-                "completion": str(raw_completion)
-            }
+                # system_promptが指定されている場合、テンプレートの{question}を実際のプロンプトで埋める
+                if system_prompt:
+                    # 文字列型であることを保証してformat
+                    final_prompt = system_prompt.format(question=str(raw_prompt))
+                else:
+                    final_prompt = str(raw_prompt)
+                    
+                # ChatML形式のmessagesを作成
+                # ここではsystem messageは含めず、instructionをuser messageに含める形にしています
+                messages = [
+                    {"role": "user", "content": final_prompt},
+                    {"role": "assistant", "content": str(raw_completion)}
+                ]
+
+                return {
+                    "messages": messages
+                }
+            
+            formatting_func = format_to_messages
+        else:
+            # 3. 'text' ('prompt', 'completion') カラムに整形する関数を定義
+            def format_to_text_column(example):
+                """
+                'prompt' と 'completion' の内容から指定のJSON形式の文字列を作成する。
+                """
+                raw_prompt = example.get('prompt', "")
+                raw_completion = example.get('completion', "")
+                
+                # system_promptが指定されている場合、テンプレートの{question}を実際のプロンプトで埋める
+                if system_prompt:
+                    # 文字列型であることを保証してformat
+                    final_prompt = system_prompt.format(question=str(raw_prompt))
+                else:
+                    final_prompt = str(raw_prompt)
+                    
+                return {
+                    "prompt": final_prompt,
+                    "completion": str(raw_completion)
+                }
+            
+            formatting_func = format_to_text_column
 
         # 4. map関数を適用して全データセットの各分割に新しいフォーマットを適用
         #    同時に、整形に使った 'prompt', 'completion' やその他不要なカラムをすべて削除
         current_columns = list(list(dataset.column_names.values())[0])
-        dataset = dataset.map(format_to_text_column, remove_columns=current_columns)
+        dataset = dataset.map(formatting_func, remove_columns=current_columns)
         
         # 一番目をprint
         print(f"  データセット '{dataset_info.name}' の最初のサンプル: {dataset['train'][0]}")
@@ -144,7 +179,10 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
     # messagesキーは存在しないため、promptとcompletionの内容を表示するように変更
     sample = combined_dataset['train'][0]
     print("  最初のサンプル:", sample)
-    print("  最初のサンプルの合計文字数:", len(sample['prompt']) + len(sample['completion']))
+    if 'prompt' in sample and 'completion' in sample:
+        print("  最初のサンプルの合計文字数:", len(sample['prompt']) + len(sample['completion']))
+    if 'messages' in sample:
+        print("  最初のサンプルの合計文字数:", len(sample['messages']))
     print("  サンプル数:", len(combined_dataset['train']))
 
     return combined_dataset

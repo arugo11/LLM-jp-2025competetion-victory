@@ -10,7 +10,7 @@ model_name_or_path: team-victory/llm-jp-4-8b-instruct # テスト用のため0.5
 model_revision: main
 torch_dtype: bfloat16 # bf16を使う
 attn_implementation: flash_attention_2 # flash-attnention_2は使えなかった。
-teacher_model_name_or_path: Qwen/Qwen2.5-0.5B-Instruct # teacher model
+teacher_model_name_or_path: openai/gpt-oss-20b # teacher model
 
 # LoRA arguments https://github.com/huggingface/trl/blob/v0.19.1/trl/trainer/model_config.py#L19
 use_peft: false # PEFT (Lora) を使うかどうか
@@ -48,7 +48,7 @@ logging_strategy: steps # ログを出力するタイミング ('no' or 'steps' 
 lr_scheduler_type: cosine_with_min_lr # 学習率スケジューラのタイプ 
 lr_scheduler_kwargs:
   min_lr_rate: 0.1
-packing: true
+packing: false
 max_grad_norm: 0.2
 max_length: 4096 # 32768 # 最大シーケンス長
 max_steps: -1
@@ -65,5 +65,5 @@ save_strategy: steps # モデルをローカルに保存するタイミング ('
 save_steps: 100 # モデルをローカルに保存するステップ数(間隔)
 save_total_limit: 10
 seed: 42 # 乱数シード
-use_liger_kernel: true # エラーが出たので一旦無効化
+use_liger_kernel: false # エラーが出たので一旦無効化
 warmup_ratio: 0.03

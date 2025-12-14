@@ -139,7 +139,8 @@ def main(script_args, training_args, model_args, data_config: DataConfig, unknow
     if data_config is None:
         dataset = get_dataset(script_args)
     else:
-        dataset = get_datas_from_config(data_config, system_prompt)
+        # GOLDTrainer expects 'messages' column
+        dataset = get_datas_from_config(data_config, system_prompt, return_messages=True)
     print(f"Loaded dataset: {dataset}")
     tokenizer = get_tokenizer(model_args, training_args)
     model = get_model(model_args, training_args)
@@ -177,6 +178,7 @@ def main(script_args, training_args, model_args, data_config: DataConfig, unknow
     ############################
     # Initialize the SFT Trainer
     ############################
+
     trainer = GOLDTrainer(
         model=model,
         teacher_model=model,
@@ -258,3 +260,4 @@ if __name__ == "__main__":
     data_config = get_dataconfig()
     print(f"Data configuration loaded: {data_config}")
     main(script_args, training_args, model_args, data_config, unknown_args)
+
