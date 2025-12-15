@@ -60,7 +60,8 @@ def main():
     for i in range(Question_Count):
         problems[i % category_count].append({
             "category": category[i % category_count]["category"],
-            "unit": category[i % category_count]["unit"]
+            "unit": category[i % category_count]["unit"],
+            "difficulty": i % 10
         })
     problems = [item for sublist in problems for item in sublist]
     for i in range(len(problems)):
