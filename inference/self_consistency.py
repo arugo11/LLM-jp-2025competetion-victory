@@ -139,10 +139,10 @@ def main():
     for problem, output in zip(problems, final_outputs):
         problem["output"] = f"$${output}$$"
     # 以下は各サンプル出力を保存する場合のコード例
-    # だが、正答率の計算時に不具合が生じたためコメントアウト
-    #for i, tmp_output in enumerate(tmp_outputs):
-    #    for problem, output in zip(problems, tmp_output):
-    #        problem[f"output_sample_{i}"] = output.outputs[0].text
+    # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
+    for i, tmp_output in enumerate(tmp_outputs):
+        for problem, output in zip(problems, tmp_output):
+            problem[f"output_sample_{i}"] = output.outputs[0].text
 
     with open(args.output_path, "w") as f:
         for problem in problems:

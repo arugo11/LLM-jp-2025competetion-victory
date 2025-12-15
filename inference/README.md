@@ -101,3 +101,14 @@ singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 --net --netwo
   - --max_tokens: モデルの最大系列長。デフォルトは4096
 ### shファイルによる推論処理
 inference-*.shを実行することでも先程と同じように推論処理を行うことができます。
+
+---
+## self-consistencyの実行
+- イメージファイルのビルド
+``` bash
+singularity build --fakeroot --force --bind "${UV_CACHE_DIR}:/root/.cache/uv" --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct" dist/self_consistency.sif self_consistency.def
+```
+- 推論動作の実行
+``` bash
+singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/self_consistency.sif --model_path models/team-victory/llm-jp-4-8b-instruct --input_path input/dev.jsonl --output_path "$(pwd)/self-consistency-num10.jsonl"
+```

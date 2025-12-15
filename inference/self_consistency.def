@@ -62,4 +62,4 @@ Stage: final
 
 %runscript
     cd /app
-    python3 self_consistency.py "$@"
+    python3 self_consistency_math_verify.py "$@"
