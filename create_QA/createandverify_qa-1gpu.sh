@@ -3,7 +3,7 @@
 #PBS -q rt_HG
 #PBS -N create_qa-1gpu
 #PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=168:00:00
+#PBS -l walltime=24:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
@@ -34,7 +34,7 @@ singularity build --fakeroot --force \
        dist/create_qa.sif create_qa.def
 
 # 推論を実行します。
-REPO_ID="team-victory/test_qa"
+REPO_ID="team-victory/test_createandverify_qa"
 
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0\

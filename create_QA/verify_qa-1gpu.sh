@@ -3,7 +3,7 @@
 #PBS -q rt_HG
 #PBS -N verify_qa-1gpu
 #PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=168:00:00
+#PBS -l walltime=24:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
