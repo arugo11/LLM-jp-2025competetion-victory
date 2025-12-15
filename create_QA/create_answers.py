@@ -21,7 +21,7 @@ PROMPT_TEMPLATE = """\
 
 def extract_answer(text):
     """
-    Extract the content inside the last \boxed{...} tag.
+    Extract the content inside the last \\boxed{...} tag.
     Handles nested braces.
     """
     if not text:
@@ -127,7 +127,8 @@ def main():
         new_row["generated_solution"] = generated_text
         new_row["expected_answer"] = extract_answer(generated_text)
         if new_row["expected_answer"] is None:
-            continue
+            print(f"Warning: No boxed answer found for ID {row.get('id', 'unknown')}")
+            # continue  <-- ここをコメントアウトして無効化！
         data.append(new_row)
 
     # DatasetDictの作成とデータの追加

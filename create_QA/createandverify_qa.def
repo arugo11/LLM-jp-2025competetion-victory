@@ -57,16 +57,16 @@ Stage: final
     QUESTIONS_FILE="output/intermediate_questions.jsonl"
     ANSWERS_FILE="output/intermediate_answers.jsonl"
 
-    echo "=== Step 1: 問題作成 (Create Questions) ==="
+    echo "=== Step 1: Create Questions ==="
     # "$@" には最終出力先(--output_jsonl)が含まれていますが、
     # 後ろに書いた設定が優先されるため、ここでは QUESTIONS_FILE に保存されます。
     python3 create_questions.py "$@" --output_jsonl "$QUESTIONS_FILE"
 
-    echo "=== Step 2: 解答作成 (Create Answers) ==="
+    echo "=== Step 2: Create Answers ==="
     # Step 1で作ったファイルを読み込み(input)、結果を ANSWERS_FILE に書き出します(output)
     python3 create_answers.py "$@" --input_jsonl "$QUESTIONS_FILE" --output_jsonl "$ANSWERS_FILE"
 
-    echo "=== Step 3: 検証 (Verify QA) ==="
+    echo "=== Step 3: Verify QA ==="
     # Step 2で作ったファイルを読み込み(input)ます。
     # 出力先(--output_jsonl)は "$@" に含まれている「最終的な保存先」をそのまま使います。
     python3 verify_qa.py "$@" --input_jsonl "$ANSWERS_FILE"

@@ -8,12 +8,14 @@ PROMPT_TEMPLATE = """\
 以下に基づき日本の数学における入試テスト問題を一つ作成しなさい。
 - レベル: {category}
 - ジャンル: {unit}
+- 難易度: {difficulty} （最大難易度10）
 - 出力形式: 問題文のみ出力
 
 ## 制約事項
 - 数式は必ずlatex表記で出力する。
 - 問題文以外は出力してはならない。
 - 必ず日本語で出力する。
+- 全角のコンマ"，"は使わないこと。半角のコンマ","または通常の読点「、」を使いなさい。
 - \displaystyleを用いてはいけない。
 - 一つの数値または数式で解答できる問題にする。解答は出力してはいけない。
 - 問題は必ず一つのみ出力する。
@@ -71,7 +73,7 @@ def main():
             [
                 {
                     "role": "user",
-                    "content": PROMPT_TEMPLATE.format(category=problem["category"], unit=problem["unit"]),
+                    "content": PROMPT_TEMPLATE.format(category=problem["category"], unit=problem["unit"], difficulty=problem["difficulty"]),
                 }
             ]
         )
@@ -105,6 +107,11 @@ def main():
     dataset = Dataset.from_list(data)
     dataset_dict["train"] = dataset
 
+    #ローカルへの保存
+    if args.output_jsonl:
+        dataset.to_json(args.output_jsonl, orient="records", lines=True, force_ascii=False)
+        print(f"Saved dataset to {args.output_jsonl}")
+    
     # Hugging Faceへのアップロード
     if args.hf_token:
         dataset_dict.push_to_hub(args.repo_id, token=args.hf_token)
