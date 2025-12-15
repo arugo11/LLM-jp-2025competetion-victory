@@ -73,6 +73,9 @@ def main():
         "--repo_id", type=str, required=True, help="Hugging Face input repository ID (dataset)"
     )
     parser.add_argument(
+        "--input_jsonl", type=str, default=None, help="Path to download the input dataset as JSONL"
+    )
+    parser.add_argument(
         "--hf_token", type=str, default=None, help="Hugging Face token"
     )
     parser.add_argument(
@@ -84,9 +87,13 @@ def main():
     # LLMの初期化
     llm = LLM(model=args.model_path)
 
-    # データセットのダウンロード
-    print(f"Downloading dataset from {args.repo_id}...")
-    dataset = load_dataset(args.repo_id, split="train")
+    # データセットの読み込み分岐
+    if args.input_jsonl:
+        print(f"Loading dataset from local file: {args.input_jsonl}...")
+        dataset = load_dataset("json", data_files=args.input_jsonl, split="train")
+    else:
+        print(f"Downloading dataset from {args.repo_id}...")
+        dataset = load_dataset(args.repo_id, split="train")
     
     # 各問題に対してプロンプトを作成
     messages = []
