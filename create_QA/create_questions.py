@@ -61,7 +61,7 @@ def main():
         problems[i % category_count].append({
             "category": category[i % category_count]["category"],
             "unit": category[i % category_count]["unit"],
-            "difficulty": i % 10
+            "difficulty": (len(problems[i % category_count]) % 10) + 1
         })
     problems = [item for sublist in problems for item in sublist]
     for i in range(len(problems)):
@@ -99,6 +99,7 @@ def main():
             "id": problem["id"],
             "category": problem["category"],
             "unit": problem["unit"],
+            "difficulty": problem["difficulty"],
             "problem": raw_text.split("assistantfinal")[-1].strip(),
             "problem_source": args.model_path
         })
