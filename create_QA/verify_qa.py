@@ -9,7 +9,7 @@ PROMPT_TEMPLATE = """\
 問題と答えに不備があるとは、問題文が間違っていたり、誤解を招く表現を使っている場合と問題は成立しているが、答えが間違っている場合を指します。偽陽性を最小限にしたいので、少しでも怪しければ不備として0を出力しなさい。
 
 # 制約事項
-- 必ず最終的な解答を\\boxedタグ内に記述する。
+- 必ず最終的な解答を\boxedタグ内に記述する。
 - 最終的な解答は必ず半角の0または1を出力する。
 - \displaystyleを用いてはいけない。
 
@@ -30,7 +30,7 @@ def extract_binary(text):
         return None
         
     # Find all occurrences of \boxed{
-    start_marker = "\\boxed{"
+    start_marker = "\boxed{"
     start_indices = []
     idx = text.find(start_marker)
     while idx != -1:
@@ -72,10 +72,7 @@ def main():
         "--max_tokens", type=int, default=4096, help="Maximum number of tokens"
     )
     parser.add_argument(
-        "--base_repo_id", type=str, required=True, help="Hugging Face input repository ID (dataset)"
-    )
-    parser.add_argument(
-        "--new_repo_id", type=str, required=True, help="Hugging Face output repository ID (dataset)"
+        "--repo_id", type=str, required=True, help="Hugging Face output repository ID (dataset)"
     )
     parser.add_argument(
         "--hf_token", type=str, default=None, help="Hugging Face token"
@@ -90,8 +87,8 @@ def main():
     llm = LLM(model=args.model_path)
 
     # データセットのダウンロード
-    print(f"Downloading dataset from {args.base_repo_id}...")
-    dataset = load_dataset(args.base_repo_id, split="train")
+    print(f"Downloading dataset from {args.repo_id}...")
+    dataset = load_dataset(args.repo_id, split="train")
     
     # 各問題に対してプロンプトを作成
     messages = []
@@ -140,8 +137,8 @@ def main():
 
     # Hugging Faceへのアップロード
     if args.hf_token:
-        dataset_dict.push_to_hub(args.new_repo_id, token=args.hf_token)
-        print(f"Uploaded dataset to {args.new_repo_id}")
+        dataset_dict.push_to_hub(args.repo_id, token=args.hf_token)
+        print(f"Uploaded dataset to {args.repo_id}")
     else:
         print("HF token not provided. Skipping upload.")
 
