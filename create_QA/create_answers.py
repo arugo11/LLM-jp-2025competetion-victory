@@ -128,8 +128,7 @@ def main():
         new_row["generated_solution"] = generated_text
         new_row["expected_answer"] = extract_answer(generated_text)
         if new_row["expected_answer"] is None:
-            print(f"Warning: No boxed answer found for ID {row.get('id', 'unknown')}")
-            # continue  <-- ここをコメントアウトして無効化！
+            continue
         data.append(new_row)
 
     # DatasetDictの作成とデータの追加

@@ -127,8 +127,8 @@ def main():
         new_row = row.copy()
         generated_text = output.outputs[0].text
         new_row["validation_cot"] = generated_text
-        new_row["is_valid"] = extract_binary(generated_text)
-        if new_row["expected_answer"] is None:
+        new_row["is_valid"] = extract_binary(generated_text.split("assistantfinal")[-1].strip())
+        if (new_row["is_valid"] !=0) and (new_row["is_valid"] !=1):
             continue
         data.append(new_row)
 

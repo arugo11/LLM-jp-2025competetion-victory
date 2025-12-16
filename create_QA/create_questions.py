@@ -23,7 +23,7 @@ PROMPT_TEMPLATE = r"""
 
 """
 
-Question_Count = 50000
+Question_Count = 10000
 
 def main():
     # プログラム開始時間を記録

@@ -34,8 +34,8 @@ singularity build --fakeroot --force \
        dist/verify_qa.sif verify_qa.def
 
 # 推論を実行します。
-BASE_REPO_ID="team-victory/test_qa"
-NEW_REPO_ID="team-victory/test_verify_qa"
+BASE_REPO_ID="team-victory/qa_verify_2"
+NEW_REPO_ID="team-victory/qa_verify_2_new"
 
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0\
