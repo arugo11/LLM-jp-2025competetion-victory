@@ -64,4 +64,4 @@ Stage: final
 
     echo "=== Step 3: Verify QA ==="
 
-    python3 verify_qa.py "$@" --input_jsonl "$ANSWERS_FILE" --max_token 1600 #長い回答はハルシネーションが多い
+    python3 verify_qa.py "$@" --input_jsonl "$ANSWERS_FILE" --max_token 1600
