@@ -3,12 +3,13 @@ import time
 from datasets import load_dataset, Dataset, DatasetDict
 from vllm import LLM, SamplingParams
 
-PROMPT_TEMPLATE = """\
+PROMPT_TEMPLATE = r"""
 以下は数学の問題です。
-解答を段階的に考え、最終的な答えとなる数値や解を\\boxedタグ内に記述してください。
+解答を段階的に考え、最終的な答えとなる数値や解を\boxedタグ内に記述してください。
+段階的に考え、解法も含めて出力すること。
 
 # 制約事項
-- 必ず最終的な解答を\\boxedタグ内に記述する。
+- 必ず最終的な解答を\boxedタグ内に記述する。
 - 最終的な解答は必ず一つの数値または数式で出力する。
 - \displaystyleを用いてはいけない。
 - 最終的な解答では単位を出力してはならない。
@@ -28,7 +29,7 @@ def extract_answer(text):
         return None
         
     # Find all occurrences of \boxed{
-    start_marker = "\\boxed{"
+    start_marker = r"\boxed{"
     start_indices = []
     idx = text.find(start_marker)
     while idx != -1:

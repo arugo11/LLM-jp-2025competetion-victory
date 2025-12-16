@@ -3,13 +3,13 @@ import time
 from datasets import load_dataset, Dataset, DatasetDict
 from vllm import LLM, SamplingParams
 
-PROMPT_TEMPLATE = """\
+PROMPT_TEMPLATE = r"""
 以下は数学の問題と答えです。
 問題と答えに不備がある場合、0を出力しなさい。問題が成立し、答えもあっている場合、1を出力しなさい。
-問題と答えに不備があるとは、問題文が間違っていたり、誤解を招く表現を使っている場合と問題は成立しているが、答えが間違っている場合を指します。偽陽性を最小限にしたいので、少しでも怪しければ不備として0を出力しなさい。
+問題と答えに不備があるとは、問題文が間違っていたり、誤解を招く表現を使っている場合と問題は成立しているが、答えが間違っている場合を指します。また、答えが存在しないなどの答えが出ている場合も不備があるとしてください。偽陽性を最小限にしたいので、少しでも怪しければ不備として0を出力しなさい。
 
 # 制約事項
-- 必ず最終的な解答を\\boxedタグ内に記述する。
+- 必ず最終的な解答を\boxedタグ内に記述する。
 - 最終的な解答は必ず半角の0または1を出力する。
 - \displaystyleを用いてはいけない。
 
@@ -30,7 +30,7 @@ def extract_binary(text):
         return None
         
     # Find all occurrences of \boxed{
-    start_marker = "\\boxed{"
+    start_marker = r"\boxed{"
     start_indices = []
     idx = text.find(start_marker)
     while idx != -1:

@@ -4,7 +4,7 @@ from datasets import Dataset, DatasetDict
 from vllm import LLM, SamplingParams
 from category import category
 
-PROMPT_TEMPLATE = """\
+PROMPT_TEMPLATE = r"""
 以下に基づき日本の数学における入試テスト問題を一つ作成しなさい。
 - レベル: {category}
 - ジャンル: {unit}
@@ -23,7 +23,7 @@ PROMPT_TEMPLATE = """\
 
 """
 
-Question_Count = 100
+Question_Count = 50000
 
 def main():
     # プログラム開始時間を記録
