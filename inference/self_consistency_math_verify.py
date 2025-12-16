@@ -117,7 +117,7 @@ def main():
         # 抽出結果を保存
         for j, content in enumerate(extracted_contents):
             if (content is not None) and (len(content) > 0):
-                all_outputs[j].append(content[0])
+                all_outputs[j].append(str(content[0]))
             else:
                 all_outputs[j].append(None)
 

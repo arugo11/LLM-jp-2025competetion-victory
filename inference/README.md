@@ -110,5 +110,5 @@ singularity build --fakeroot --force --bind "${UV_CACHE_DIR}:/root/.cache/uv" --
 ```
 - 推論動作の実行
 ``` bash
-singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/self_consistency.sif --model_path models/team-victory/llm-jp-4-8b-instruct --input_path input/dev.jsonl --output_path "$(pwd)/self-consistency-num10.jsonl"
+singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/self_consistency.sif --model_path models/team-victory/llm-jp-4-8b-instruct --input_path input/dev.jsonl --output_path "$(pwd)/output/self-consistency-num20.jsonl" --num_samples 20
 ```
