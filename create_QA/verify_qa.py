@@ -127,9 +127,9 @@ def main():
         new_row = row.copy()
         generated_text = output.outputs[0].text
         new_row["validation_cot"] = generated_text
-        new_row["is_valid"] = extract_binary(generated_text.split("assistantfinal")[-1].strip())
-        if (new_row["is_valid"] !=0) and (new_row["is_valid"] !=1):
-            continue
+        val = extract_binary(generated_text.split("assistantfinal")[-1].strip())
+        if val not in ["0", "1"] : val = -1
+        new_row["is_valid"] = int(val)
         data.append(new_row)
 
     # DatasetDictの作成とデータの追加
