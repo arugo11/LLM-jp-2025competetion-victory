@@ -12,10 +12,13 @@
 # qsub -v HF_TOKEN="your_token_here" ./create_qa-1gpu.sh
 cd $PBS_O_WORKDIR #実行したディレクトリに移動
 
+NUM_QUESTIONS=${NUM_QUESTIONS:-10000}
+echo "NUM_QUESTIONS is set to ${NUM_QUESTIONS}"
+
 JOBID=${PBS_JOBID%%.*}
 mkdir -p ./.log
-LOGFILE=./.log/createandverify_qa-$JOBID.out
-ERRFILE=./.log/createandverify_qa-$JOBID.err
+LOGFILE=./.log/llmjudge-$JOBID.out
+ERRFILE=./.log/llmjudge-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -31,7 +34,7 @@ mkdir -p dist
 # コードを書き替えるたびにビルドする必要があるそうです。
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
-       dist/createandverify_qa.sif createandverify_qa.def
+       dist/llmjudge.sif llmjudge.def
 
 # 推論を実行します。
 REPO_ID="team-victory/qa_verify_5k_test"
@@ -41,9 +44,10 @@ singularity run --nv --writable-tmpfs \
     --env HF_TOKEN=$HF_TOKEN \
     --bind "$(pwd)/models:/app/models" \
     --bind "$(pwd)/output:/app/output" \
-    dist/createandverify_qa.sif \
+    dist/llmjudge.sif \
     --model_path models/openai/gpt-oss-20b \
     --max_tokens 4096 \
     --repo_id $REPO_ID \
     --hf_token $HF_TOKEN \
     --output_jsonl output/test_qa.jsonl \
+    --num_questions $NUM_QUESTIONS 
