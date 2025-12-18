@@ -25,7 +25,7 @@ class DatasetConfig:
 
     id: str
     config: Optional[str] = None
-    split: str = "train"
+    split: Optional[str] = None
     columns: Optional[list[str]] = None
     weight: Optional[float] = None
 
@@ -369,7 +369,7 @@ class DatasetClass:
 
     name: str = None
     config: str = "default"
-    split: str = "train"
+    split: str = None
     question_field: str = "question"
     answer_field: str = "output"
     from_id: int = None

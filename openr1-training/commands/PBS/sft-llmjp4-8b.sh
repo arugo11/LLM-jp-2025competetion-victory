@@ -1,9 +1,9 @@
 #!/bin/bash
 #PBS -P gch51701
 #PBS -q rt_HF
-#PBS -N sft-0.5b
+#PBS -N sft-llmjp4-8b
 #PBS -l select=1:ncpus=192:ngpus=8
-#PBS -l walltime=168:00:00
+#PBS -l walltime=8:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
