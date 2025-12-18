@@ -94,7 +94,9 @@ def main():
     # 結果の整形
     data = []
     for problem, output in zip(problems, outputs):
-        raw_text = output.outputs[0].text
+        completion=output.outputs[0]
+        if completion.finish_reason=="length": continue
+        raw_text = completion.text
         data.append({
             "id": problem["id"],
             "category": problem["category"],
