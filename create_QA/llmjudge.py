@@ -85,7 +85,19 @@ def main():
 
     # 1. LLMの初期化 (固定費をここで1回に集約)
     print(f"Loading model from {args.model_path}...")
-    llm = LLM(model=args.model_path)
+    llm = LLM(
+    model=args.model_path,
+    # 1. 同時実行リクエスト数 (ここが重要！)
+    # H200なら 512 や 1024、メモリに余裕があればそれ以上に設定可能
+    max_num_seqs=6192, 
+    
+    # 2. KVキャッシュに使うメモリの割合
+    # デフォルトは0.9ですが、H200なら高めに設定してOK
+    gpu_memory_utilization=0.95,
+    
+    # 3. 最大入力/出力トークン長に応じた調整
+    # メモリが余っているなら、もっと多くのスロットを確保できます
+    max_model_len=4096)
 
     # 2. ユニットの均等配分ロジック (「文字式」重複対策)
     # ユニット名ごとにグループ化

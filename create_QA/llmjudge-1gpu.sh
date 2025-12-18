@@ -13,7 +13,11 @@
 cd $PBS_O_WORKDIR #実行したディレクトリに移動
 
 NUM_QUESTIONS=${NUM_QUESTIONS:-10000}
+REPO_ID=${REPO_ID:-"team-victory/qa_default"}
+MODEL_PATH=${MODEL_PATH:-"models/openai/gpt-oss-20b"}
+
 echo "NUM_QUESTIONS is set to ${NUM_QUESTIONS}"
+echo "REPO_ID is set to ${REPO_ID}"
 
 JOBID=${PBS_JOBID%%.*}
 mkdir -p ./.log
@@ -37,15 +41,13 @@ singularity build --fakeroot --force \
        dist/llmjudge.sif llmjudge.def
 
 # 推論を実行します。
-REPO_ID="team-victory/qa_verify_5k_test"
-
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0\
     --env HF_TOKEN=$HF_TOKEN \
     --bind "$(pwd)/models:/app/models" \
     --bind "$(pwd)/output:/app/output" \
     dist/llmjudge.sif \
-    --model_path models/openai/gpt-oss-20b \
+    --model_path "$MODEL_PATH" \
     --max_tokens 4096 \
     --repo_id $REPO_ID \
     --hf_token $HF_TOKEN \
