@@ -112,3 +112,7 @@ singularity build --fakeroot --force --bind "${UV_CACHE_DIR}:/root/.cache/uv" --
 ``` bash
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/self_consistency.sif --model_path models/team-victory/llm-jp-4-8b-instruct --input_path input/dev.jsonl --output_path "$(pwd)/output/self-consistency-num40.jsonl" --num_samples 40
 ```
+
+```
+singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/sft-test-self-consistency.sif --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test --input_path input/dev.jsonl --output_path "$(pwd)/output/sft-test-self-consistency-num40.jsonl" --num_samples 40
+```

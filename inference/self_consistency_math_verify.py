@@ -104,6 +104,8 @@ def main():
     all_outputs = [[] for _ in range(len(messages))]
     tmp_outputs = [] # 各イテレーションの出力を保存するリスト
     for i in range(args.num_samples):
+        print("--------------------------------")
+        print(f"Sampling iteration: {i+1}/{args.num_samples}")
         sampling_params = SamplingParams(
             temperature=0.5,
             max_tokens=args.max_tokens,
