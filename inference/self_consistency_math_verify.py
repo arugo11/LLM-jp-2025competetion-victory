@@ -105,8 +105,9 @@ def main():
     tmp_outputs = [] # 各イテレーションの出力を保存するリスト
     for i in range(args.num_samples):
         sampling_params = SamplingParams(
-            temperature=0.9,
+            temperature=0.5,
             max_tokens=args.max_tokens,
+            top_k=40,
         )
         outputs = llm.chat(
             messages, sampling_params=sampling_params
