@@ -1,5 +1,6 @@
 dist/
 models/
+datasets/
 
 # Python-generated files
 __pycache__/
