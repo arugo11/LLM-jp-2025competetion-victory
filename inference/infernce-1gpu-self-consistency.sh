@@ -37,89 +37,104 @@ singularity build --fakeroot --force \
        --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct" \
        dist/baseline.sif self_consistency.def
 
+# SFTモデルでのビルド
 echo "Build llm-jp-4-8b-instruct-sft-test-checkpoint-140"
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
        --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140" \
        dist/sft-test.sif self_consistency.def
-
+# qa-verify10k_testデータセットでのSelf-Consistencyをビルド
+echo "Build self_consistency_test_qa_verify10k_test"
+singularity build --fakeroot --force \
+       --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
+       --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140" \
+       dist/sft-test-qa-verify10k-test.sif self_consistency_qa_verify.def
 
 # llm-jp-4-instructionでの推論
 # 生成回数1
-singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
-        --net --network none dist/baseline.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/llm-jp-4-instruction/sample-1.jsonl" \
-        --num_samples 1
+singularity run --nv --writable-tmpfs \
+    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/baseline.sif \
+    --model_path models/team-victory/llm-jp-4-8b-instruct \
+    --input_path input/dev.jsonl \
+    --output_path "$(pwd)/output/llm-jp-4-instruction/sample-1.jsonl" \
+    --num_samples 1
 
 # 生成回数10
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/llm-jp-4-instruction/sample-10.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-10.jsonl" \
         --num_samples 10
 # 生成回数20
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/llm-jp-4-instruction/sample-20.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-20.jsonl" \
         --num_samples 20
 
 # 生成回数40
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/llm-jp-4-instruction/sample-40.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-40.jsonl" \
         --num_samples 40
 
 # 生成回数80
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/llm-jp-4-instruction/sample-80.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-80.jsonl" \
         --num_samples 80
 
 # llm-jp-4-8b-instruct-sft-test-checkpoint-140での推論
 # 生成回数1
-singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
-        --net --network none dist/sft-test.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/sft-test1/sample-1.jsonl" \
+singularity run --nv --writable-tmpfs \
+        --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/sft-test.sif \
+        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/sft-test1/sample-1.jsonl" \
         --num_samples 1
 # 生成回数10
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/sft-test1/sample-10.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/sft-test1/sample-10.jsonl" \
         --num_samples 10
 
 # 生成回数20
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/sft-test1/sample-20.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/sft-test1/sample-20.jsonl" \
         --num_samples 20
 
 # 生成回数40
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/sft-test1/sample-40.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/sft-test1/sample-40.jsonl" \
         --num_samples 40
 
 # 生成回数80
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
-        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \ 
-        --input_path input/dev.jsonl \ 
-        --output_path "$(pwd)/sft-test1/sample-80.jsonl" \
+        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/sft-test1/sample-80.jsonl" \
         --num_samples 80
+
+# qa-verify10k_testデータセットでのSelf-Consistency推論
+# 生成回数1
+singularity run --nv --writable-tmpfs \
+        --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/sft-test-qa-verify10k-test.sif \
+        --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
+        --input_path input/dev.jsonl \
+        --output_path "$(pwd)/output/qa-verify/sample-1.jsonl" \
+        --num_samples 1
