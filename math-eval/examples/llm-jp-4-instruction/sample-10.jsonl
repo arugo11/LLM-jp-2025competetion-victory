@@ -1,0 +1,100 @@
+{"id": 1, "category": "中1", "unit": "一次方程式", "problem": "1個50円のみかんと1個120円のりんごを合わせて10個買ったら、代金の合計が920円となった。この時買ったみかんの個数を求めなさい。", "solution": "4", "output": "$$4$$"}
+{"id": 2, "category": "中1", "unit": "一次方程式", "problem": "次の方程式を解きなさい。\n\n$$\\frac{2}{5}x - 4 = \\frac{x}{3}$$", "solution": "$$60$$", "output": "$$60$$"}
+{"id": 3, "category": "中1", "unit": "一次方程式", "problem": "次の方程式を解きなさい。\n\n$$x - 3 = - 2$$", "solution": "$$1$$", "output": "$$1$$"}
+{"id": 4, "category": "中1", "unit": "文字式", "problem": "$x = - \\frac{1}{4}$ののとき、$- x^{3}$の値を求めなさい。", "solution": "$$\\frac{1}{64}$$", "output": "$$-1/64$$"}
+{"id": 5, "category": "中1", "unit": "文字式", "problem": "次の式を計算しなさい\n\n$$- 6(3x - 7) + 3(3x - 8)$$", "solution": "$$- 9x + 18$$", "output": "$$-1*9*x + 18$$"}
+{"id": 6, "category": "中1", "unit": "文字式", "problem": "次の計算をしなさい。\n\n$$5a - 8a$$", "solution": "$$- 3a$$", "output": "$$-1*3*a$$"}
+{"id": 7, "category": "中1", "unit": "文字式", "problem": "次の計算をしなさい。\n\n$$\\frac{3}{4}b \\times 24$$", "solution": "$$18b$$", "output": "$$18*b$$"}
+{"id": 8, "category": "中1", "unit": "文字式", "problem": "次の計算をしなさい。\n\n$$\\frac{3x + 6}{6} \\times 18$$", "solution": "$$9x + 18$$", "output": "$$3*x + 6$$"}
+{"id": 9, "category": "中1", "unit": "正負の数", "problem": "次の計算をしなさい。\n\n$$( - 8) - (13 - 5^{2}) \\div 3$$", "solution": "$$- 4$$", "output": "$$-4$$"}
+{"id": 10, "category": "中1", "unit": "正負の数", "problem": "次の計算をしなさい。\n\n$$18 - 23 + 5$$", "solution": "$$0$$", "output": "$$0$$"}
+{"id": 11, "category": "中1", "unit": "正負の数", "problem": "次の計算をしなさい。\n\n$$( - 5) \\times ( - 2) \\times ( - 4)$$", "solution": "$$- 40$$", "output": "$$-40$$"}
+{"id": 12, "category": "中1", "unit": "比例反比例", "problem": "A町から32kmはなれたB町まで自転車で行く。自転車の速さを時速11km, A町を出発してからの時間を$x$時間、A町からの進んだ距離を$y$kmとするとき、$x$の変域を、不等号を使って表しなさい。", "solution": "$$0 \\leq x \\leq \\frac{32}{11}$$", "output": "$$(0 <= x) & (x <= 32/11)$$"}
+{"id": 13, "category": "中1", "unit": "比例反比例", "problem": "分速50mの速さで$x$分歩いたとき、進んだ道のりを$y$ｍとするとき、$y$を$x$の式で表しなさい。", "solution": "$$y = 50x$$", "output": "$$Eq(y, 50*x)$$"}
+{"id": 14, "category": "中1", "unit": "比例反比例", "problem": "比例式$y = 3x$で、$x = - 4$のとき、$y$の値を求めなさい。", "solution": "$$- 12$$", "output": "$$-12$$"}
+{"id": 15, "category": "中1", "unit": "比例反比例", "problem": "比例式$y = 7x$で,$x = - 9$のとき、$y$の値を求めなさい.", "solution": "$$- 10$$", "output": "$$-63$$"}
+{"id": 16, "category": "中2", "unit": "一次関数", "problem": "1個$a$円のパンを$x$個購入し、$b$円の袋に詰めると、代金は$y$円になる。$x = 2$のとき$y = 280$で、$x = 6$のとき$y = 760$であるという。このときの$a$の値を求めなさい。", "solution": "$$a = 120$$", "output": "$$120$$"}
+{"id": 17, "category": "中2", "unit": "一次関数", "problem": "点$(0,10)$を通り、傾きが$- 5$の直線の式を求めなさい。", "solution": "$$y = - 5x + 10$$", "output": "$$Eq(y, -1*5*x + 10)$$"}
+{"id": 18, "category": "中2", "unit": "一次関数", "problem": "次の2つの直線の交差点が一致するとき、$a$の値を求めなさい。\n\n$$3x + y = b$$\n\n$$ax - y + 4 = 0$$", "solution": "$a = - 3$", "output": "$$3$$"}
+{"id": 19, "category": "中2", "unit": "文字式", "problem": "次の式の同類項をまとめなさい。\n\n$$2x - 5y - 4x + 6y$$", "solution": "$$- 2x + y$$", "output": "$$-1*2*x + y$$"}
+{"id": 20, "category": "中2", "unit": "文字式", "problem": "次の計算をしなさい。\n\n$$( - 4b)^{3}$$", "solution": "$$- 64b^{3}$$", "output": "$$-1*64*b**3$$"}
+{"id": 21, "category": "中2", "unit": "文字式", "problem": "次の計算をしなさい。\n\n$$3a \\times ( - 4b)$$", "solution": "$$- 12ab$$", "output": "$$-12$$"}
+{"id": 22, "category": "中2", "unit": "文字式", "problem": "次の計算をしなさい。\n\n$$3x - 6y - \\frac{x - 6y}{2}$$", "solution": "$$\\frac{5x - 6y}{2}$$", "output": "$$5*x/2 - 1*3*y$$"}
+{"id": 23, "category": "中2", "unit": "文字式", "problem": "次の計算をしなさい。\n\n$$4xy \\times 3x \\div 6y$$", "solution": "$$2x^{2}$$", "output": "$$2*x**2$$"}
+{"id": 24, "category": "中2", "unit": "確率", "problem": "$2$つのさいころを同時に投げるとき、出る目の数の和が$7$になる確率を求めよ。", "solution": "$$\\frac{1}{6}$$", "output": "$$1/6$$"}
+{"id": 25, "category": "中2", "unit": "確率", "problem": "$2$つのさいころを同時に投げるとき、出る目の数の差が$4$になる確率を求めよ。", "solution": "$$\\frac{1}{9}$$", "output": "$$1/18$$"}
+{"id": 26, "category": "中2", "unit": "確率", "problem": "$3$枚のコインを同時に投げるとき、少なくとも$1$枚は裏が出る確率を求めなさい。", "solution": "$$\\frac{7}{8}$$", "output": "$$7/8$$"}
+{"id": 27, "category": "中2", "unit": "確率", "problem": "大小2つのサイコロを同時に投げたとき、大きいサイコロの目が5以上で、小さいサイコロの目が2以下になる確率を求めなさい。", "solution": "$$\\frac{1}{9}$$", "output": "$$1/9$$"}
+{"id": 28, "category": "中2", "unit": "確率", "problem": "大小2つのサイコロを同時に投げる時、目の数の和が12になる確率を求めなさい。", "solution": "$$\\frac{1}{36}$$", "output": "$$1/36$$"}
+{"id": 29, "category": "中2", "unit": "連立方程式", "problem": "A地から4.2km離れたC地へ行くのに、A地から途中のB地までは毎分120mの速さで走り、B地からC地までは毎分60mの速さで歩いたら、全体で50分かかりました。このときのB地からC地までの道のりは何mか求めなさい。", "solution": "$$1800$$", "output": "$$1800$$"}
+{"id": 30, "category": "中2", "unit": "連立方程式", "problem": "十の位の数と一の位の数の和が16である2けたの整数があります。\n\nまた、この整数の十の位の数と一の位の数を入れかえた数をつくると、もとの整数よりも18大きくなるといいます。もとの整数を求めなさい。", "solution": "$$79$$", "output": "$$79$$"}
+{"id": 31, "category": "中2", "unit": "連立方程式", "problem": "次の連立方程式を解き、$x$を答えなさい。\n\n$$y = 2x - 3$$ \n $$4x + 3y = 11$$", "solution": "$$x = 2$$", "output": "$$2$$"}
+{"id": 32, "category": "中2", "unit": "連立方程式", "problem": "次の連立方程式を解き、$y$を答えなさい。\n\n$$x + 4y = 13$$\n$$x + y = 4$$", "solution": "$$y = 3$$", "output": "$$3$$"}
+{"id": 33, "category": "中2", "unit": "連立方程式", "problem": "２つの整数の和が$120$で、一方の数が他方の数の$3$倍より$8$小さいとき、この２つの整数のうち小さい方を求めなさい.", "solution": "$32$", "output": "$$32$$"}
+{"id": 34, "category": "中3", "unit": "二次方程式", "problem": "次の方程式を解いてください.\n\n$$6x^{2} - x - 4 = 0$$", "solution": "$$\\frac{1 \\pm \\sqrt{97}}{12}$$", "output": "$${(1 - sqrt(17))/12, (1 + sqrt(17))/12}$$"}
+{"id": 35, "category": "中3", "unit": "二次方程式", "problem": "次の方程式を解け。\n\n$$(x + 3)^{2} = 24$$", "solution": "$$- 3 \\pm 2\\sqrt{6}$$", "output": "$${-3 + 2*sqrt(6), -2*sqrt(6) - 3}$$"}
+{"id": 36, "category": "中3", "unit": "二次方程式", "problem": "次の方程式を解きなさい。\n\n$$3x^{2} + 7x + 2 = 0$$", "solution": "$x = - \\frac{1}{3},- 2$", "output": "$${-2, -1/3}$$"}
+{"id": 37, "category": "中3", "unit": "二次関数", "problem": "$y$は$x$の二乗に比例し、次の条件を満たすとき、$y$を$x$の式で表しなさい。\n\n$x = 2$のとき$y = 12$", "solution": "$$y = 3x^{2}$$", "output": "$$Eq(y, 3*x**2)$$"}
+{"id": 38, "category": "中3", "unit": "二次関数", "problem": "関数$y = - 4x^{2}$について、$x$の変域が$2 \\leq x \\leq 5$のとき、$y$の変域を求めなさい。", "solution": "$$- 100 \\leq y \\leq - 16$$", "output": "$$Interval(-100, -16)$$"}
+{"id": 39, "category": "中3", "unit": "二次関数", "problem": "関数$y = \\frac{3}{5}x^{2}$について、$x$の値が5から10まで増加したとき、$y$の増加量は$x$の増加量の何倍か求めなさい。", "solution": "$$9$$", "output": "$$9$$"}
+{"id": 40, "category": "中3", "unit": "展開と因数分解", "problem": "次の式を因数分解しなさい。\n\n$$2x^{2} + 24x + 64$$", "solution": "$$2(x + 4)(x + 8)$$", "output": "$$2*(x + 4)*(x + 8)$$"}
+{"id": 41, "category": "中3", "unit": "展開と因数分解", "problem": "次の式を因数分解しなさい。\n\n$$x^{2} - 3x - 18$$", "solution": "$$(x + 3)(x - 6)$$", "output": "$$(x - 6)*(x + 3)$$"}
+{"id": 42, "category": "中3", "unit": "展開と因数分解", "problem": "次の式を展開しなさい。\n\n$$(5x - 3y)^{2}$$", "solution": "$$25x^{2} - 30xy + 9y^{2}$$", "output": "$$25*x**2 - 1*30*x*y + 9*y**2$$"}
+{"id": 43, "category": "中3", "unit": "展開と因数分解", "problem": "次の式を展開しなさい。\n\n$$(x - 5)^{2}$$", "solution": "$$x^{2} - 10x + 25$$", "output": "$$x**2 - 1*10*x + 25$$"}
+{"id": 44, "category": "中3", "unit": "展開と因数分解", "problem": "次の計算をしましょう。\n\n$$5a\\left( a - 2b \\right)$$", "solution": "$$5a^{2} - 10ab$$", "output": "$$5*a**2 - 10$$"}
+{"id": 45, "category": "中3", "unit": "平方根", "problem": "次の式の計算をし、答えを出しなさい。\n\n$$\\sqrt{45} + \\sqrt{125}$$", "solution": "$$8\\sqrt{5}$$", "output": "$$8*sqrt(5)$$"}
+{"id": 46, "category": "中3", "unit": "平方根", "problem": "次の式の計算をしなさい。\n\n$$\\sqrt{12} \\times \\sqrt{8}$$", "solution": "$$4\\sqrt{6}$$", "output": "$$4*sqrt(6)$$"}
+{"id": 47, "category": "中3", "unit": "平方根", "problem": "次の数を$a\\sqrt{b}$の形に表しなさい。\n\n$$\\sqrt{24}$$", "solution": "$$2\\sqrt{6}$$", "output": "$$2*sqrt(6)$$"}
+{"id": 48, "category": "中3", "unit": "平方根", "problem": "次の計算をしましょう。\n\n$$\\left( 3\\sqrt{2} - 2 \\right)\\left( \\sqrt{2}+1 \\right)$$", "solution": "$$4+\\sqrt{2}$$", "output": "$$sqrt(2) + 4$$"}
+{"id": 49, "category": "中3", "unit": "平方根", "problem": "次の計算をせよ。\n\n$$\\sqrt{3}\\left( 2+\\sqrt{6} \\right)$$", "solution": "$$3\\sqrt{2}+2\\sqrt{3}$$", "output": "$$6*sqrt(2)$$"}
+{"id": 50, "category": "IA", "unit": "2次関数", "problem": "$x,y$は$x + y = 4,x \\geqq 0,y \\geqq 0$を満たして変化する。このとき，$z = (x - 1)y + 2$の最大値を求めよ。", "solution": "$\\frac{17}{4}$", "output": "$$2$$"}
+{"id": 51, "category": "IA", "unit": "2次関数", "problem": "3点$(0， - 2)，(1，0)，( - 1，4)$を通るような2次関数の方程式を求めよ.", "solution": "$y = 4x^{2} - 2x - 2$", "output": "$$2*x**2 + 4*x - 2$$"}
+{"id": 52, "category": "IA", "unit": "2次関数", "problem": "次の2次方程式を解け。\n$$x^{2} - 8x + 3 = 0$$", "solution": "$x = 4 \\pm \\sqrt{13}$", "output": "$${4 - sqrt(13), sqrt(13) + 4}$$"}
+{"id": 53, "category": "IA", "unit": "2次関数", "problem": "関数$f(x) = x^{2} - 4x$と定める。このとき，実数$t,$に対して\n$t \\leqq x \\leqq t + 3$における$f(x)$の最小値を$m(t)$で表す。$m(3)$を求めよ。", "solution": "$- 3$", "output": "$$-3$$"}
+{"id": 54, "category": "IA", "unit": "2次関数", "problem": "頂点が$( - 4，5)$で、点$(0， - 3)$を通る2次関数のグラフの方程式を求めよ.", "solution": "$y = - \\frac{1}{2}(x + 4)^{2} + 5$", "output": "$$Eq(y, x**2 + 8*x + 19)$$"}
+{"id": 55, "category": "IA", "unit": "場合の数と確率", "problem": "3個のサイコロを投げて出た目の和が9の倍数となるような出る目の組合せは何通りあるか。", "solution": "$7$", "output": "$$48$$"}
+{"id": 56, "category": "IA", "unit": "場合の数と確率", "problem": "赤いボールが5個，白いボールが6個ある。この11個のぼーるから赤いボール3個と白いボール2個を選ぶ方法は、全部で何通りあるか。", "solution": "$150$", "output": "$$150$$"}
+{"id": 57, "category": "IA", "unit": "場合の数と確率", "problem": "集合$U$とその部分集合$A,B$に対して，$n(U) = 200,n(A) = 130,n(B) = 90$とするとき，$n(\\overline{A} \\cap B)$の最大値を求めよ。", "solution": "$70$", "output": "$$70$$"}
+{"id": 58, "category": "IA", "unit": "数と式", "problem": "$A = 2x^{2} - x + 4，B = - x^{2} + 5x + 2$とする。$A + B$を計算せよ。", "solution": "$x^{2} + 4x + 6$", "output": "$$x**2 + 4*x + 6$$"}
+{"id": 59, "category": "IA", "unit": "数と式", "problem": "次の式を展開せよ。\n$$(2x + 4)\\left( 4x^{2} + 16 \\right)(2x - 4)$$", "solution": "$16x^{4} - 256$", "output": "$$16*x**4 - 256$$"}
+{"id": 60, "category": "IA", "unit": "数と式", "problem": "次の式を展開せよ。\n$$(a + 2b)\\left( a^{2} + 4b^{2} \\right)(a - 2b)$$", "solution": "$a^{4} - 16b^{4}$", "output": "$$a**4 - 1*20*a**2*b**2 + 4*b**4$$"}
+{"id": 61, "category": "IA", "unit": "数と式", "problem": "次の式を展開せよ。\n$$(x + y + 3)(x + y - 5)$$", "solution": "$x^{2} + 2xy + y^{2} - 2x - 2y - 15$", "output": "$$x**2 + 2*x*y - 1*2*x - 1*5*y - 15$$"}
+{"id": 62, "category": "IA", "unit": "整数の性質（数学と人間活動）", "problem": "2つの自然数$a,b$は$a < b$を満たし，それらの最大公約数が4，最小公倍数が72である。このような自然数の組$(a,b)$を求めよ。", "solution": "$(a,b) = (4,72),(8,36)$", "output": "$${Interval.open(4, 18), Interval.open(8, 9), (12, 6), (16, 4), (24, 3), (36, 2)}$$"}
+{"id": 63, "category": "IA", "unit": "整数の性質（数学と人間活動）", "problem": "540の正の約数の個数を求めよ。", "solution": "24", "output": "$$24$$"}
+{"id": 64, "category": "IA", "unit": "整数の性質（数学と人間活動）", "problem": "等式$x^{2} = y^{2} + 12を満たす自然数x,y$の組を求めよ。", "solution": "$(x,y) = (4,2)$", "output": "$$2$$"}
+{"id": 65, "category": "IIB", "unit": "いろいろな式", "problem": "$a + b = c$のとき、$\\frac{a + b}{c} + \\frac{b - c}{a} + \\frac{a - c}{b}$の値を求めよ。", "solution": "$- 1$", "output": "$$1$$"}
+{"id": 66, "category": "IIB", "unit": "いろいろな式", "problem": "次の式を因数分解せよ。\n$$x^{3} + 27y^{3}$$", "solution": "$(x + 3y)\\left( x^{2} - 3xy + 9y^{2} \\right)$", "output": "$$3$$"}
+{"id": 67, "category": "IIB", "unit": "いろいろな式", "problem": "次の式を計算せよ.\n$$\\sum_{k = 1}^{n} 2k_{n}C_{k}$$", "solution": "$n \\cdot 2^{n}$", "output": "$$n**2 + n$$"}
+{"id": 68, "category": "IIB", "unit": "三角関数", "problem": "$0 \\leqq \\theta < 2\\pi$のとき，$2\\sin^{2}\\theta + \\cos\\theta - 1 = 0$を解け。", "solution": "$\\theta = 0,\\frac{2}{3}\\pi ,\\frac{4}{3}\\pi$", "output": "$$2$$"}
+{"id": 69, "category": "IIB", "unit": "三角関数", "problem": "$0 \\leqq x \\leqq \\frac{\\pi}{2}において\\sin x = \\frac{12}{13}$のとき，$\\sin 2x$の値を求めよ。", "solution": "$\\frac{120}{169}$", "output": "$$120/169$$"}
+{"id": 70, "category": "IIB", "unit": "三角関数", "problem": "半径$R$の円に内接する四角形$ABCD$が$AB = \\sqrt{7} - 1,BC = \\sqrt{7} + 1,\\cos{\\angle ABC} = - \\frac{1}{3}$を満たしている。このとき，この円の半径$R$を求めよ。", "solution": "$\\frac{3\\sqrt{10}}{4}$", "output": "$$1$$"}
+{"id": 71, "category": "IIB", "unit": "三角関数", "problem": "次の値を求めよ.\n$$\\tan{\\frac{5}{3}\\pi}$$", "solution": "$- \\sqrt{3}$", "output": "$$0$$"}
+{"id": 72, "category": "IIB", "unit": "三角関数", "problem": "次の値を求めよ。値は有理化した形で答えること。\n$$\\sin{\\frac{5}{4}\\pi}$$", "solution": "$- \\frac{\\sqrt{2}}{2}$", "output": "$$sqrt(2)/2$$"}
+{"id": 73, "category": "IIB", "unit": "三角関数", "problem": "点$P(4，2)$の原点$O$を中心として$\\frac{\\pi}{3}$だけ回転させた点$Q$の座標を求めよ.", "solution": "$(2 - \\sqrt{3}，1 + 2\\sqrt{3})$", "output": "$$Interval.open(2 - sqrt(3), 1 + 2*sqrt(3))$$"}
+{"id": 74, "category": "IIB", "unit": "微分法・積分法", "problem": "$f(x) = - x^{2} + 10xのx = 1からx = 6$における平均変化率を求めよ。", "solution": "$3$", "output": "$$-9/5$$"}
+{"id": 75, "category": "IIB", "unit": "微分法・積分法", "problem": "$y = 2x^{3} - ax$が極値をもつような$a$の範囲を求めよ.", "solution": "$a > 0$", "output": "$$a >= 0$$"}
+{"id": 76, "category": "IIB", "unit": "微分法・積分法", "problem": "関数$f(x) = x^{2} + 4x - 1$の$x = a$における微分係数を求めよ。", "solution": "$2a + 4$", "output": "$$2*a + 4$$"}
+{"id": 77, "category": "IIB", "unit": "微分法・積分法", "problem": "$f(x) = x^{n + 1}$($n$は自然数)の導関数$f'(x)$を求めよ。", "solution": "$f'(x) = (n + 1)x^{n}$", "output": "$$x**n*(n + 1)$$"}
+{"id": 78, "category": "IIB", "unit": "指数・対数", "problem": "$\\left( 2^{\\frac{1}{3}} + 2^{- \\frac{2}{3}} \\right)^{3}$を簡単にせよ。", "solution": "$\\frac{27}{4}$", "output": "$$2$$"}
+{"id": 79, "category": "IIB", "unit": "指数・対数", "problem": "$\\log_{2}3 = a，\\log_{3}5 = b$とするとき、$\\log_{15}12$を$a，b$で表せ。", "solution": "$\\frac{2 + a}{a + ab}$", "output": "$$1$$"}
+{"id": 80, "category": "IIB", "unit": "指数・対数", "problem": "$a > 0，a^{\\frac{1}{2}} + a^{- \\frac{1}{2}} = 4$のとき、$a^{\\frac{3}{2}} + a^{- \\frac{3}{2}}$の値を求めよ。", "solution": "$52$", "output": "$$2*sqrt(5**3)$$"}
+{"id": 81, "category": "IIB", "unit": "指数・対数", "problem": "不等式$\\log_{3}(x - 1) < 1 + \\log_{\\frac{1}{3}}(x - 5)$を解け。", "solution": "$5 < x < 3 + \\sqrt{7}$", "output": "$$(2 < x) & (x < 5)$$"}
+{"id": 82, "category": "IIB", "unit": "数列", "problem": "初項から第$n$項までの和が$3n^{2} + 2n$である数列$\\left\\{ a_{n} \\right\\}$の第$n$項$a_{n}$を求めよ。", "solution": "$a_{n} = 6n - 1$", "output": "$$4$$"}
+{"id": 83, "category": "IIB", "unit": "数列", "problem": "和$S = 1^{2} \\cdot (n - 1) + 2^{2} \\cdot (n - 2) + 3^{2} \\cdot (n - 3) + \\cdots + (n - 1)^{2} \\cdot 1$を求めよ。", "solution": "$\\frac{1}{12}n^{2}(n - 1)(n + 1)$", "output": "$$1$$"}
+{"id": 84, "category": "IIB", "unit": "数列", "problem": "第2項が10, 第5項が80であるような等比数列$\\left\\{ a_{n} \\right\\}$の一般項を求めよ。", "solution": "$a_{n} = 5 \\cdot 2^{n - 1}$", "output": "$$5*2**(n - 1)$$"}
+{"id": 85, "category": "IIB", "unit": "数列", "problem": "第3項が32, 第5項が128である等比数列の公比を求めよ。ただし,公比は負とする。", "solution": "$- 2$", "output": "$$-2$$"}
+{"id": 86, "category": "IIB", "unit": "統計的な推測", "problem": "20%の当たりくじを含む多数のくじがある。このなかから無作為に抽出された225本の標本中の当たりの本数を$X$とする。確率変数$X$の標準偏差$\\sigma(X)$を求めよ。", "solution": "$6$", "output": "$$254.100000000000$$"}
+{"id": 87, "category": "IIB", "unit": "統計的な推測", "problem": "ある地域の有権者が多数いて，その中でA党を支持する人が10%含まれているという。この地域から無作為に40人の有権者を抽出するとき，その中に含まれるA党支持者の率$R$の標準偏差を求めよ。ただし、必要に応じて$\\sqrt{90} = 9.487$として計算してよい。", "solution": "$0.047435$", "output": "$$1.90000000000000$$"}
+{"id": 88, "category": "IIB", "unit": "統計的な推測", "problem": "ある工場で製造した製品480個すべてを対象に，1個あたりに含まれる傷の数について調査を行った結果，傷がなかった製品が330個，傷が1個の製品が90個，2個の製品が30個であり，3個の製品が30個であった。4個以上の傷がある製品はなかった。この製品から1個を無作為に選んだとき，その製品に含まれる傷の数を表す確率変数を$X$とする。$X$の標準偏差$\\sigma(X)$を求めよ。", "solution": "$\\frac{\\sqrt{3}}{2}$", "output": "$$sqrt(105)/2$$"}
+{"id": 89, "category": "IIB", "unit": "統計的な推測", "problem": "確率変数$X$が標準正規分布$N(0,1)$に従うとき，確率\n$P( - 1.5 \\leqq X \\leqq 1)$を小数第4位まで求めよ。なお、必要に応じて数表を利用するか、コンピューターを利用した数値計算を行ってよい。", "solution": "$0.7745$", "output": "$$0.884900000000000$$"}
+{"id": 90, "category": "IIB", "unit": "統計的な推測", "problem": "確率変数$X$のとり得る値の範囲が$0 \\leqq X \\leqq 2$の確率密度関数\n$f(x) = ax^{3}$($a$は定数)について$a$の値を求めよ。", "solution": "$\\frac{1}{4}$", "output": "$$1/4$$"}
+{"id": 91, "category": "IIIC", "unit": "微分", "problem": "次の関数を微分せよ。\n\n$$f(x) = \\sin \\frac{1}{x}$$", "solution": "$-\\frac{1}{x^2}\\cos \\frac{1}{x}$", "output": "$$Eq(f(x), cos(1*(-1)*1/(x*x**2)))$$"}
+{"id": 92, "category": "IIIC", "unit": "微分", "problem": "$f(x) = (ax + b) \\sin kx$という関数を考える。\nこの関数が\n$$f'(0) = -k$$\nを満たしているとき、$b$の値を求めなさい。", "solution": "$b=-1$", "output": "$$0$$"}
+{"id": 93, "category": "IIIC", "unit": "極限", "problem": "次の式で与えられる数列がある。\n\n$$a_n =  (\\frac{2}{n})^n$$\n\nこの数列の極限値 $\\lim_{n \\to \\infty} a_n$ を求めなさい。", "solution": "0", "output": "$$1$$"}
+{"id": 94, "category": "IIIC", "unit": "極限", "problem": "次の極限を求めよ。\n$$\\lim_{x \\to \\infty} \\frac{\\log x}{\\sqrt{x}}$$", "solution": "0", "output": "$$0$$"}
+{"id": 95, "category": "IIIC", "unit": "積分", "problem": "$n$を正の整数とする。このとき、次の定積分の値を求めなさい。\n$$\\int_{0}^{\\pi} \\sum_{k=1}^{2n} k \\sin kx \\, dx$$", "solution": "$2n$", "output": "$$0$$"}
+{"id": 96, "category": "IIIC", "unit": "積分", "problem": "$$f_n(x) = \\int (f_{n-1}(x) + f_{n-2}(x)) dx$$\nという漸化式を考える。ただし、積分定数は$\\int_0^{2\\pi} f_n(x)dx = 0$となるように選ぶものとする。\n\n$f_0(x) =0, f_1(x) = \\sin x$であるとき、$f_4(x)$を求めよ。", "solution": "$f_4(x) = \\cos x - 2\\sin x$", "output": "$$sin(x)$$"}
+{"id": 97, "category": "IIIC", "unit": "ベクトル", "problem": "ベクトル$\\vec{a}=(1,2)$とベクトル$\\vec{b}=(4,-2)$のなす角$\\theta$（ただし $0 \\leqq \\theta \\leqq \\pi$）を求めよ。", "solution": "$\\frac{\\pi}{2}$", "output": "$$pi/2$$"}
+{"id": 98, "category": "IIIC", "unit": "ベクトル", "problem": "2つのベクトル$\\vec{a} = (p, q)$と$\\vec{b} = (r, x)$が直交しているとする。このとき、$x$を$p, q, r$を用いて表せ。", "solution": "$-\\frac{pr}{q}$", "output": "$$Eq(x, -p*r/q)$$"}
+{"id": 99, "category": "IIIC", "unit": "平面上の曲線と複素数平面", "problem": "複素数$z= x + yi$は、複素数平面上で$1 + 0i$を中心とする半径$1$の円周上を動くものとする。（ただし原点$z=0$を除く。）\n複素数$z$を\n$$w = \\frac{1}{\\bar{z}}$$\nのように移したときの、$w$の実部の取りうる値の最大値を求めなさい。ただし$\\bar{z}=x-yi$（複素共役）とする。", "solution": "$\\frac{1}{2}$", "output": "$$1$$"}
+{"id": 100, "category": "IIIC", "unit": "平面上の曲線と複素数平面", "problem": "複素数平面上の点$z = 1 + 2i$を原点を中心に反時計回りに$\\frac{\\pi}{6}$回転させた点を求めなさい。", "solution": "$(\\frac{\\sqrt{3}}{2} - 1) + (\\sqrt{3} + \\frac{1}{2})i$", "output": "$$5*i/2 - 3/2 + sqrt(3)/2$$"}
