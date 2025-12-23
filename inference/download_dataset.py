@@ -1,7 +1,8 @@
 # Hugging Faceからデータセットをダウンロードするスクリプト
 import argparse
 from pathlib import Path
-from huggingface_hub import snapshot_download
+import json
+from datasets import load_dataset
 
 
 def main():
@@ -14,14 +15,20 @@ def main():
     )
     args = parser.parse_args()
 
-    model_path = snapshot_download(
-        repo_id=args.dataset_name,
-        repo_type="dataset",
-        local_dir=Path("datasets") / args.dataset_name,
-        local_dir_use_symlinks=False,
-    )
+    # データセットのダウンロード
+    # load_datasetのchace_dirで保存先を指定
+    model_path = Path("./datasets") / args.dataset_name.replace("/", "-")
+    dataset = load_dataset(args.dataset_name, cache_dir=str(model_path), split="test")
 
     print(f"Dataset downloaded to: {model_path}")
+
+    # json形式で保存する
+    output_path = "./input/math500-ja.jsonl"
+    with open(output_path, "w", encoding="utf-8") as f:
+        for i, item in enumerate(dataset):
+            # idを振り直す
+            item["id"] = i
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
 
 if __name__ == "__main__":
