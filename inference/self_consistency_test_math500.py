@@ -63,7 +63,7 @@ def main():
         "--model_path", type=Path, required=True, help="Path to the model directory"
     )
     parser.add_argument(
-        "--input_path", type=Path, required=True, help="Path to the input file"
+        "--input_path", type=Path, help="Path to the input file"
     )
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to the output file"
@@ -83,8 +83,10 @@ def main():
     llm = LLM(model=str(args.model_path.resolve()))
 
     # 問題ファイルの読み込み
-    problems = load_dataset(args.input_path, split="train")
-
+    # math-500データセット
+    with open(args.input_path) as f:
+        problems = list(map(json.loads, f))
+    
     # 各問題に対してプロンプトを作成
     messages = []
     for problem in problems:

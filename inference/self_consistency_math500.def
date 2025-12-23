@@ -62,4 +62,4 @@ Stage: final
 
 %runscript
     cd /app
-    python3 self_consistency_test_qa_verify10k_test.py "$@"
+    python3 self_consistency_test_math500.py "$@"
