@@ -73,59 +73,55 @@ def extract_boxed(text):
         current_idx += 1
     return text[content_start:current_idx-1] if brace_count == 0 else None
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, required=True)
-    parser.add_argument("--max_tokens", type=int, default=4096)
-    parser.add_argument("--repo_id", type=str, required=True)
-    parser.add_argument("--hf_token", type=str, required=True)
-    parser.add_argument("--output_jsonl", type=str, default="output/final_qa.jsonl")
-    parser.add_argument("--num_questions", type=int, required=True)
-    args = parser.parse_args()
+# --- ワーカープロセス ---
+def worker_main(rank, gpu_ids, args, start_idx, num_questions_for_worker, temp_output_file):
+    """
+    各GPU（またはGPUグループ）で実行される処理
+    """
+    # 割り当てられたGPUのみを可視化
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, gpu_ids))
+    print(f"[Worker {rank}] Started. GPUs: {gpu_ids}, Questions: {num_questions_for_worker}")
 
-    # 1. LLMの初期化 (固定費をここで1回に集約)
-    print(f"Loading model from {args.model_path}...")
+    # vllmは内部でimport (fork時のCUDA初期化エラー回避のため)
+    from vllm import LLM, SamplingParams
+
+    # LLMの初期化
     llm = LLM(
-    model=args.model_path,
-    # 1. 同時実行リクエスト数 (ここが重要！)
-    # H200なら 512 が限界だと思われる
-    max_num_seqs=1024, 
-    
-    # 2. KVキャッシュに使うメモリの割合
-    # デフォルトは0.9ですが、H200なら高めに設定してOK
-    gpu_memory_utilization=0.95,
-    
-    # 3. 最大入力/出力トークン長に応じた調整
-    # メモリが余っているなら、もっと多くのスロットを確保できます
-    max_model_len=4096)
+        model=args.model_path,
+        max_num_seqs=512, # バッチサイズ調整
+        gpu_memory_utilization=0.95,
+        max_model_len=args.max_tokens,
+        tensor_parallel_size=len(gpu_ids), # TPサイズを指定
+        trust_remote_code=True
+    )
 
-    # 2. ユニットの均等配分ロジック (「文字式」重複対策)
-    # ユニット名ごとにグループ化
+    # 問題設定の生成
     category_count = len(category)
     problem_specs = []
-
-    for i in range(args.num_questions):
-        ref=category[i % category_count]
+    for i in range(num_questions_for_worker):
+        global_idx = start_idx + i
+        ref = category[global_idx % category_count]
         problem_specs.append({
-            "id": i,
+            "id": global_idx,
             "category": ref["category"],
             "unit": ref["unit"],
-            "difficulty": ((i // category_count) % 10) + 1
+            "difficulty": ((global_idx // category_count) % 10) + 1
         })
-    
+
     # --- STEP 1: 質問生成 ---
-    print("=== Step 1: Generating Questions ===")
+    print(f"[Worker {rank}] Generating Questions...")
     q_messages = [[{"role": "user", "content": PROMPT_QUESTION.format(**p)}] for p in problem_specs]
     q_outputs = llm.chat(q_messages, sampling_params=SamplingParams(temperature=1.0, max_tokens=args.max_tokens))
     
     results = []
     for spec, out in zip(problem_specs, q_outputs):
         raw_text = out.outputs[0].text
+        # モデルによって終了トークン等の扱いが異なるため適宜調整
         spec["problem"] = raw_text.split("assistantfinal")[-1].strip()
         results.append(spec)
 
     # --- STEP 2: 解答生成 ---
-    print("=== Step 2: Generating Answers ===")
+    print(f"[Worker {rank}] Generating Answers...")
     a_messages = [[{"role": "user", "content": PROMPT_ANSWER.format(problem=r["problem"])}] for r in results]
     a_outputs = llm.chat(a_messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=args.max_tokens))
 
@@ -135,32 +131,99 @@ def main():
         res["expected_answer"] = extract_boxed(generated_text)
 
     # --- STEP 3: 検証 ---
-    print("=== Step 3: Verifying QA ===")
-    # expected_answerがNoneでないものだけ検証に回す
+    print(f"[Worker {rank}] Verifying...")
     v_indices = [i for i, r in enumerate(results) if r["expected_answer"] is not None]
     v_messages = [[{"role": "user", "content": PROMPT_VERIFY.format(problem=results[i]["problem"], answer=results[i]["expected_answer"])}] for i in v_indices]
     
     if v_messages:
-        v_outputs = llm.chat(v_messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=1600)) # 検証は短くて良い
+        v_outputs = llm.chat(v_messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=1024))
         for idx, out in zip(v_indices, v_outputs):
             val_text = out.outputs[0].text.split("assistantfinal")[-1].strip()
             val_binary = extract_boxed(val_text)
             
-            # 型バグ修正: 文字列比較して整数に変換、失敗時は-1
             if val_binary not in ["0", "1"]:
                 results[idx]["is_valid"] = -1
             else:
                 results[idx]["is_valid"] = int(val_binary)
             results[idx]["validation_cot"] = val_text
     
-    # 未検証（解答抽出失敗）分への補填
+    # 補填
     for i, r in enumerate(results):
-        if "is_valid" not in r: r["is_valid"] = -2 # 解答抽出失敗は-2とする
+        if "is_valid" not in r: r["is_valid"] = -2
 
-    # --- 保存とアップロード ---
-    dataset = Dataset.from_list(results)
+    # 部分的な結果をJSONLとして保存
+    print(f"[Worker {rank}] Saving temporary output to {temp_output_file}...")
+    with open(temp_output_file, 'w', encoding='utf-8') as f:
+        for item in results:
+            f.write(json.dumps(item, ensure_ascii=False) + '\n')
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", type=str, required=True)
+    parser.add_argument("--max_tokens", type=int, default=4096)
+    parser.add_argument("--repo_id", type=str, required=True)
+    parser.add_argument("--hf_token", type=str, required=True)
+    parser.add_argument("--output_jsonl", type=str, default="output/final_qa.jsonl")
+    parser.add_argument("--num_questions", type=int, required=True)
+    parser.add_argument("--tp_size", type=int, default=1, help="Tensor Parallelism size per worker. Default 1 (Data Parallelism preference).")
+    args = parser.parse_args()
+
+    # spawn方式でないとCUDAコンテキストが多重起動でクラッシュする
+    set_start_method('spawn', force=True)
+
+    # 利用可能なGPU数の確認
+    total_gpus = torch.cuda.device_count()
+    print(f"Total GPUs detected: {total_gpus}")
+
+    if total_gpus < args.tp_size:
+        raise ValueError(f"Not enough GPUs ({total_gpus}) for requested tp_size ({args.tp_size})")
+
+    # ワーカー数の計算
+    num_workers = total_gpus // args.tp_size
+    questions_per_worker = args.num_questions // num_workers
+    remainder = args.num_questions % num_workers
+
+    print(f"Plan: Launching {num_workers} workers. (TP_SIZE={args.tp_size})")
+
+    processes = []
+    temp_files = []
+
+    for i in range(num_workers):
+        # GPU割り当ての計算
+        start_gpu = i * args.tp_size
+        gpu_ids = list(range(start_gpu, start_gpu + args.tp_size))
+        
+        # 担当する問題数
+        q_count = questions_per_worker + (1 if i < remainder else 0)
+        # 開始インデックス（問題のID重複を防ぐため）
+        start_idx = i * questions_per_worker + min(i, remainder)
+        
+        temp_file = f"output/temp_worker_{i}.jsonl"
+        temp_files.append(temp_file)
+
+        p = Process(target=worker_main, args=(i, gpu_ids, args, start_idx, q_count, temp_file))
+        processes.append(p)
+        p.start()
+
+    # 全プロセスの終了待機
+    for p in processes:
+        p.join()
+
+    # --- 統合とアップロード ---
+    print("=== Merging Results ===")
+    all_results = []
+    for tf in temp_files:
+        if os.path.exists(tf):
+            with open(tf, 'r', encoding='utf-8') as f:
+                for line in f:
+                    all_results.append(json.loads(line))
+            # 一時ファイル削除
+            os.remove(tf)
+    
+    # 最終保存
+    dataset = Dataset.from_list(all_results)
     dataset.to_json(args.output_jsonl, orient="records", lines=True, force_ascii=False)
-    print(f"Saved to {args.output_jsonl}")
+    print(f"Saved merged dataset to {args.output_jsonl}")
 
     if args.hf_token:
         print(f"Uploading to Hugging Face: {args.repo_id}...")
