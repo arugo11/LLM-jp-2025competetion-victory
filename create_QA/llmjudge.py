@@ -145,20 +145,38 @@ def worker_main(rank, gpu_ids, args, start_idx, num_questions_for_worker, temp_o
 
     # --- STEP 3: 検証 ---
     print(f"[Worker {rank}] Verifying...")
-    v_indices = [i for i, r in enumerate(results) if r["expected_answer"] is not None]
-    v_messages = [[{"role": "user", "content": PROMPT_VERIFY.format(problem=results[i]["problem"], answer=results[i]["expected_answer"])}] for i in v_indices]
+    candidates = [r for r in results if r.get("is_valid") != -1 and r.get("expected_answer") is not None]
+    valid_results_step2 = []
+
+    # 【安全装置】文字数制限 (確実性重視のため4000文字で切る)
+    # 日本語や数式が多い場合、1文字≒1～2トークン換算でバッファを持たせる
+    MAX_CHAR_LIMIT = 4000 
+
+    for r in candidates:
+        # プロンプトテンプレートの長さも考慮し、問題文と解答の合計長さをチェック
+        input_text_len = len(r["problem"]) + len(r["expected_answer"])
+        
+        if input_text_len > MAX_CHAR_LIMIT:
+            print(f"[Worker {rank}] Skipped too long input: {input_text_len} chars")
+            r["is_valid"] = -1 # 長すぎるので無効扱い（または別のフラグ）
+            continue
+            
+        valid_results_step2.append(r)
+    
+    # フィルタリング済みのリストでメッセージ作成
+    v_messages = [[{"role": "user", "content": PROMPT_VERIFY.format(problem=r["problem"], answer=r["expected_answer"])}] for r in valid_results_step2]
     
     if v_messages:
         v_outputs = llm.chat(v_messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=1024))
-        for idx, out in zip(v_indices, v_outputs):
+        for r, out in zip(valid_results_step2, v_outputs):
             val_text = out.outputs[0].text
             val_binary = extract_boxed(val_text.split("assistantfinal")[-1].strip())
             
             if val_binary not in ["0", "1"]:
-                results[idx]["is_valid"] = -1
+                r["is_valid"] = -1 # 辞書(r)を直接書き換える
             else:
-                results[idx]["is_valid"] = int(val_binary)
-            results[idx]["validation_cot"] = val_text
+                r["is_valid"] = int(val_binary)
+            r["validation_cot"] = val_text
     
     # 補填
     for i, r in enumerate(results):
@@ -181,6 +199,8 @@ def main():
     parser.add_argument("--tp_size", type=int, default=1, help="Tensor Parallelism size per worker. Default 1 (Data Parallelism preference).")
     args = parser.parse_args()
 
+    os.makedirs(os.path.dirname(args.output_jsonl), exist_ok=True)
+    
     # spawn方式でないとCUDAコンテキストが多重起動でクラッシュする
     set_start_method('spawn', force=True)
 

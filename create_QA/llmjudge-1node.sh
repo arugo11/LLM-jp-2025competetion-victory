@@ -3,7 +3,7 @@
 #PBS -q rt_HG
 #PBS -N create_qa-fullnode
 #PBS -l select=1:ncpus=40:ngpus=8
-#PBS -l walltime=24:00:00
+#PBS -l walltime=6:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
