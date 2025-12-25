@@ -1,9 +1,14 @@
 import argparse
 import time
 import json
+import os
+import glob
 from datasets import Dataset, DatasetDict
-from vllm import LLM, SamplingParams
-from category import category  # 既存のcategory.pyをインポート
+from multiprocessing import Process, set_start_method
+import torch
+
+# category.py が同じディレクトリにある前提
+from category import category
 
 # --- プロンプトテンプレート ---
 PROMPT_QUESTION = r"""
@@ -117,18 +122,26 @@ def worker_main(rank, gpu_ids, args, start_idx, num_questions_for_worker, temp_o
     for spec, out in zip(problem_specs, q_outputs):
         raw_text = out.outputs[0].text
         # モデルによって終了トークン等の扱いが異なるため適宜調整
+        if len(raw_text.split("assistantfinal"))==1:
+            spec["is_valid"] = -1
         spec["problem"] = raw_text.split("assistantfinal")[-1].strip()
         results.append(spec)
 
     # --- STEP 2: 解答生成 ---
     print(f"[Worker {rank}] Generating Answers...")
-    a_messages = [[{"role": "user", "content": PROMPT_ANSWER.format(problem=r["problem"])}] for r in results]
+    valid_results = [r for r in results if r.get("is_valid") != -1]
+    a_messages = [[{"role": "user", "content": PROMPT_ANSWER.format(problem=r["problem"])}] for r in valid_results]
     a_outputs = llm.chat(a_messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=args.max_tokens))
 
-    for res, out in zip(results, a_outputs):
-        generated_text = out.outputs[0].text
-        res["generated_solution"] = generated_text
-        res["expected_answer"] = extract_boxed(generated_text)
+    for res, out in zip(valid_results, a_outputs):
+        raw_solution = out.outputs[0].text
+        res["solution_cot"] = raw_solution
+        if len(raw_solution.split("assistantfinal"))==1:
+            res["is_valid"]=-1
+            continue
+        solution_assistantfinal = raw_solution.split("assistantfinal")[-1].strip()
+        res["generated_solution"] = solution_assistantfinal
+        res["expected_answer"] = extract_boxed(solution_assistantfinal)
 
     # --- STEP 3: 検証 ---
     print(f"[Worker {rank}] Verifying...")
@@ -138,8 +151,8 @@ def worker_main(rank, gpu_ids, args, start_idx, num_questions_for_worker, temp_o
     if v_messages:
         v_outputs = llm.chat(v_messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=1024))
         for idx, out in zip(v_indices, v_outputs):
-            val_text = out.outputs[0].text.split("assistantfinal")[-1].strip()
-            val_binary = extract_boxed(val_text)
+            val_text = out.outputs[0].text
+            val_binary = extract_boxed(val_text.split("assistantfinal")[-1].strip())
             
             if val_binary not in ["0", "1"]:
                 results[idx]["is_valid"] = -1
@@ -149,7 +162,7 @@ def worker_main(rank, gpu_ids, args, start_idx, num_questions_for_worker, temp_o
     
     # 補填
     for i, r in enumerate(results):
-        if "is_valid" not in r: r["is_valid"] = -2
+        if "is_valid" not in r: r["is_valid"] = -1
 
     # 部分的な結果をJSONLとして保存
     print(f"[Worker {rank}] Saving temporary output to {temp_output_file}...")
@@ -228,7 +241,7 @@ def main():
     if args.hf_token:
         print(f"Uploading to Hugging Face: {args.repo_id}...")
         ds_dict = DatasetDict({"train": dataset})
-        ds_dict.push_to_hub(args.repo_id, token=args.hf_token)
+        ds_dict.push_to_hub(args.repo_id, token=args.hf_token, private=True)
     
     print("All processes completed successfully.")
 
