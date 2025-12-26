@@ -29,6 +29,13 @@ export UV_CACHE_DIR="$HOME/workspace/LLM-jp-2025competetion-victory/.cache/uv"
 mkdir -p "$UV_CACHE_DIR"
 
 # コードを書き替えるたびにビルドする必要があるそうです。
+# GPT-OSS-20Bモデルのビルド
+echo "Build llm-jp-20b-gpt-oss"
+singularity build --fakeroot --force \
+       --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
+       --build-arg MODEL_NAMES="openai/gpt-oss-20b" \
+       dist/gpt-oss-20b.sif self_consistency.def
+
 # llm-jp-8b-instructモデルでのビルド
 echo "Build llm-jp-4-8b-instruct"
 singularity build --fakeroot --force \
@@ -44,6 +51,49 @@ singularity build --fakeroot --force \
        dist/sft-test.sif self_consistency.def
 
 
+# GPT-OSS-20Bでの推論
+# 生成回数1
+echo "Inference gpt-oss-20b num_samples=1"
+singularity run --nv --writable-tmpfs \
+    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
+    --model_path models/openai/gpt-oss-20b \
+    --input_path input/dev.jsonl \
+    --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-1.jsonl" \
+    --num_samples 1
+# 生成回数10
+echo "Inference gpt-oss-20b num_samples=10"
+singularity run --nv --writable-tmpfs \
+    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
+    --model_path models/openai/gpt-oss-20b \
+    --input_path input/dev.jsonl \
+    --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-10.jsonl" \
+    --num_samples 10
+# 生成回数20
+echo "Inference gpt-oss-20b num_samples=20"
+singularity run --nv --writable-tmpfs \
+    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
+    --model_path models/openai/gpt-oss-20b \
+    --input_path input/dev.jsonl \
+    --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-20.jsonl" \
+    --num_samples 20
+# 生成回数40
+echo "Inference gpt-oss-20b num_samples=40"
+singularity run --nv --writable-tmpfs \
+    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
+    --model_path models/openai/gpt-oss-20b \
+    --input_path input/dev.jsonl \
+    --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-40.jsonl" \
+    --num_samples 40
+# 生成回数80
+echo "Inference gpt-oss-20b num_samples=80"
+singularity run --nv --writable-tmpfs \
+    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
+    --model_path models/openai/gpt-oss-20b \
+    --input_path input/dev.jsonl \
+    --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-80.jsonl" \
+    --num_samples 80
+
+
 # llm-jp-4-instructionでの推論
 # 生成回数1
 echo "Inference llm-jp-4-8b-instruct num_samples=1"
@@ -51,16 +101,15 @@ singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/baseline.sif \
     --model_path models/team-victory/llm-jp-4-8b-instruct \
     --input_path input/dev.jsonl \
-    --output_path "$(pwd)/output/llm-jp-4-instruction/sample-1.jsonl" \
+    --output_path "$(pwd)/output/dev-json/llm-jp-4-instruction/sample-1.jsonl" \
     --num_samples 1
-
 # 生成回数10
 echo "Inference llm-jp-4-8b-instruct num_samples=10"
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-10.jsonl" \
+        --output_path "$(pwd)/output/dev-json/llm-jp-4-instruction/sample-10.jsonl" \
         --num_samples 10
 # 生成回数20
 echo "Inference llm-jp-4-8b-instruct num_samples=20"
@@ -68,26 +117,25 @@ singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-20.jsonl" \
+        --output_path "$(pwd)/output/dev-json/llm-jp-4-instruction/sample-20.jsonl" \
         --num_samples 20
-
 # 生成回数40
 echo "Inference llm-jp-4-8b-instruct num_samples=40"
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-40.jsonl" \
+        --output_path "$(pwd)/output/dev-json/llm-jp-4-instruction/sample-40.jsonl" \
         --num_samples 40
-
 # 生成回数80
 echo "Inference llm-jp-4-8b-instruct num_samples=80"
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/baseline.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/llm-jp-4-instruction/sample-80.jsonl" \
+        --output_path "$(pwd)/output/dev-json/llm-jp-4-instruction/sample-80.jsonl" \
         --num_samples 80
+
 
 # llm-jp-4-8b-instruct-sft-test-checkpoint-140での推論
 # 生成回数1
@@ -96,7 +144,7 @@ singularity run --nv --writable-tmpfs \
         --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/sft-test.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/sft-test1/sample-1.jsonl" \
+        --output_path "$(pwd)/output/dev-json/sft-test1/sample-1.jsonl" \
         --num_samples 1
 # 生成回数10
 echo "Inference llm-jp-4-8b-instruct-sft-test-checkpoint-140 num_samples=10"
@@ -104,32 +152,29 @@ singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/sft-test1/sample-10.jsonl" \
+        --output_path "$(pwd)/output/dev-json/sft-test1/sample-10.jsonl" \
         --num_samples 10
-
 # 生成回数20
 echo "Inference llm-jp-4-8b-instruct-sft-test-checkpoint-140 num_samples=20"
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/sft-test1/sample-20.jsonl" \
+        --output_path "$(pwd)/output/dev-json/sft-test1/sample-20.jsonl" \
         --num_samples 20
-
 # 生成回数40
 echo "Inference llm-jp-4-8b-instruct-sft-test-checkpoint-140 num_samples=40"
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/sft-test1/sample-40.jsonl" \
+        --output_path "$(pwd)/output/dev-json/sft-test1/sample-40.jsonl" \
         --num_samples 40
-
 # 生成回数80
 echo "Inference llm-jp-4-8b-instruct-sft-test-checkpoint-140 num_samples=80"
 singularity run --nv --writable-tmpfs --env CUDA_VISIBLE_DEVICES=0 \
         --net --network none dist/sft-test.sif \
         --model_path models/team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140 \
         --input_path input/dev.jsonl \
-        --output_path "$(pwd)/output/sft-test1/sample-80.jsonl" \
+        --output_path "$(pwd)/output/dev-json/sft-test1/sample-80.jsonl" \
         --num_samples 80

@@ -27,6 +27,8 @@ Stage: final
 %setup
     #mkdir -p ${SINGULARITY_ROOTFS}/app/models/llm-jp/
     mkdir -p ${SINGULARITY_ROOTFS}/app/models/team-victory/
+    mkdir -p ${SINGULARITY_ROOTFS}/app/models/openai/
+    mkdir -p ${SINGULARITY_ROOTFS}/app/models/HayatoHongoEveryonesAI/
     MODEL_NAMES={{ MODEL_NAMES }}
 
     if [[ -n "${MODEL_NAMES}" ]]; then

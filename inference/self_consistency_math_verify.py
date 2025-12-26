@@ -75,6 +75,10 @@ def main():
     parser.add_argument(
         "--num_samples", type=int, default=10, help="Number of samples for self-consistency"
     )
+    # サンプリング時の温度パラメータの引数を追加
+    parser.add_argument(
+        "--temperature", type=float, default=0.5, help="Temperature for sampling"
+    )
 
     args = parser.parse_args()
 
@@ -107,7 +111,7 @@ def main():
         print("--------------------------------")
         print(f"Sampling iteration: {i+1}/{args.num_samples}")
         sampling_params = SamplingParams(
-            temperature=0.5,
+            temperature=args.temperature,
             max_tokens=args.max_tokens,
             top_k=40,
         )
@@ -144,14 +148,17 @@ def main():
         problem["output"] = f"$${output}$$"
     # 以下は各サンプル出力を保存する場合のコード例
     # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
-    #for i, tmp_output in enumerate(tmp_outputs):
-    #    for problem, output in zip(problems, tmp_output):
-    #        problem[f"output_sample_{i}"] = output.outputs[0].text
+    solution_method = problems
+    for i, tmp_output in enumerate(tmp_outputs):
+        for problem, output in zip(solution_method, tmp_output):
+            solution_method[f"output_sample_{i}"] = output.outputs[0].text
 
     with open(args.output_path, "w") as f:
         for problem in problems:
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
-    
+    with open(args.output_path.with_name(args.output_path.stem + "_all_samples.jsonl"), "w") as f:
+        for problem in solution_method:
+            f.write(json.dumps(problem, ensure_ascii=False) + "\n")
     # プログラムの総実行時間を表示
     program_finish_time = time.time()
     print("Total time: {}(s)".format(program_finish_time - program_start_time))

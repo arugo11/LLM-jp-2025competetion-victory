@@ -14,10 +14,15 @@ def main():
     )
     args = parser.parse_args()
 
+    # 特定のリビジョンをダウンロードしたいときは
+    # 引数のrevisionで指定する
+    # 例えば、"grpo_fast__3__1766613992"というリビジョンを指定する
+    # リビジョンはモデルリポジトリのリンクの"tree"以降を見るとわかる
     model_path = snapshot_download(
         repo_id=args.model_name,
         local_dir=Path("models") / args.model_name,
         local_dir_use_symlinks=False,
+        # revision="grpo_fast__3__1766613992",
     )
 
     print(f"Model downloaded to: {model_path}")
