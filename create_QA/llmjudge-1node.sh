@@ -1,29 +1,20 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q rt_HG
+#PBS -q rt_HF
 #PBS -N create_qa-fullnode
-#PBS -l select=1:ncpus=40:ngpus=8
-#PBS -l walltime=6:00:00
+#PBS -l select=1:ncpus=192:ngpus=8
+#PBS -l walltime=24:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
 
-# 注意:
-# rt_HG や rt_AF (A100) の場合、通常 ngpus=4 または 8 です。
-# V100ノードの場合: select=1:ncpus=40:ngpus=4
-# A100ノードの場合: select=1:ncpus=72:ngpus=4 (または8)
-# 環境に合わせて ncpus, ngpus を調整してください。
-
 cd $PBS_O_WORKDIR
 
+# --- 設定値 ---
 NUM_QUESTIONS=${NUM_QUESTIONS:-50000}
-REPO_ID=${REPO_ID:-"team-victory/qa_fullnode"}
+REPO_ID=${REPO_ID:-"HayatoHongoEveryonesAI/qa_fullnode"}
 MODEL_PATH=${MODEL_PATH:-"models/openai/gpt-oss-20b"}
-
-# Tensor Parallelismのサイズ。
-# 20BモデルならA100(40GB)ならtp=1でOK。V100(32GB)ならtp=2推奨。
-# ここではデータ並列(4プロセス)にするため1を設定しますが、OOMが出るなら2や4にしてください。
-TP_SIZE=1 
+TP_SIZE=1
 
 echo "NUM_QUESTIONS: ${NUM_QUESTIONS}"
 echo "REPO_ID: ${REPO_ID}"
@@ -43,15 +34,35 @@ export UV_CACHE_DIR="$HOME/LLM-jp-2025competetion-victory/.cache/uv"
 mkdir -p "$UV_CACHE_DIR"
 mkdir -p dist
 
-# ビルド (変更がある場合のみ)
+export OMP_NUM_THREADS=24
+export MKL_NUM_THREADS=24
+export VLLM_USE_RAY=0
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+# --- 追加: ホスト側のGPU状態確認 ---
+echo "=== Host GPU Check ==="
+echo "Host CUDA_VISIBLE_DEVICES (Before): ${CUDA_VISIBLE_DEVICES:-'Not Set'}"
+
+# ★★★ ここが最重要修正 ★★★
+# ホスト側で勝手にかかっている "1枚制限" をここで解除します
+unset CUDA_VISIBLE_DEVICES
+
+echo "Host CUDA_VISIBLE_DEVICES (After unset): ${CUDA_VISIBLE_DEVICES:-'CLEARED'}"
+nvidia-smi -L
+
+# ビルド
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
        dist/llmjudge.sif llmjudge.def
 
-# 推論実行
-# CUDA_VISIBLE_DEVICESは設定せず、Python側で制御させます
+# --- 修正: CUDA_VISIBLE_DEVICES を 0-7 で強制上書き ---
 singularity run --nv --writable-tmpfs \
     --env HF_TOKEN=$HF_TOKEN \
+    --env OMP_NUM_THREADS=$OMP_NUM_THREADS \
+    --env MKL_NUM_THREADS=$MKL_NUM_THREADS \
+    --env PYTORCH_CUDA_ALLOC_CONF=$PYTORCH_CUDA_ALLOC_CONF \
+    --env VLLM_USE_RAY=$VLLM_USE_RAY \
+    --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
     --bind "$(pwd)/models:/app/models" \
     --bind "$(pwd)/output:/app/output" \
     dist/llmjudge.sif \

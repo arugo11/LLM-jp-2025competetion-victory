@@ -93,11 +93,12 @@ def worker_main(rank, gpu_ids, args, start_idx, num_questions_for_worker, temp_o
     # LLMの初期化
     llm = LLM(
         model=args.model_path,
-        max_num_seqs=512, # バッチサイズ調整
-        gpu_memory_utilization=0.95,
+        max_num_seqs=4096, # バッチサイズ調整
+        gpu_memory_utilization=0.90,
         max_model_len=args.max_tokens,
         tensor_parallel_size=len(gpu_ids), # TPサイズを指定
-        trust_remote_code=True
+        trust_remote_code=True,
+        enforce_eager=True
     )
 
     # 問題設定の生成
@@ -110,7 +111,8 @@ def worker_main(rank, gpu_ids, args, start_idx, num_questions_for_worker, temp_o
             "id": global_idx,
             "category": ref["category"],
             "unit": ref["unit"],
-            "difficulty": ((global_idx // category_count) % 10) + 1
+            "difficulty": ((global_idx // category_count) % 10) + 1,
+            "problem_source": "models/openai/gpt-oss-20b"
         })
 
     # --- STEP 1: 質問生成 ---
@@ -208,6 +210,11 @@ def main():
     total_gpus = torch.cuda.device_count()
     print(f"Total GPUs detected: {total_gpus}")
 
+    print(f"DEBUG: torch.cuda.is_available(): {torch.cuda.is_available()}")
+    print(f"DEBUG: torch.cuda.device_count(): {torch.cuda.device_count()}")
+    for i in range(torch.cuda.device_count()):
+        print(f"DEBUG: GPU {i}: {torch.cuda.get_device_name(i)}")
+
     if total_gpus < args.tp_size:
         raise ValueError(f"Not enough GPUs ({total_gpus}) for requested tp_size ({args.tp_size})")
 
@@ -237,6 +244,11 @@ def main():
         p = Process(target=worker_main, args=(i, gpu_ids, args, start_idx, q_count, temp_file))
         processes.append(p)
         p.start()
+
+        # --- 追加: 次のワーカーを起動するまで待機 ---
+        # 重い初期化処理（モデルロード・Graph Capture）が重ならないように時間を空ける
+        print(f"Waiting 15 seconds before launching next worker to avoid initialization storm...")
+        time.sleep(15)
 
     # 全プロセスの終了待機
     for p in processes:

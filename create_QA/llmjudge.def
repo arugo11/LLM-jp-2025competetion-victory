@@ -12,6 +12,7 @@ Stage: builder
     # Create mount point for the uv cache
     mkdir -p ${SINGULARITY_ROOTFS}/root/.cache/uv
 
+
 %post
     export UV_COMPILE_BYTECODE=1
     export UV_LINK_MODE=copy
@@ -19,11 +20,11 @@ Stage: builder
     export UV_FROZEN=1
     cd /app
     uv sync --no-dev
+    pip install flashinfer -i https://flashinfer.ai/whl/cu121/torch2.4/
 
 Bootstrap: docker
 From: python:3.12-slim-bookworm
 Stage: final
-
 
 %setup
     #mkdir -p ${SINGULARITY_ROOTFS}/app/models/llm-jp/
