@@ -20,8 +20,7 @@ dev.jsonl
 *log*
 
 # sample
-main.bak.py
-LLM-jp-2025competetion-victory/ft-llm-2026/singularity_submission/sandbox_sample.py
+sandbox_sample.py
 # document
 SANDBOX.md
 
