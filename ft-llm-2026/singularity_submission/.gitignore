@@ -13,4 +13,16 @@ wheels/
 .venv
 
 # output
-output.jsonl
+*output*
+
+# data
+dev.jsonl
+*log*
+
+# sample
+main.bak.py
+ft-llm-2026/singularity_submission/main.bak.py
+
+# document
+SANDBOX.md
+
