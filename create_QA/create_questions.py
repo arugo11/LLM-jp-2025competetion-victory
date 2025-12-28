@@ -1,8 +1,9 @@
 import argparse
 import time
+
+from category import category
 from datasets import Dataset, DatasetDict
 from vllm import LLM, SamplingParams
-from category import category
 
 PROMPT_TEMPLATE = """\
 以下に基づき日本の数学における入試テスト問題を一つ作成しなさい。
@@ -14,7 +15,7 @@ PROMPT_TEMPLATE = """\
 - 数式は必ずlatex表記で出力する。
 - 問題文以外は出力してはならない。
 - 必ず日本語で出力する。
-- \displaystyleを用いてはいけない。
+- \\displaystyleを用いてはいけない。
 - 一つの数値または数式で解答できる問題にする。解答は出力してはいけない。
 - 問題は必ず一つのみ出力する。
 -「問題」という文字列は出力してはならない。
@@ -23,26 +24,43 @@ PROMPT_TEMPLATE = """\
 
 Question_Count = 100
 
-def main():
+
+def main() -> None:
+    """数学の問題を生成するスクリプト"""
     # プログラム開始時間を記録
     program_start_time = time.time()
 
     # コマンドライン引数のパース
     parser = argparse.ArgumentParser(description="Create Math Questions")
     parser.add_argument(
-        "--model_path", type=str, required=True, help="Path to the model directory"
+        "--model_path",
+        type=str,
+        required=True,
+        help="Path to the model directory",
     )
     parser.add_argument(
-        "--max_tokens", type=int, default=4096, help="Maximum number of tokens"
+        "--max_tokens",
+        type=int,
+        default=4096,
+        help="Maximum number of tokens",
     )
     parser.add_argument(
-        "--repo_id", type=str, default="llm-jp-2025/test_questions", help="Hugging Face repository ID"
+        "--repo_id",
+        type=str,
+        default="llm-jp-2025/test_questions",
+        help="Hugging Face repository ID",
     )
     parser.add_argument(
-        "--hf_token", type=str, default=None, help="Hugging Face token"
+        "--hf_token",
+        type=str,
+        default=None,
+        help="Hugging Face token",
     )
     parser.add_argument(
-        "--output_jsonl", type=str, default=None, help="Path to save the output dataset as JSONL"
+        "--output_jsonl",
+        type=str,
+        default=None,
+        help="Path to save the output dataset as JSONL",
     )
 
     args = parser.parse_args()
@@ -52,14 +70,16 @@ def main():
 
     # 問題のメタデータ作成
     problems = []
-    for i in category:
+    for _ in category:
         problems.append([])
     category_count = len(category)
     for i in range(Question_Count):
-        problems[i % category_count].append({
-            "category": category[i % category_count]["category"],
-            "unit": category[i % category_count]["unit"]
-        })
+        problems[i % category_count].append(
+            {
+                "category": category[i % category_count]["category"],
+                "unit": category[i % category_count]["unit"],
+            },
+        )
     problems = [item for sublist in problems for item in sublist]
     for i in range(len(problems)):
         problems[i]["id"] = i
@@ -71,19 +91,21 @@ def main():
             [
                 {
                     "role": "user",
-                    "content": PROMPT_TEMPLATE.format(category=problem["category"], unit=problem["unit"]),
-                }
-            ]
+                    "content": PROMPT_TEMPLATE.format(
+                        category=problem["category"],
+                        unit=problem["unit"],
+                    ),
+                },
+            ],
         )
 
     # 推論時間の計測
     inference_start_time = time.time()
-    
     # 推論処理
     outputs = llm.chat(
-        messages, sampling_params=SamplingParams(temperature=1.0, max_tokens=args.max_tokens)
+        messages,
+        sampling_params=SamplingParams(temperature=1.0, max_tokens=args.max_tokens),
     )
-    
     # 推論時間の表示
     inference_finish_time = time.time()
     print(f"Inference time: {inference_finish_time - inference_start_time}(s)")
@@ -92,13 +114,15 @@ def main():
     data = []
     for problem, output in zip(problems, outputs):
         raw_text = output.outputs[0].text
-        data.append({
-            "id": problem["id"],
-            "category": problem["category"],
-            "unit": problem["unit"],
-            "problem": raw_text.split("assistantfinal")[-1].strip(),
-            "problem_source": args.model_path
-        })
+        data.append(
+            {
+                "id": problem["id"],
+                "category": problem["category"],
+                "unit": problem["unit"],
+                "problem": raw_text.split("assistantfinal")[-1].strip(),
+                "problem_source": args.model_path,
+            },
+        )
 
     # DatasetDictの作成とデータの追加
     dataset_dict = DatasetDict()
@@ -115,6 +139,7 @@ def main():
     # プログラムの総実行時間を表示
     program_finish_time = time.time()
     print(f"Total time: {program_finish_time - program_start_time}(s)")
+
 
 if __name__ == "__main__":
     main()
