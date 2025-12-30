@@ -1,5 +1,5 @@
 neko_sft_datasets:
-  - name: team-victory/qa_verify_255k_v4
+  - name: HayatoHongoEveryonesAI/qa_verify_new_v5
     config: default
     question_field: problem
     answer_field: generated_solution
