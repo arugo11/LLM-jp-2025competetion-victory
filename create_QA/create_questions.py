@@ -63,7 +63,7 @@ def main() -> None:
         help="Path to save the output dataset as JSONL",
     )
 
-    args = parser.parse_args()
+    args, _unknown = parser.parse_known_args()
 
     # LLMの初期化
     llm = LLM(model=args.model_path)

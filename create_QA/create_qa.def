@@ -43,11 +43,28 @@ Stage: final
         build-essential \
         && rm -rf /var/lib/apt/lists/*
 
+    # Minimal runtime deps for /app/Skills (nemo_skills) used by create_answers.py
+    /app/.venv/bin/python -m ensurepip --upgrade
+    /app/.venv/bin/python -m pip install --no-cache-dir \
+        fire \
+        rich \
+        httpx \
+        requests \
+        openai \
+        "litellm[caching]==1.77.5" \
+        flask \
+        ipython \
+        psutil \
+        numpy \
+        sympy \
+        tqdm
+
     chmod -R a+rX /app
     find /app -type f -name "*.py" -exec chmod a+r {} \;
 
 %environment
     export PATH="/app/.venv/bin:$PATH"
+    export PYTHONPATH="/app/Skills:${PYTHONPATH}"
 
 %runscript
     cd /app

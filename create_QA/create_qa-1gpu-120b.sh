@@ -33,7 +33,11 @@ singularity build --fakeroot --force \
        dist/create_qa.sif create_qa.def
 
 # 推論を実行します。
-REPO_ID="team-victory/test_qa"
+# REPO_ID="team-victory/test_qa"
+REPO_ID="HayatoHongoEveryonesAI/qa_verify_125k11"
+OUTPUT_REPO_ID="${REPO_ID}-TIR"
+echo "INPUT_REPO_ID=${REPO_ID}"
+echo "OUTPUT_REPO_ID=${OUTPUT_REPO_ID}"
 
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0\
@@ -41,6 +45,7 @@ singularity run --nv --writable-tmpfs \
     --bind "$(pwd)/models:/app/models" \
     --bind "$(pwd)/output:/app/output" \
     dist/create_qa.sif \
+    --sandbox-block-network \
     --model_path models/openai/gpt-oss-120b \
     --max_tokens 4096 \
     --repo_id $REPO_ID \
