@@ -12,8 +12,9 @@ uv pip install --upgrade pip # pipのアップグレード
 
 
 uv pip install trl[vllm]
-uv pip install setuptools && uv pip install flash-attn --no-build-isolation 
+uv pip install setuptools
 GIT_LFS_SKIP_SMUDGE=1 uv pip install -e "open-r1[dev]" 
+uv pip install flash-attn --no-build-isolation 
 uv pip install peft
 
 # vllmのインストール
