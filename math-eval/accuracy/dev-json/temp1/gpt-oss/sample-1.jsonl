@@ -1,12 +1,12 @@
 {
-  "overall_accuracy": 0.6,
+  "overall_accuracy": 0.66,
   "category_accuracies": {
-    "中1": 0.8,
-    "中2": 0.8333333333333334,
+    "中1": 0.8666666666666667,
+    "中2": 0.7777777777777778,
     "中3": 0.625,
     "IA": 0.4,
-    "IIB": 0.5,
-    "IIIC": 0.4
+    "IIB": 0.6538461538461539,
+    "IIIC": 0.6
   },
   "detailed_results": {
     "1": true,
@@ -16,7 +16,7 @@
     "5": true,
     "6": true,
     "7": true,
-    "8": false,
+    "8": true,
     "9": true,
     "10": true,
     "11": true,
@@ -35,7 +35,7 @@
     "24": true,
     "25": true,
     "26": true,
-    "27": true,
+    "27": false,
     "28": true,
     "29": true,
     "30": true,
@@ -83,14 +83,14 @@
     "72": true,
     "73": true,
     "74": true,
-    "75": false,
+    "75": true,
     "76": true,
     "77": false,
-    "78": false,
-    "79": false,
+    "78": true,
+    "79": true,
     "80": true,
     "81": false,
-    "82": false,
+    "82": true,
     "83": false,
     "84": false,
     "85": true,
@@ -103,11 +103,11 @@
     "92": true,
     "93": true,
     "94": true,
-    "95": false,
+    "95": true,
     "96": false,
     "97": false,
     "98": true,
-    "99": false,
+    "99": true,
     "100": false
   }
 }

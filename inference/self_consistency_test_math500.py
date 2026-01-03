@@ -109,7 +109,7 @@ def main():
         print("--------------------------------")
         print(f"Sampling iteration: {i+1}/{args.num_samples}")
         sampling_params = SamplingParams(
-            temperature=0.5,
+            temperature=1.0,
             max_tokens=args.max_tokens,
             top_k=40,
         )
