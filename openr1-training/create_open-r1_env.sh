@@ -6,8 +6,8 @@
 # module load python/3.12/3.12.9
 # module load cuda/12.8
 
-uv venv env2 # venvの作成
-source env2/bin/activate # venvの有効化
+uv venv env # venvの作成
+source env/bin/activate # venvの有効化
 uv pip install --upgrade pip # pipのアップグレード
 
 
