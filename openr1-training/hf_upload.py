@@ -2,20 +2,21 @@ import os
 from huggingface_hub import HfApi
 
 # スクリプトがあるディレクトリを基準とした相対パスを設定
+hf_token = os.getenv("HF_TOKEN")  # 環境変数からHugging Faceのトークンを取得
 script_dir = os.path.dirname(os.path.abspath(__file__))
-relative_path = "open-r1/src/data/llm-jp-4-8b-instruct-sft-test/checkpoint-140"
+relative_path = "open-r1/src/data/llm-jp-4-8b-instruct-sft-long/checkpoint-800"
 local_dir = os.path.join(script_dir, relative_path)
 
 # アップロード先のRepository IDを指定 (ユーザー名/リポジトリ名)
 # ※ 必要に応じて変更してください
-repo_id = "team-victory/llm-jp-4-8b-instruct-sft-test-checkpoint-140"
+repo_id = "HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long"
 
 def upload_checkpoint():
     if not os.path.exists(local_dir):
         print(f"Error: Directory not found: {local_dir}")
         return
 
-    api = HfApi()
+    api = HfApi(token=hf_token)
 
     # リポジトリが存在しない場合は作成 (private=True で作成)
     print(f"Creating repository '{repo_id}' if it doesn't exist...")

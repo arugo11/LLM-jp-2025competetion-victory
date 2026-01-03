@@ -49,7 +49,8 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
             single_dataset = datasets.load_dataset(
                 dataset_info.name, 
                 name=dataset_info.config, 
-                split=target_split
+                split=target_split,
+                trust_remote_code=True
             )
             # 後続の処理が DatasetDict 形式（dataset['train']）を期待しているため、
             # 単体Datasetを 'train' キーを持つ DatasetDict にラップする
@@ -59,13 +60,23 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
             print(f"    -> 全Splitをロードします")
             dataset = datasets.load_dataset(
                 dataset_info.name, 
-                name=dataset_info.config
+                name=dataset_info.config,
+                trust_remote_code=True
             )
         print(dataset)
         print(f"  データセット '{dataset_info.name}' の分割: {list(dataset.keys())}")
         print(f"  データセット '{dataset_info.name}' のカラム: {list(dataset.column_names.values())}")
         print(f"  データセット '{dataset_info.name}' のサンプル数: {len(dataset['train'])} (train)")
         # print(f"  データセット '{dataset_info.name}' の最初のサンプル: {dataset['train'][0]}")
+
+        if dataset_info.text_field is not None:
+            print(f"  'text_field' が指定されています。'{dataset_info.text_field}' カラムを 'text' として使用します。")
+            # 'text_field' が指定されている場合、そのカラムを 'text' にリネーム
+            if dataset_info.text_field != 'text':
+                dataset = dataset.rename_column(dataset_info.text_field, 'text')
+            loaded_datasets.append(dataset)
+            print("  'text_field' 指定による処理が完了しました。次のデータセットへ進みます。\n")
+            continue
 
         # 2. 指定されたカラム名を一時的に 'prompt' と 'completion' に統一
         #    これにより、後続の処理を共通化できる

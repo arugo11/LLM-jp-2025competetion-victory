@@ -202,6 +202,9 @@ class SFTConfig(trl.SFTConfig):
         default_factory=lambda: [],
         metadata={"help": "The callbacks to run during training."},
     )
+    apply_chat_template: bool = field(
+        default=True, metadata={"help": "Whether to apply the chat template."}
+    )
     chat_template: Optional[str] = field(
         default=None, metadata={"help": "The chat template to use."}
     )
@@ -372,6 +375,7 @@ class DatasetClass:
     split: str = None
     question_field: str = "question"
     answer_field: str = "output"
+    text_field: str = None
     from_id: int = None
     to_id: int = None
 
