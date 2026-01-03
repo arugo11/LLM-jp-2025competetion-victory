@@ -3,7 +3,7 @@
 #PBS -q rt_HF
 #PBS -N sft-llmjp4-8b
 #PBS -l select=1:ncpus=192:ngpus=8
-#PBS -l walltime=8:00:00
+#PBS -l walltime=3:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
@@ -49,7 +49,7 @@ accelerate launch \
     --main_process_port "$MASTER_PORT" \
     --rdzv_backend c10d \
     open_r1/sft.py \
-    --config ../../configs/llmjp4-8B/sft/config_v5.yaml \
+    --config ../../configs/llmjp4-8B/sft/config_long.yaml \
     --dataconfig ../../configs/data_configs/example.yaml
 
 # 実行方法

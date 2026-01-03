@@ -25,7 +25,7 @@ class DatasetConfig:
 
     id: str
     config: Optional[str] = None
-    split: str = "train"
+    split: Optional[str] = None
     columns: Optional[list[str]] = None
     weight: Optional[float] = None
 
@@ -202,6 +202,9 @@ class SFTConfig(trl.SFTConfig):
         default_factory=lambda: [],
         metadata={"help": "The callbacks to run during training."},
     )
+    apply_chat_template: bool = field(
+        default=True, metadata={"help": "Whether to apply the chat template."}
+    )
     chat_template: Optional[str] = field(
         default=None, metadata={"help": "The chat template to use."}
     )
@@ -369,9 +372,10 @@ class DatasetClass:
 
     name: str = None
     config: str = "default"
-    split: str = "train"
+    split: str = None
     question_field: str = "question"
     answer_field: str = "output"
+    text_field: str = None
     from_id: int = None
     to_id: int = None
 

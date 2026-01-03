@@ -1,9 +1,9 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q rt_HF
+#PBS -q rt_HG
 #PBS -N sft-llmjp4-8b
-#PBS -l select=1:ncpus=192:ngpus=8
-#PBS -l walltime=8:00:00
+#PBS -l select=1:ncpus=192:ngpus=1
+#PBS -l walltime=24:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
@@ -44,13 +44,13 @@ cd open-r1/src || exit 1
 accelerate launch \
     --config_file ../recipes/accelerate_configs/zero3.yaml \
     --num_machines 1 \
-    --num_processes 8 \
+    --num_processes 1 \
     --main_process_ip "$MASTER_ADDR" \
     --main_process_port "$MASTER_PORT" \
     --rdzv_backend c10d \
     open_r1/sft.py \
-    --config ../../configs/llmjp4-8B/sft/config_v5.yaml \
-    --dataconfig ../../configs/data_configs/example.yaml
+    --config ../../configs/llmjp4-8B/sft/config_long-1gpu.yaml \
+    --dataconfig ../../configs/data_configs/long.yaml
 
 # 実行方法
 # openr1-trainingで実行する。cd open-r1/srcが出来るように
