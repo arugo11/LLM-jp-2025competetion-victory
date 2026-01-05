@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import time
 import re
+import sys
+import copy
 from collections import Counter
 from math_verify import parse
 from vllm import LLM, SamplingParams
@@ -53,6 +55,7 @@ def extract_boxed_content(outputs: list[str]):
 
 # MARK: main
 def main():
+    sys.set_int_max_str_digits(0) # 無制限に設定
     # プログラム開始時間を記録
     program_start_time = time.time()
 
@@ -148,16 +151,17 @@ def main():
         problem["output"] = f"$${output}$$"
     # 以下は各サンプル出力を保存する場合のコード例
     # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
-    solution_method = problems
+    solution_methods = copy.deepcopy(problems)
     for i, tmp_output in enumerate(tmp_outputs):
-        for problem, output in zip(solution_method, tmp_output):
-            solution_method[f"output_sample_{i}"] = output.outputs[0].text
+        for problem, output in zip(solution_methods, tmp_output):
+            problem[f"output_sample_{i}"] = output.outputs[0].text
 
     with open(args.output_path, "w") as f:
         for problem in problems:
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
-    with open(args.output_path.with_name(args.output_path.stem + "_all_samples.jsonl"), "w") as f:
-        for problem in solution_method:
+    all_samples_path = str(args.output_path).replace(".jsonl", "_all_samples.jsonl")
+    with open(all_samples_path, "w") as f:
+        for problem in solution_methods:
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
     # プログラムの総実行時間を表示
     program_finish_time = time.time()

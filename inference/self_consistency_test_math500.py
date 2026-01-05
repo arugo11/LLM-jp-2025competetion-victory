@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import time
 import re
+import sys
+import copy
 from collections import Counter
 from math_verify import parse
 from vllm import LLM, SamplingParams
@@ -120,6 +122,7 @@ def main():
         # 答えを抽出
         extracted_contents = [parse(output.outputs[0].text) for output in outputs]
         # 抽出結果を保存
+        sys.set_int_max_str_digits(0) # 無制限に設定
         for j, content in enumerate(extracted_contents):
             if (content is not None) and (len(content) > 0):
                 all_outputs[j].append(str(content[0]))
@@ -146,12 +149,17 @@ def main():
         problem["output"] = f"$${output}$$"
     # 以下は各サンプル出力を保存する場合のコード例
     # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
-    #for i, tmp_output in enumerate(tmp_outputs):
-    #    for problem, output in zip(problems, tmp_output):
-    #        problem[f"output_sample_{i}"] = output.outputs[0].text
+    solution_methods = copy.deepcopy(problems)
+    for i, tmp_output in enumerate(tmp_outputs):
+        for problem, output in zip(solution_methods, tmp_output):
+            problem[f"output_sample_{i}"] = output.outputs[0].text
 
     with open(args.output_path, "w") as f:
         for problem in problems:
+            f.write(json.dumps(problem, ensure_ascii=False) + "\n")
+    all_samples_path = str(args.output_path).replace(".jsonl", "_all_samples.jsonl")
+    with open(all_samples_path, "w") as f:
+        for problem in solution_methods:
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
     
     # プログラムの総実行時間を表示
