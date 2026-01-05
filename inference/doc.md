@@ -96,3 +96,14 @@ python3 format_math500.py --input_file hoge.jsonl --output_file fuga.jsonl
 ```
 - input_file: 変換対象のファイル
 - output_file: 変換後の保存先
+
+## 特定の revision のモデルをダウンロード
+"download_model.py"ではmainブランチに相当するモデルがダウンロードされます。それ以外のブランチ(HF上ではrevisionと呼称)のモデルをダウンロードする場合は、"download_model.py"の25行目をコメントアウトし、revisionを取得したいものにを置き換えてください。
+
+revision名はHFのサイト上において、モデルページから対象のブランチをにアクセスし、そのURLから取得できます。
+
+## データセットのダウンロード
+"download_dataset.py"を実行することで、HuggingFace上の任意の公開データセットをjsonファイルで保存します。
+```
+python3 download_dataset.py --dataset_name username/dataset_name
+```
