@@ -15,5 +15,4 @@ wheels/
 
 # Others
 output/
-input/*
 !input/dev.jsonl
