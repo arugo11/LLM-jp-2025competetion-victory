@@ -1,14 +1,13 @@
 # このディレクトリについて
 このディレクトリでは推論コードについてまとめています。
 
-# 前提条件
+# 推論処理の手順
+この例では、"HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5" を対象に、1GPUでSelf-Consistency による推論処理を行います。
+## 前提条件
 - Singularity (ABCIでは `singularity-ce version 4.1.5-1.el9` が利用可能)
 - [uv](https://docs.astral.sh/uv/)
-
-# 推論処理の実行
-この例では、"HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"を対象に、1GPUでSelf-Consistencyによる推論処理を行います。
 ## 0. GPUサーバーへのアクセス
-ログインノードで以下を実行
+ログインノードで以下を実行。
 ```
 qsub -I -P gch51701 -q rt_HG -l select=1 -l walltime=1:00:00
 ```
@@ -19,7 +18,7 @@ ABCI上でチームのHuggingFaceアカウントにログイン(=HF_TOKENを登�
 ``` bash
 uv run python download_model.py HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5
 ```
-コマンド内の"HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"の部分はHuggingFace上の任意のモデルに変更することができます。
+コマンド内の"HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"の部分はHuggingFace上の任意のモデルに変更することができます。その場合、"username/model_name" の形で指定してください。
 
 [注] : "models"ディレクトリがない場合は作成してください。また、異なるモデルを使う際は"その他"の"モデルの変更"を確認してください。
 
@@ -68,7 +67,7 @@ singularity run --nv --writable-tmpfs \
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 --net --network none dist/sft-long-v5.sif \
     --model_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5 \
-    --input_path input/dev-2.jsonl \
+    --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output.jsonl" \
     --max_tokens 4096 \
     --num_samples 10 \
