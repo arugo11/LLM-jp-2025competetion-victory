@@ -40,14 +40,14 @@ echo "Build singularity image"
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
        --build-arg MODEL_NAMES="HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5" \
-       dist/sft-long-v5.sif self_consistency.def
+       dist/sft-long-v5.sif self-consistency.def
 
 # 推論の実行
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/sft-long-v5.sif \
     --model_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5 \
-    --input_path input/dev-2.jsonl \
+    --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output.jsonl" \
     --max_tokens 4096 \
     --num_samples 10 \
