@@ -1,4 +1,4 @@
-Bootstrap: docker
+workspace/LLM-jp-2025competetion-victory/inference/input/math500-ja-2.jsonlBootstrap: docker
 From: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 Stage: builder
 
