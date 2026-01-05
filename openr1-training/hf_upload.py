@@ -4,12 +4,12 @@ from huggingface_hub import HfApi
 # スクリプトがあるディレクトリを基準とした相対パスを設定
 hf_token = os.getenv("HF_TOKEN")  # 環境変数からHugging Faceのトークンを取得
 script_dir = os.path.dirname(os.path.abspath(__file__))
-relative_path = "open-r1/src/data/llm-jp-4-8b-instruct-sft-long/checkpoint-800"
+relative_path = "/groups/gch51701/Team025/llm-jp-4-8b-instruct-sft-long-v5"
 local_dir = os.path.join(script_dir, relative_path)
 
 # アップロード先のRepository IDを指定 (ユーザー名/リポジトリ名)
 # ※ 必要に応じて変更してください
-repo_id = "HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long"
+repo_id = "HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"
 
 def upload_checkpoint():
     if not os.path.exists(local_dir):
@@ -33,6 +33,7 @@ def upload_checkpoint():
             repo_id=repo_id,
             repo_type="model",
             # 必要に応じて除外するファイルパターンを指定できます (例: optim statesなど)
+            ignore_patterns=["checkpoint-*"],
             # ignore_patterns=["*.pth", "*.pt", "optimizer.pt"],
         )
         print("Upload completed successfully!")
