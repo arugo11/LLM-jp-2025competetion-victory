@@ -25,9 +25,6 @@ Stage: final
     MODEL_NAMES=""
 
 %setup
-    #mkdir -p ${SINGULARITY_ROOTFS}/app/models/llm-jp/
-    mkdir -p ${SINGULARITY_ROOTFS}/app/models/team-victory/
-    mkdir -p ${SINGULARITY_ROOTFS}/app/models/openai/
     mkdir -p ${SINGULARITY_ROOTFS}/app/models/HayatoHongoEveryonesAI/
     MODEL_NAMES={{ MODEL_NAMES }}
 
@@ -64,4 +61,4 @@ Stage: final
 
 %runscript
     cd /app
-    python3 self_consistency_math_verify.py "$@"
+    python3 self-consistency.py "$@"
