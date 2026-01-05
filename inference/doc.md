@@ -21,7 +21,7 @@ uv run python download_model.py HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-
 ```
 コマンド内の"HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"の部分はHuggingFace上の任意のモデルに変更することができます。
 
-[注] : "models"ディレクトリがない場合は作成してください。
+[注] : "models"ディレクトリがない場合は作成してください。また、異なるモデルを使う際は"その他"の"モデルの変更"を確認してください。
 
 ## 2. Singularityイメージのビルド
 はじめに"uv"の キャッシュディレクトリを環境変数に追加します。
@@ -96,6 +96,14 @@ python3 format_math500.py --input_file hoge.jsonl --output_file fuga.jsonl
 ```
 - input_file: 変換対象のファイル
 - output_file: 変換後の保存先
+
+## モデルの変更
+"1. モデルのダウンロード"にて、"--model_name"を変更することで任意のモデルで推論が可能と述べましたが、このチュートリアルで使用したモデルと異なるユーザーのモデルを利用する際には、defファイルの以下の箇所(28行目)で変更が必要です。
+
+```
+mkdir -p ${SINGULARITY_ROOTFS}/app/models/HayatoHongoEveryonesAI/
+```
+この"HayatoHongoEveryonesAI"を利用したいモデルのユーザー名に置き換えるか、新たにmkdirでディレクトリを作成するコマンドを追加してください。
 
 ## 特定の revision のモデルをダウンロード
 "download_model.py"ではmainブランチに相当するモデルがダウンロードされます。それ以外のブランチ(HF上ではrevisionと呼称)のモデルをダウンロードする場合は、"download_model.py"の25行目をコメントアウトし、revisionを取得したいものにを置き換えてください。
