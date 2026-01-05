@@ -46,15 +46,15 @@ def main():
     parser.add_argument(
         "--output_path", type=Path, required=True, help="Path to the output file"
     )
-    # 最大トークン数の引数を追加
+    # 最大トークン数
     parser.add_argument(
         "--max_tokens", type=int, default=4096, help="Maximum number of tokens"
     )
-    # サンプリング数の引数を追加
+    # サンプリング数
     parser.add_argument(
         "--num_samples", type=int, default=10, help="Number of samples for self-consistency"
     )
-    # サンプリング時の温度パラメータの引数を追加
+    # サンプリング時の温度パラメータ
     parser.add_argument(
         "--temperature", type=float, default=0.5, help="Temperature for sampling"
     )
@@ -125,8 +125,6 @@ def main():
     # 結果の後処理
     for problem, output in zip(problems, final_outputs):
         problem["output"] = f"$${output}$$"
-    # 以下は各サンプル出力を保存する場合のコード例
-    # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
     solution_methods = copy.deepcopy(problems)
     for i, tmp_output in enumerate(tmp_outputs):
         for problem, output in zip(solution_methods, tmp_output):
@@ -141,6 +139,7 @@ def main():
     with open(all_samples_path, "w") as f:
         for problem in solution_methods:
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
+
     # プログラムの総実行時間を表示
     program_finish_time = time.time()
     print("Total time: {}(s)".format(program_finish_time - program_start_time))
