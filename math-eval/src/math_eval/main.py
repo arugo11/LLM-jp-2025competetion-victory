@@ -27,6 +27,7 @@ class PredictionExample:
     solution: str
     category: str
     unit: str
+    evaluation_method: str
     output: str
 
 
@@ -37,6 +38,7 @@ class GoldExample:
     solution: str
     category: str
     unit: str
+    evaluation_method: str
 
 
 def load_examples(file_path: str, example_cls: type) -> dict[str, Any]:
