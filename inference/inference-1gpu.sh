@@ -1,8 +1,8 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q rt_HF
-#PBS -N inference-1node
-#PBS -l select=1:ncpus=192:ngpus=8
+#PBS -q rt_HG
+#PBS -N inference-1gpu
+#PBS -l select=1:ncpus=192:ngpus=1
 #PBS -l walltime=3:00:00
 #PBS -m n
 #PBS -o /dev/null
@@ -45,7 +45,7 @@ singularity build --fakeroot --force \
 # 推論の実行
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
-    --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 --net --network none dist/sft-long-v5.sif \
+    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/sft-long-v5.sif \
     --model_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5 \
     --input_path input/dev-2.jsonl \
     --output_path "$(pwd)/output/output.jsonl" \
