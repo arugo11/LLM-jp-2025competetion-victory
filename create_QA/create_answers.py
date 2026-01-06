@@ -460,6 +460,7 @@ async def _generate_tir_row(
     new_row["fallback_used"] = False
     new_row["tir_status"] = ""
     new_row["llm-code"] = None
+    new_row["raw_generation"] = None
     new_row["output"] = None
     new_row["execution_output"] = None
     new_row["generated_solution"] = ""
@@ -497,6 +498,7 @@ async def _generate_tir_row(
             continue
 
         raw_generation_text = str(generation_result.get("generation") or "")
+        new_row["raw_generation"] = raw_generation_text
         generation_text = raw_generation_text.strip()
         if generation_text and generation_text.count(
             PYTHON_BEGIN,
