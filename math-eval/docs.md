@@ -16,3 +16,4 @@
 ``` bash
 uvx --from "git+https://github.com/llm-jp/ft-llm-2026#subdirectory=math-eval" math-eval ./predictions/sample.jsonl ./targets/dev.jsonl -o ./accuracy/acc-sample.jsonl
 ```
+1/7時点では動作検証ができています。uvxを介して運営提供の正答率計算スクリプトを動作させているので、運営による修正が入った場合には要検証です。
