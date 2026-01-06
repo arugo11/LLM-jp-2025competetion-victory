@@ -461,6 +461,7 @@ async def _generate_tir_row(
     new_row["tir_status"] = ""
     new_row["llm-code"] = None
     new_row["output"] = None
+    new_row["execution_output"] = None
     new_row["generated_solution"] = ""
     new_row["expected_answer"] = None
 
@@ -495,7 +496,8 @@ async def _generate_tir_row(
         except Exception:  # pragma: no cover
             continue
 
-        generation_text = (generation_result.get("generation") or "").strip()
+        raw_generation_text = str(generation_result.get("generation") or "")
+        generation_text = raw_generation_text.strip()
         if generation_text and generation_text.count(
             PYTHON_BEGIN,
         ) > generation_text.count(PYTHON_END):
@@ -536,15 +538,16 @@ async def _generate_tir_row(
             continue
 
         latex_value = _last_non_empty_line(stdout) or ""
-        generated_solution = _format_tir_solution(
+        generated_solution_text = _format_tir_solution(
             problem_one_line,
             code_block,
             latex_value,
         )
 
-        new_row["generated_solution"] = generated_solution
-        new_row["expected_answer"] = extract_answer(generated_solution)
-        new_row["output"] = stdout if stdout else None
+        new_row["generated_solution"] = generated_solution_text
+        new_row["expected_answer"] = extract_answer(generated_solution_text)
+        new_row["execution_output"] = stdout if stdout else None
+        new_row["output"] = generated_solution_text if generated_solution_text else None
         new_row["tir_status"] = "tir_success"
         new_row["fallback_used"] = False
         return new_row
@@ -553,10 +556,11 @@ async def _generate_tir_row(
     new_row["tir_status"] = "tir_failed_fallback_used"
     new_row["fallback_used"] = True
     new_row["llm-code"] = last_code
-    new_row["output"] = last_exec_stderr if (last_exec_stderr or "") else None
+    new_row["execution_output"] = last_exec_stderr if (last_exec_stderr or "") else None
 
     fallback_text = await _fallback_solve(args, llm, problem)
     new_row["generated_solution"] = fallback_text
+    new_row["output"] = fallback_text if fallback_text else None
     new_row["expected_answer"] = extract_answer(fallback_text)
     if new_row["expected_answer"] is None:
         new_row["tir_status"] = "fallback_failed"
