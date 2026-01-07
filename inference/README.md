@@ -16,7 +16,7 @@ qsub -I -P gch51701 -q rt_HG -l select=1 -l walltime=1:00:00
 ## 1. モデルのダウンロード
 ABCI上でチームのHuggingFaceアカウントにログイン(=HF_TOKENを登録)している状態で以下を実行します。これにより、"models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"にモデルがダウンロードされます。
 ``` bash
-uv run python download_model.py HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5
+uv run python download_model.py --model_name HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5
 ```
 コマンド内の"HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"の部分はHuggingFace上の任意のモデルに変更することができます。その場合、"username/model_name" の形で指定してください。
 
