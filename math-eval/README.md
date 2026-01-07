@@ -17,3 +17,11 @@
 uvx --from "git+https://github.com/llm-jp/ft-llm-2026#subdirectory=math-eval" math-eval ./predictions/sample.jsonl ./targets/dev.jsonl -o ./accuracy/acc-sample.jsonl
 ```
 1/7時点では動作検証ができています。uvxを介して運営提供の正答率計算スクリプトを動作させているので、運営による修正が入った場合には要検証です。
+
+- より一般的な形
+``` bash
+uvx --from "git+https://github.com/llm-jp/ft-llm-2026#subdirectory=math-eval" math-eval prediction_file target_file -o output_file
+```
+- prediction_file: 予測結果のファイルパス
+- target_file: 正解データのファイルパス
+- -o output_file: 正答率の出力先 (オプション、なくても良い)
