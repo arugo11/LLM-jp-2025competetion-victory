@@ -46,7 +46,7 @@ singularity build --fakeroot --force \
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 --net --network none dist/sft-long-v5.sif \
-    --model_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5 \
+    --model_path models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5 \
     --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output.jsonl" \
     --max_tokens 4096 \
