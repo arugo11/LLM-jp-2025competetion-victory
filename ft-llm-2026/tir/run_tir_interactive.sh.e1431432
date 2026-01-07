@@ -1,0 +1,3 @@
+++ dirname /var/spool/pbs/mom_priv/jobs/1431432.pbs1.SC
++ source /var/spool/pbs/mom_priv/jobs/environment.sh
+/var/spool/pbs/mom_priv/jobs/1431432.pbs1.SC: line 9: /var/spool/pbs/mom_priv/jobs/environment.sh: No such file or directory
