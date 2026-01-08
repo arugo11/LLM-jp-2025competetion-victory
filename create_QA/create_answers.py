@@ -127,6 +127,13 @@ def _parse_args() -> argparse.Namespace:
         help="Temperature for TIR code generation",
     )
     parser.add_argument(
+        "--tir-endpoint-type",
+        type=str,
+        default="chat",
+        choices=["chat", "text", "responses"],
+        help="LLM endpoint type for TIR generation (debugging/reasoning)",
+    )
+    parser.add_argument(
         "--server-startup-timeout-sec",
         type=int,
         default=1800,
@@ -144,8 +151,21 @@ def _parse_args() -> argparse.Namespace:
         default="",
         help="Extra args passed to vLLM OpenAI server (shell-style string)",
     )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=500,
+        help="Log progress every N rows (0 disables)",
+    )
 
     return parser.parse_args()
+
+
+def _format_seconds(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    hours, rem = divmod(seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 async def _run(args: argparse.Namespace) -> None:
@@ -206,10 +226,25 @@ async def _run(args: argparse.Namespace) -> None:
             },
         )
 
+        total_rows = len(dataset)
+        print(f"Total rows: {total_rows}")
         inference_start_time = time.time()
         data: list[dict[str, Any]] = []
-        for row in dataset:
+        for idx, row in enumerate(dataset, start=1):
             data.append(await _generate_tir_row(args, llm, row))
+            if args.progress_every > 0 and (idx % args.progress_every == 0 or idx == total_rows):
+                elapsed = time.time() - inference_start_time
+                rate = idx / elapsed if elapsed > 0 else 0.0
+                eta = (total_rows - idx) / rate if rate > 0 else 0.0
+                print(
+                    "Progress: "
+                    f"{idx}/{total_rows} "
+                    f"({(idx / total_rows) if total_rows else 0:.1%}) "
+                    f"elapsed={_format_seconds(elapsed)} "
+                    f"rate={rate:.2f} it/s "
+                    f"eta={_format_seconds(eta)}",
+                    flush=True,
+                )
         inference_finish_time = time.time()
         print(f"Inference time: {inference_finish_time - inference_start_time}(s)")
 
