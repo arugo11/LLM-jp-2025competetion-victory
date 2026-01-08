@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 import time
 import re
+import sys
+import copy
 from collections import Counter
-
+from math_verify import parse
 from vllm import LLM, SamplingParams
 
 
@@ -27,32 +29,9 @@ PROMPT_TEMPLATE = """\
 {question}
 """
 
-# MARK: ヘルパー関数
-def extract_boxed_content(outputs: list[str]):
-    """
-    boxedタグ内の内容を抽出するヘルパー関数
-    Args:
-        outputs (list[str]): vLLMの出力テキストのリスト
-    returns:
-        list: 抽出された\\boxedタグ内の内容のリスト
-    """
-    # 正規表現パターンの定義
-    pattern = re.compile(r"\\boxed\{(.*?)\}", re.DOTALL)
-
-    # 抽出処理
-    extracted_contents = []
-    for output in outputs:
-        match = pattern.search(output)
-        if match:
-            extracted_contents.append(match.group(1).strip())
-        else:
-            extracted_contents.append(None)  # \\boxedタグが見つからなかった場合
-    
-    return extracted_contents
-
-
 # MARK: main
 def main():
+    sys.set_int_max_str_digits(0) # 無制限に設定
     # プログラム開始時間を記録
     program_start_time = time.time()
 
@@ -74,6 +53,10 @@ def main():
     # サンプリング数の引数を追加
     parser.add_argument(
         "--num_samples", type=int, default=10, help="Number of samples for self-consistency"
+    )
+    # サンプリング時の温度パラメータの引数を追加
+    parser.add_argument(
+        "--temperature", type=float, default=0.5, help="Temperature for sampling"
     )
 
     args = parser.parse_args()
@@ -104,31 +87,35 @@ def main():
     all_outputs = [[] for _ in range(len(messages))]
     tmp_outputs = [] # 各イテレーションの出力を保存するリスト
     for i in range(args.num_samples):
+        print("--------------------------------")
+        print(f"Sampling iteration: {i+1}/{args.num_samples}")
         sampling_params = SamplingParams(
-            temperature=0.9,
+            temperature=args.temperature,
             max_tokens=args.max_tokens,
+            top_k=40,
         )
         outputs = llm.chat(
             messages, sampling_params=sampling_params
         )
         tmp_outputs.append(outputs)
-        # \\boxedタグ内の内容を抽出
-        extracted_contents = extract_boxed_content([output.outputs[0].text for output in outputs])
+        # 答えを抽出
+        extracted_contents = [parse(output.outputs[0].text) for output in outputs]
         # 抽出結果を保存
         for j, content in enumerate(extracted_contents):
-            all_outputs[j].append(content)
+            if (content is not None) and (len(content) > 0):
+                all_outputs[j].append(str(content[0]))
+            else:
+                all_outputs[j].append(None)
 
     # Self-Consistencyによる最終解答の決定
     final_outputs = []
     for outputs in all_outputs:
-        # Noneを除外してカウント
-        filtered_outputs = [output for output in outputs if output is not None]
-        if filtered_outputs:
+        if outputs is not None:
             # 最も頻出する解答を選択
-            most_common = Counter(filtered_outputs).most_common()[0][0]
+            most_common = Counter(outputs).most_common()[0][0]
             final_outputs.append(most_common)
         else:
-            final_outputs.append(None)  # すべてNoneの場合
+            final_outputs.append(None) # すべてNoneの場合
         
 
     # 推論時間の表示
@@ -140,14 +127,18 @@ def main():
         problem["output"] = f"$${output}$$"
     # 以下は各サンプル出力を保存する場合のコード例
     # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
+    solution_methods = copy.deepcopy(problems)
     for i, tmp_output in enumerate(tmp_outputs):
-        for problem, output in zip(problems, tmp_output):
+        for problem, output in zip(solution_methods, tmp_output):
             problem[f"output_sample_{i}"] = output.outputs[0].text
 
     with open(args.output_path, "w") as f:
         for problem in problems:
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
-    
+    all_samples_path = str(args.output_path).replace(".jsonl", "_all_samples.jsonl")
+    with open(all_samples_path, "w") as f:
+        for problem in solution_methods:
+            f.write(json.dumps(problem, ensure_ascii=False) + "\n")
     # プログラムの総実行時間を表示
     program_finish_time = time.time()
     print("Total time: {}(s)".format(program_finish_time - program_start_time))

@@ -29,30 +29,6 @@ PROMPT_TEMPLATE = """\
 {question}
 """
 
-# MARK: ヘルパー関数
-def extract_boxed_content(outputs: list[str]):
-    """
-    boxedタグ内の内容を抽出するヘルパー関数
-    Args:
-        outputs (list[str]): vLLMの出力テキストのリスト
-    returns:
-        list: 抽出された\\boxedタグ内の内容のリスト
-    """
-    # 正規表現パターンの定義
-    pattern = re.compile(r"\\boxed\{(.*?)\}", re.DOTALL)
-
-    # 抽出処理
-    extracted_contents = []
-    for output in outputs:
-        match = pattern.search(output)
-        if match:
-            extracted_contents.append(match.group(1).strip())
-        else:
-            extracted_contents.append(None)  # \\boxedタグが見つからなかった場合
-    
-    return extracted_contents
-
-
 # MARK: main
 def main():
     sys.set_int_max_str_digits(0) # 無制限に設定
@@ -150,7 +126,6 @@ def main():
     for problem, output in zip(problems, final_outputs):
         problem["output"] = f"$${output}$$"
     # 以下は各サンプル出力を保存する場合のコード例
-    # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
     solution_methods = copy.deepcopy(problems)
     for i, tmp_output in enumerate(tmp_outputs):
         for problem, output in zip(solution_methods, tmp_output):

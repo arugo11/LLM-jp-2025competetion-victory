@@ -25,8 +25,8 @@ Stage: final
     MODEL_NAMES=""
 
 %setup
-    #mkdir -p ${SINGULARITY_ROOTFS}/app/models/llm-jp/
-    mkdir -p ${SINGULARITY_ROOTFS}/app/models/team-victory/
+    mkdir -p ${SINGULARITY_ROOTFS}/app/models/HayatoHongoEveryonesAI/
+    mkdir -p ${SINGULARITY_ROOTFS}/app/models/openai/
     MODEL_NAMES={{ MODEL_NAMES }}
 
     if [[ -n "${MODEL_NAMES}" ]]; then
@@ -62,4 +62,4 @@ Stage: final
 
 %runscript
     cd /app
-    python3 self_consistency_test_math500.py "$@"
+    python3 self_consistency.py "$@"

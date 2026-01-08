@@ -9,7 +9,7 @@
 #PBS -e /dev/null
 
 # 温度定数の設定
-export temperature=0.5
+export temperature=1.0
 
 source /etc/profile.d/modules.sh
 module load cuda/12.8
@@ -20,8 +20,8 @@ echo "Current working directory is $(pwd)"
 
 JOBID=${PBS_JOBID%%.*}
 mkdir -p ./.log
-LOGFILE=./.log/inference-1gpu-gpt-oss-20b-$JOBID.out
-ERRFILE=./.log/inference-1gpu-gpt-oss-20b-$JOBID.err
+LOGFILE=./.log/gpt-oss-20b-$JOBID.out
+ERRFILE=./.log/gpt-oss-20b-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -46,7 +46,7 @@ echo "Inference gpt-oss-20b num_samples=1"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
     --model_path models/openai/gpt-oss-20b \
-    --input_path input/dev.jsonl \
+    --input_path input/math500-ja-2.jsonl \
     --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-1.jsonl" \
     --num_samples 1 \
     --temperature $temperature
@@ -55,7 +55,7 @@ echo "Inference gpt-oss-20b num_samples=10"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
     --model_path models/openai/gpt-oss-20b \
-    --input_path input/dev.jsonl \
+    --input_path input/math500-ja-2.jsonl \
     --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-10.jsonl" \
     --num_samples 10 \
     --temperature $temperature
@@ -64,7 +64,7 @@ echo "Inference gpt-oss-20b num_samples=20"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
     --model_path models/openai/gpt-oss-20b \
-    --input_path input/dev.jsonl \
+    --input_path input/math500-ja-2.jsonl \
     --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-20.jsonl" \
     --num_samples 20 \
     --temperature $temperature
@@ -73,7 +73,7 @@ echo "Inference gpt-oss-20b num_samples=40"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
     --model_path models/openai/gpt-oss-20b \
-    --input_path input/dev.jsonl \
+    --input_path input/math500-ja-2.jsonl \
     --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-40.jsonl" \
     --num_samples 40 \
     --temperature $temperature
@@ -82,7 +82,7 @@ echo "Inference gpt-oss-20b num_samples=80"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/gpt-oss-20b.sif \
     --model_path models/openai/gpt-oss-20b \
-    --input_path input/dev.jsonl \
+    --input_path input/math500-ja-2.jsonl \
     --output_path "$(pwd)/output/dev-json/gpt-oss-20b/sample-80.jsonl" \
     --num_samples 80 \
     --temperature $temperature
