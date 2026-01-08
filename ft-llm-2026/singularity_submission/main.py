@@ -69,6 +69,11 @@ def _parse_args() -> argparse.Namespace:
         default=Path("inference_log.jsonl"),
         help="Path to the inference log JSONL file",
     )
+    parser.add_argument(
+        "--log-raw-output",
+        action="store_true",
+        help="Include raw model output in the inference log (useful for debugging)",
+    )
 
     parser.add_argument("--tir-sandbox-type", default="local")
     parser.add_argument("--tir-sandbox-host", default="127.0.0.1")
@@ -269,12 +274,13 @@ async def _run_math_pipeline(args: argparse.Namespace) -> None:
                     "error": error,
                     "final_output": final_output,
                     "temperature": used_temperature,
-                    "raw_output": raw_output,
                     "python_block": python_blocks[0] if python_blocks else "",
                     "result_block": result_blocks[0] if result_blocks else "",
                     "stdout": stdout,
                     "stderr": stderr,
                 }
+                if args.log_raw_output:
+                    log_entry["raw_output"] = raw_output
                 log_f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
     finally:
         await sandbox.close()

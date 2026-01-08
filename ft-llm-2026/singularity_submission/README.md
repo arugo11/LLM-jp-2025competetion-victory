@@ -47,14 +47,6 @@ uv run python -m nemo_skills.inference.server.serve_vllm \
     --num_gpus 1 --num_nodes 1 --port 8000 --enforce-eager > vllm.log 2>&1 &
 ```
 
-vLLM が起動完了するまで待機します。
-
-```bash
-until curl -sf http://127.0.0.1:8000/health >/dev/null; do
-  echo "waiting for vLLM..."
-  sleep 5
-done
-```
 
 必要に応じてログを確認してください。
 
