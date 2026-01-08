@@ -7,9 +7,11 @@ import asyncio
 import json
 import re
 import textwrap
+import time
 from pathlib import Path
 from typing import Any
 
+import httpx
 from nemo_skills.code_execution.sandbox import get_sandbox  # type: ignore
 from nemo_skills.inference.model import get_model  # type: ignore
 
@@ -39,7 +41,7 @@ PROMPT_TEMPLATE: str = textwrap.dedent(
 
 問題:
 {question}
-    """
+    """,
 ).strip()
 
 
@@ -83,6 +85,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--tir-llm-host", default="127.0.0.1")
     parser.add_argument("--tir-llm-port", type=int, default=8000)
     parser.add_argument("--tir-model-name", type=str, default=None)
+    parser.add_argument("--llm-ready-timeout", type=float, default=300.0)
+    parser.add_argument("--llm-ready-interval", type=float, default=2.0)
 
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--min-tokens", type=int, default=0)
@@ -163,11 +167,36 @@ async def _generate_once(
     return result.get("generation", "")
 
 
+# vLLMサーバが立ち上がるまで待機
+async def _wait_for_llm_ready(
+    host: str, port: int, timeout: float, interval: float
+) -> None:
+    url = f"http://{host}:{port}/health"
+    deadline = time.monotonic() + timeout
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        while time.monotonic() < deadline:
+            try:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    return
+            except httpx.RequestError:
+                pass
+            await asyncio.sleep(interval)
+    raise RuntimeError(f"vLLM health check timed out after {timeout:.1f}s: {url}")
+
+
 async def _run_math_pipeline(args: argparse.Namespace) -> None:
     if not args.model_path.exists():
         raise FileNotFoundError(f"Model path not found: {args.model_path}")
     if not args.input_path.exists():
         raise FileNotFoundError(f"Input path not found: {args.input_path}")
+
+    await _wait_for_llm_ready(
+        host=args.tir_llm_host,
+        port=args.tir_llm_port,
+        timeout=args.llm_ready_timeout,
+        interval=args.llm_ready_interval,
+    )
 
     problems = _read_problems(args.input_path)
     model_name = args.tir_model_name or str(args.model_path.resolve())
@@ -188,9 +217,13 @@ async def _run_math_pipeline(args: argparse.Namespace) -> None:
     args.log_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        with args.output_path.open("w", encoding="utf-8") as out_f, args.log_path.open(
-            "a", encoding="utf-8"
-        ) as log_f:
+        with (
+            args.output_path.open("w", encoding="utf-8") as out_f,
+            args.log_path.open(
+                "a",
+                encoding="utf-8",
+            ) as log_f,
+        ):
             for idx, problem in enumerate(problems):
                 question = str(problem.get("problem", ""))
                 messages = _build_messages(question)
@@ -216,8 +249,12 @@ async def _run_math_pipeline(args: argparse.Namespace) -> None:
                         min_tokens=args.min_tokens,
                     )
 
-                    python_blocks = _extract_blocks(raw_output, PYTHON_BEGIN, PYTHON_END)
-                    result_blocks = _extract_blocks(raw_output, RESULT_BEGIN, RESULT_END)
+                    python_blocks = _extract_blocks(
+                        raw_output, PYTHON_BEGIN, PYTHON_END
+                    )
+                    result_blocks = _extract_blocks(
+                        raw_output, RESULT_BEGIN, RESULT_END
+                    )
 
                     if not python_blocks:
                         if attempt < len(temperatures):
