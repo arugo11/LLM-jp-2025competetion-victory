@@ -34,6 +34,7 @@ from utils import (
     read_problems,
     safe_exec_view,
 )
+from wandb_tracer import WeaveConfig, WeaveTracer, init_tracer
 
 # =============================================================================
 # Argument Parsing
@@ -82,6 +83,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--code-timeout", type=float, default=10.0)
     parser.add_argument("--max-output-chars", type=int, default=1000)
 
+    # W&B Weave configuration
+    parser.add_argument(
+        "--enable-wandb",
+        action="store_true",
+        help="Enable W&B Weave tracing (requires weave package)",
+    )
+    parser.add_argument(
+        "--wandb-project",
+        type=str,
+        default="llm-jp-math-tir",
+        help="W&B Weave project name",
+    )
+    parser.add_argument(
+        "--wandb-disabled",
+        action="store_true",
+        help="Initialize Weave but disable sending (for debugging)",
+    )
+
     return parser.parse_args()
 
 
@@ -99,18 +118,68 @@ class ProblemSolver:
         sandbox,
         args: argparse.Namespace,
         trace: TraceLogger,
+        weave_tracer: WeaveTracer | None = None,
     ):
         self.llm = llm
         self.sandbox = sandbox
         self.args = args
         self.trace = trace
+        self.weave_tracer = weave_tracer
         self._event_i = 0
+        self._weave_client: Any = None
+
+        # Get Weave client for manual call tracking
+        if weave_tracer and weave_tracer.enabled:
+            import weave
+
+            self._weave_client = weave
 
     async def solve(self, problem: dict[str, Any], idx: int) -> SolveResult:
-        """Solve a single math problem."""
-        t0 = time.time()
+        """Solve a single math problem with optional Weave tracing."""
         question = str(problem.get("problem", ""))
         session_id = str(problem.get("id", idx))
+
+        # If Weave is enabled, wrap the solve operation
+        if self._weave_client and self.weave_tracer:
+            return await self._solve_with_weave_trace(
+                problem, idx, question, session_id
+            )
+
+        return await self._solve_core(problem, idx, question, session_id)
+
+    async def _solve_with_weave_trace(
+        self,
+        problem: dict[str, Any],
+        idx: int,
+        question: str,
+        session_id: str,
+    ) -> SolveResult:
+        """Execute solve with Weave tracing."""
+        weave = self._weave_client
+
+        # Create the traced solve function dynamically
+        @weave.op(name="solve_problem")
+        async def traced_solve(
+            question: str,
+            session_id: str,
+        ) -> dict[str, Any]:
+            result = await self._solve_core(problem, idx, question, session_id)
+            # Store result for return, output structured data for Weave
+            traced_solve._result = result  # type: ignore
+            return self.weave_tracer.build_solve_output(result)  # type: ignore
+
+        await traced_solve(question, session_id)
+        return traced_solve._result  # type: ignore
+
+    async def _solve_core(
+        self,
+        problem: dict[str, Any],
+        idx: int,
+        question: str,
+        session_id: str,
+    ) -> SolveResult:
+        """Core solve implementation."""
+        t0 = time.time()
         self._event_i = 0
 
         temperatures = [self.args.temperature]
@@ -239,7 +308,69 @@ class ProblemSolver:
         temperature: float,
         messages: list[dict[str, str]],
     ) -> tuple[str, list[str], list[str]]:
-        """Generate code from LLM."""
+        """Generate code from LLM with optional Weave tracing."""
+        # If Weave is enabled, wrap the generate operation
+        if self._weave_client and self.weave_tracer:
+            return await self._generate_with_weave_trace(
+                session_id,
+                phase,
+                attempt,
+                temperature,
+                messages,
+            )
+        return await self._generate_core(
+            session_id,
+            phase,
+            attempt,
+            temperature,
+            messages,
+        )
+
+    async def _generate_with_weave_trace(
+        self,
+        session_id: str,
+        phase: str,
+        attempt: int,
+        temperature: float,
+        messages: list[dict[str, str]],
+    ) -> tuple[str, list[str], list[str]]:
+        """Generate with Weave tracing."""
+        weave = self._weave_client
+
+        @weave.op(name="llm_generate")
+        async def traced_generate(
+            phase: str,
+            attempt: int,
+            temperature: float,
+        ) -> dict[str, Any]:
+            t0 = time.time()
+            raw, py_blocks, res_blocks = await self._generate_core(
+                session_id,
+                phase,
+                attempt,
+                temperature,
+                messages,
+            )
+            traced_generate._result = (raw, py_blocks, res_blocks)  # type: ignore
+            return self.weave_tracer.build_generate_output(  # type: ignore
+                raw,
+                py_blocks,
+                res_blocks,
+                time.time() - t0,
+            )
+
+        await traced_generate(phase, attempt, temperature)
+        return traced_generate._result  # type: ignore
+
+    async def _generate_core(
+        self,
+        session_id: str,
+        phase: str,
+        attempt: int,
+        temperature: float,
+        messages: list[dict[str, str]],
+    ) -> tuple[str, list[str], list[str]]:
+        """Core generate implementation."""
         self._log_event(
             session_id,
             "llm_request",
@@ -287,7 +418,61 @@ class ProblemSolver:
         attempt: int,
         code: str,
     ) -> dict[str, Any] | None:
-        """Execute code in sandbox."""
+        """Execute code in sandbox with optional Weave tracing."""
+        # If Weave is enabled, wrap the execute operation
+        if self._weave_client and self.weave_tracer:
+            return await self._execute_with_weave_trace(
+                session_id,
+                phase,
+                attempt,
+                code,
+            )
+        return await self._execute_core(session_id, phase, attempt, code)
+
+    async def _execute_with_weave_trace(
+        self,
+        session_id: str,
+        phase: str,
+        attempt: int,
+        code: str,
+    ) -> dict[str, Any] | None:
+        """Execute with Weave tracing."""
+        weave = self._weave_client
+
+        @weave.op(name="sandbox_execute")
+        async def traced_execute(
+            phase: str,
+            attempt: int,
+            code_preview: str,
+        ) -> dict[str, Any]:
+            t0 = time.time()
+            result = await self._execute_core(session_id, phase, attempt, code)
+            traced_execute._result = result  # type: ignore
+            return self.weave_tracer.build_execute_output(  # type: ignore
+                result,
+                time.time() - t0,
+            )
+
+        # Clip code for display in Weave UI
+        code_preview = (
+            self.weave_tracer.format_code_markdown(
+                self.trace.clip(code),
+            )
+            if self.weave_tracer
+            else code[:500]
+        )
+
+        await traced_execute(phase, attempt, code_preview)
+        return traced_execute._result  # type: ignore
+
+    async def _execute_core(
+        self,
+        session_id: str,
+        phase: str,
+        attempt: int,
+        code: str,
+    ) -> dict[str, Any] | None:
+        """Core execute implementation."""
         self._log_event(
             session_id,
             "sandbox_request",
@@ -442,6 +627,17 @@ async def run_pipeline(args: argparse.Namespace) -> None:
         raise FileNotFoundError(f"Model path not found: {args.model_path}")
     if not args.input_path.exists():
         raise FileNotFoundError(f"Input path not found: {args.input_path}")
+
+    # Initialize Weave tracer (if enabled)
+    weave_tracer: WeaveTracer | None = None
+    if args.enable_wandb:
+        weave_config = WeaveConfig(
+            enabled=True,
+            project=args.wandb_project,
+            disabled_send=args.wandb_disabled,
+        )
+        weave_tracer = init_tracer(weave_config)
+
     # vLLMのサーバが起動するのを待機する.
     await wait_for_llm_ready(
         host=args.tir_llm_host,
@@ -476,7 +672,7 @@ async def run_pipeline(args: argparse.Namespace) -> None:
             args.trace_log_path.open("a", encoding="utf-8") as trace_f,
         ):
             trace = TraceLogger(trace_f, args.trace_max_chars)
-            solver = ProblemSolver(llm, sandbox, args, trace)
+            solver = ProblemSolver(llm, sandbox, args, trace, weave_tracer)
 
             for idx, problem in enumerate(problems):
                 result = await solver.solve(problem, idx)
