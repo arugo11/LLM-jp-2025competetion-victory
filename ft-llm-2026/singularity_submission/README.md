@@ -35,12 +35,50 @@
      `invalid literal for int(): 'GPU-…'` というエラーが発生します。必ず上記のように数値へ固定してください。
    - Singularity を使う場合は、必要に応じて `SINGULARITYENV_CUDA_VISIBLE_DEVICES` なども同じ値に設定します。
 
+以下は実行例です。**それぞれ別シェル**で順番に実行してください（モデル名やGPU割り当ては環境に合わせて変更）。
+
 ```bash
-# 例: それぞれ別シェルで実行 (モデル名やGPU割り当ては環境に合わせて変更)
 uv run python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server --port 6000 > sandbox.log 2>&1 &
+```
+
+```bash
 uv run python -m nemo_skills.inference.server.serve_vllm \
     --model /home/ach18380vf/LLM-jp-2025competetion-victory/ft-llm-2026/singularity_submission/models/team-victory/llm-jp-4-8b-instruct \
     --num_gpus 1 --num_nodes 1 --port 8000 --enforce-eager > vllm.log 2>&1 &
+```
+
+vLLM が起動完了するまで待機します。
+
+```bash
+until curl -sf http://127.0.0.1:8000/health >/dev/null; do
+  echo "waiting for vLLM..."
+  sleep 5
+done
+```
+
+必要に応じてログを確認してください。
+
+```bash
+tail -n 20 sandbox.log
+```
+
+```bash
+tail -n 40 vllm.log
+```
+
+vLLM / サンドボックスが起動してから `main.py` を実行します（入力や出力のパスは適宜変更）。
+
+```bash
+uv run python main.py \
+    --model_path /home/ach18380vf/LLM-jp-2025competetion-victory/ft-llm-2026/singularity_submission/models/team-victory/llm-jp-4-8b-instruct \
+    --tir-model-name /home/ach18380vf/LLM-jp-2025competetion-victory/ft-llm-2026/singularity_submission/models/team-victory/llm-jp-4-8b-instruct \
+    --input_path sample_problems.jsonl \
+    --output_path output.jsonl \
+    --log_path inference_log.jsonl \
+    --tir-llm-host 127.0.0.1 --tir-llm-port 8000 \
+    --tir-sandbox-host 127.0.0.1 --tir-sandbox-port 6000 \
+    --max-new-tokens 128 --min-tokens 0 \
+    --temperature 0.0 --retry-temperature 0.2
 ```
 
 - モデル取得に必要な `HF_TOKEN` などの環境変数は適宜設定してください。
