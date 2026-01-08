@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 import answer_prompts as ap
 import answer_utils as au
+from nemo_skills.inference.model.base import EndpointType
 
 
 @dataclass
@@ -219,6 +220,13 @@ async def _generate_tir_row(
     for attempt in range(1, max(args.tir_max_retries, 1) + 1):
         new_row["tir_attempts"] = attempt
 
+        endpoint_type = None
+        if getattr(args, "tir_endpoint_type", None):
+            try:
+                endpoint_type = EndpointType(args.tir_endpoint_type)
+            except ValueError:
+                endpoint_type = None
+
         try:
             generation_result = await llm.generate_async(
                 prompt=tir_prompt,
@@ -232,13 +240,36 @@ async def _generate_tir_row(
                 stop_phrases=[ap.PYTHON_END],
                 max_code_executions=0,
                 remove_stop_phrases=False,
+                endpoint_type=endpoint_type,
             )
         except Exception:  # pragma: no cover
-            continue
+            if endpoint_type == EndpointType.responses:
+                try:
+                    generation_result = await llm.generate_async(
+                        prompt=tir_prompt,
+                        code_begin=ap.PYTHON_BEGIN,
+                        code_end=ap.PYTHON_END,
+                        code_output_begin=ap.PYTHON_OUTPUT_BEGIN,
+                        code_output_end=ap.PYTHON_OUTPUT_END,
+                        code_output_format="qwen",
+                        tokens_to_generate=args.max_tokens,
+                        temperature=args.tir_temperature,
+                        stop_phrases=[ap.PYTHON_END],
+                        max_code_executions=0,
+                        remove_stop_phrases=False,
+                        endpoint_type=EndpointType.chat,
+                    )
+                except Exception:  # pragma: no cover
+                    continue
+            else:
+                continue
 
         raw_generation_text = str(generation_result.get("generation") or "")
+        reasoning_content = str(generation_result.get("reasoning_content") or "").strip()
+        if reasoning_content:
+            raw_generation_text = f"analysis{reasoning_content}\nassistantfinal{raw_generation_text}"
         new_row["raw_generation"] = raw_generation_text
-        generation_text = raw_generation_text.strip()
+        generation_text = str(generation_result.get("generation") or "").strip()
         if generation_text and generation_text.count(
             ap.PYTHON_BEGIN,
         ) > generation_text.count(ap.PYTHON_END):
