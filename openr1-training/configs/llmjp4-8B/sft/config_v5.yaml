@@ -6,7 +6,7 @@
 # Qiita https://qiita.com/m__k/items/2c4e476d7ac81a3a44af 日本語で分かりやすい
 
 # Model arguments
-model_name_or_path: team-victory/llm-jp-4-8b-instruct # テスト用のため0.5bにしている
+model_name_or_path: HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-merged # テスト用のため0.5bにしている
 model_revision: main
 torch_dtype: bfloat16 # bf16を使う
 attn_implementation: flash_attention_2 # flash-attnention_2は使えなかった。
@@ -34,11 +34,11 @@ data_seed: 42 # データセットの乱数シード
 bf16: true # bf16を使う
 do_eval: false # 評価を行うかどうか
 eval_strategy: 'no' # 評価を行うタイミング ('no' or 'steps' or 'epoch')
-gradient_accumulation_steps: 8 # 勾配蓄積のステップ数
+gradient_accumulation_steps: 32 # 勾配蓄積のステップ数
 gradient_checkpointing: false # 勾配チェックポイントを使うかどうか
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: team-victory/llm-jp-4-8b-instruct-sft-test # モデルをHuggingFace Hubにpushする際のモデルID
+hub_model_id: HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5 # モデルをHuggingFace Hubにpushする際のモデルID
 hub_strategy: every_save # モデルをHuggingFace Hubにpushするタイミング (every_save: 保存する時毎回, end: 最後の保存時)
 learning_rate: 4.0e-05 # 学習率
 log_level: info # ログレベル(ログの詳細度)
@@ -49,20 +49,20 @@ lr_scheduler_kwargs:
   min_lr_rate: 0.1
 packing: true
 max_grad_norm: 0.2
-max_length: 4096 # 32768 # 最大シーケンス長
+max_length: 16384 # 32768 # 最大シーケンス長
 max_steps: -1
 num_train_epochs: 1 # 学習エポック数
-output_dir: data/llm-jp-4-8b-instruct-sft-test # 結果の出力ディレクトリ
+output_dir: /groups/gch51701/Team025/llm-jp-4-8b-instruct-sft-long-v5 # 結果の出力ディレクトリ
 optim: adamw_torch # オプティマイザの種類  何があるかはhttps://github.com/huggingface/transformers/blob/main/src/transformers/training_args.pyを参照
 overwrite_output_dir: false
-per_device_eval_batch_size: 4 # 評価時の1GPUあたりのバッチサイズ
-per_device_train_batch_size: 4 # 学習時の1GPUあたりのバッチサイズ
-push_to_hub: true # trueにするとHuggingFace Hubにモデルをpushする ログインしている必要がある
+per_device_eval_batch_size: 1 # 評価時の1GPUあたりのバッチサイズ
+per_device_train_batch_size: 1 # 学習時の1GPUあたりのバッチサイズ
+push_to_hub: false # trueにするとHuggingFace Hubにモデルをpushする ログインしている必要がある
 report_to: # wandbにログインしているならこれをオンにするとwandbにログが送られる
 - wandb
 save_strategy: steps # モデルをローカルに保存するタイミング ('no' or 'steps' or 'epoch')
-save_steps: 20 # モデルをローカルに保存するステップ数(間隔)
-save_total_limit: 50
+save_steps: 200 # モデルをローカルに保存するステップ数(間隔)
+save_total_limit: 20
 seed: 42 # 乱数シード
 use_liger_kernel: true # エラーが出たので一旦無効化
 warmup_ratio: 0.03

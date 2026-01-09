@@ -42,11 +42,12 @@ import transformers
 from transformers import set_seed
 from transformers.trainer_utils import get_last_checkpoint
 
-from open_r1.configs import ScriptArguments, SFTConfig, DatasetClass, DataConfig
+from open_r1.configs import ScriptArguments, DatasetClass, DataConfig
 from open_r1.utils import get_dataset, get_model, get_tokenizer
 from open_r1.utils.callbacks import get_callbacks
 from open_r1.utils.wandb_logging import init_wandb_training
-from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_format
+from trl import ModelConfig, TrlParser, get_peft_config, setup_chat_format
+from trl.experimental.gold import GOLDConfig, GOLDTrainer
 
 from open_r1.get_datas import get_datas_from_config
 
@@ -54,6 +55,8 @@ import argparse
 import yaml
 import torch
 import datetime
+
+from transformers import AutoModelForCausalLM
 
 
 import deepspeed  # NEW: for set_z3_leaf_modules
@@ -69,7 +72,7 @@ except Exception:
     _QwenSparseMoeBlock = None
     print("Falling back to generic Sparse MoE Block.")
 
-
+system_prompt = "以下は数学の問題です。\n解答を段階的に考え、最終的な解答の数値のみを\\boxタグ内に記述してください。\n\n# 問題\n{question}"
 
 logger = logging.getLogger(__name__)
 print(f"Last modified time is 2025-0817-0500-JST")
@@ -97,7 +100,7 @@ def get_dataconfig():
 
 
 
-def main(script_args, training_args, model_args, data_config: DataConfig):
+def main(script_args, training_args, model_args, data_config: DataConfig, unknown_args):
     set_seed(training_args.seed)
 
     ###############
@@ -136,10 +139,13 @@ def main(script_args, training_args, model_args, data_config: DataConfig):
     if data_config is None:
         dataset = get_dataset(script_args)
     else:
-        dataset = get_datas_from_config(data_config, training_args.system_prompt)
+        # GOLDTrainer expects 'messages' column
+        dataset = get_datas_from_config(data_config, system_prompt, return_messages=True)
     print(f"Loaded dataset: {dataset}")
     tokenizer = get_tokenizer(model_args, training_args)
     model = get_model(model_args, training_args)
+    teacher_model_init_kwargs = training_args.teacher_model_init_kwargs or {}
+    teacher_model = AutoModelForCausalLM.from_pretrained(training_args.teacher_model_name_or_path, **teacher_model_init_kwargs)
 
     # NEW: MoE × ZeRO-3 安定化（leaf module 指定）
     if getattr(model.config, "model_type", "") == "qwen3_moe":
@@ -165,15 +171,17 @@ def main(script_args, training_args, model_args, data_config: DataConfig):
             if not set_flag:
                 print("[MoE][WARN] Could not find a SparseMoeBlock; ZeRO-3 leaf NOT set (collectives may hang).")
 
-    if tokenizer.chat_template is None and training_args.apply_chat_template:
+    if tokenizer.chat_template is None:
         logger.info("No chat template provided, defaulting to ChatML.")
         model, tokenizer = setup_chat_format(model, tokenizer, format="chatml")
 
     ############################
     # Initialize the SFT Trainer
     ############################
-    trainer = SFTTrainer(
+
+    trainer = GOLDTrainer(
         model=model,
+        teacher_model=model,
         args=training_args,
         train_dataset=dataset[script_args.dataset_train_split],
         eval_dataset=(dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None),
@@ -243,8 +251,13 @@ def main(script_args, training_args, model_args, data_config: DataConfig):
 
 if __name__ == "__main__":
     # torch.distributed.init_process_group(backend="nccl", timeout=datetime.timedelta(seconds=7200))
-    parser = TrlParser((ScriptArguments, SFTConfig, ModelConfig))
+    parser = TrlParser((ScriptArguments, GOLDConfig, ModelConfig))
     script_args, training_args, model_args, unknown_args = parser.parse_args_and_config(return_remaining_strings = True, fail_with_unknown_args = False)
+    print("script_args: ", script_args)
+    print("training_args: ", training_args)
+    print("model_args: ", model_args)
+    print("unknown_args: ", unknown_args)
     data_config = get_dataconfig()
     print(f"Data configuration loaded: {data_config}")
-    main(script_args, training_args, model_args, data_config)
+    main(script_args, training_args, model_args, data_config, unknown_args)
+

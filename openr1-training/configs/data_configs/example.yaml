@@ -1,8 +1,8 @@
 neko_sft_datasets:
-  - name: nvidia/OpenMathInstruct-2
+  - name: HayatoHongoEveryonesAI/qa_verify_new_v5
     config: default
-    split: train_1M
     question_field: problem
     answer_field: generated_solution
+    split: train
     # from_id: 1
     # to_id: 1000
