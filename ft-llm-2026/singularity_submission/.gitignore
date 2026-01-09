@@ -24,3 +24,7 @@ sandbox_sample.py
 # document
 SANDBOX.md
 
+# log
+ft-llm-2026/math-eval/eval_result*.json
+ft-llm-2026/math-eval/examples/output_dev*.jsonl
+ft-llm-2026/singularity_submission/inference_trace*.jsonl

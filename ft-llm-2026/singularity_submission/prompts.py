@@ -1,16 +1,16 @@
-"""Prompt templates and message building utilities for the math problem solver."""
+"""数学問題ソルバー用のプロンプトテンプレートとメッセージ構築ユーティリティ."""
 
 from __future__ import annotations
 
 import textwrap
 
-# Code block markers
+# コードブロックマーカー
 PYTHON_BEGIN = "<python>"
 PYTHON_END = "</python>"
 RESULT_BEGIN = "<result>"
 RESULT_END = "</result>"
 
-# Prompt templates
+# プロンプトテンプレート
 PROMPT_TEMPLATE: str = textwrap.dedent(
     """
 あなたは厳密な数学のsolverです。
@@ -84,7 +84,7 @@ REPAIR_TEMPLATE: str = textwrap.dedent(
 
 
 def build_messages(question: str) -> list[dict[str, str]]:
-    """Build initial prompt messages for a math problem."""
+    """数学問題の初期プロンプトメッセージを構築."""
     return [{"role": "user", "content": PROMPT_TEMPLATE.format(question=question)}]
 
 
@@ -94,7 +94,7 @@ def build_repair_messages(
     stdout: str,
     stderr: str,
 ) -> list[dict[str, str]]:
-    """Build repair prompt messages after execution failure."""
+    """実行失敗後のリペアプロンプトメッセージを構築."""
     return [
         {
             "role": "user",
@@ -104,5 +104,77 @@ def build_repair_messages(
                 stdout=stdout,
                 stderr=stderr,
             ),
+        },
+    ]
+
+
+FORMAT_REPAIR_TEMPLATE: str = textwrap.dedent(
+    """
+あなたは厳密な数学のsolverです。
+
+直前のあなたの出力は、指定フォーマット
+(<python>...</python> と <result>...</result>) を満たしていません。
+必ず次の制約を守って、同じ問題を解き直して出力し直してください。
+
+出力制約:
+- 出力は必ず <python>...</python> と <result>...</result> のみ
+- <python> タグは絶対に省略しないこと
+- <python> は1つだけ
+- <result> は1つだけ
+- <python> の最後は print(...) で答えを1回だけ出力
+- 説明文、Markdown、余計な空行やラベルは禁止
+
+問題:
+{question}
+
+直前のあなたの出力(参考):
+{raw_output}
+""",
+).strip()
+
+
+DIRECT_ANSWER_TEMPLATE: str = textwrap.dedent(
+    """
+あなたは厳密な数学のsolverです。
+
+今回は sandbox によるコード実行が失敗/不可能でした。
+外部ツールに頼らず、あなた自身の推論で最終答案だけを出力してください。
+
+出力フォーマット:
+<result>answer</result>
+
+制約:
+- 出力は <result>...</result> のみ (他のテキストは禁止)
+- answer は最終答案のみ
+- 可能なら数式は LaTeX で (例: -\\frac{{1}}{{3}}, 2\\sqrt{{6}} など)
+
+問題:
+{question}
+""",
+).strip()
+
+
+def build_format_repair_messages(
+    question: str,
+    raw_output: str,
+) -> list[dict[str, str]]:
+    """欠落・無効なタグとフォーマット修正用のプロンプトを構築."""
+    return [
+        {
+            "role": "user",
+            "content": FORMAT_REPAIR_TEMPLATE.format(
+                question=question,
+                raw_output=raw_output,
+            ),
+        },
+    ]
+
+
+def build_direct_answer_messages(question: str) -> list[dict[str, str]]:
+    """直接回答（コード無し）フォールバック用のプロンプトを構築."""
+    return [
+        {
+            "role": "user",
+            "content": DIRECT_ANSWER_TEMPLATE.format(question=question),
         },
     ]

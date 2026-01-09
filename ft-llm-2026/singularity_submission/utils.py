@@ -1,4 +1,4 @@
-"""Utility functions for text processing, logging, and I/O."""
+"""テキスト処理とI/Oのユーティリティ関数."""
 
 from __future__ import annotations
 
@@ -6,17 +6,16 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any
 
 from prompts import RESULT_BEGIN
+from sympy import latex, sympify
 
-# =============================================================================
-# Text Processing
-# =============================================================================
+# テキスト処理
 
 
 def read_problems(path: Path) -> list[dict[str, Any]]:
-    """Read problem definitions from a JSONL file."""
+    """JSONLファイルから問題定義を読み込む."""
     problems: list[dict[str, Any]] = []
     with path.open(encoding="utf-8") as f:
         for line in f:
@@ -27,7 +26,7 @@ def read_problems(path: Path) -> list[dict[str, Any]]:
 
 
 def extract_blocks(text: str, begin: str, end: str) -> list[str]:
-    """Extract all blocks between begin and end markers."""
+    """開始マーカーと終了マーカーの間のすべてのブロックを抽出."""
     if not text:
         return []
     pattern = re.compile(re.escape(begin) + r"(.*?)" + re.escape(end), re.DOTALL)
@@ -35,7 +34,7 @@ def extract_blocks(text: str, begin: str, end: str) -> list[str]:
 
 
 def last_non_empty_line(text: str) -> str:
-    """Get the last non-empty line from text."""
+    """テキストから最後の非空行を取得."""
     for line in reversed(text.splitlines()):
         stripped = line.strip()
         if stripped:
@@ -44,15 +43,15 @@ def last_non_empty_line(text: str) -> str:
 
 
 def extract_code_emergency(text: str) -> str:
-    """Emergency code extraction when <python> tags are missing.
+    """<python>タグが欠落している場合の緊急コード抽出.
 
-    This is used in repair phase when tags are omitted.
-    Extracts code-like blocks (starting with import/from) before <result>.
+    リペアフェーズでタグが省略された場合に使用.
+    <result>の前にあるコード風のブロック（import/fromで始まる）を抽出.
     """
     if not text:
         return ""
 
-    # Only consider text before <result>
+    # <result>の前のテキストのみ考慮
     result_idx = text.find(RESULT_BEGIN)
     if result_idx >= 0:
         text = text[:result_idx]
@@ -65,10 +64,8 @@ def extract_code_emergency(text: str) -> str:
     for line in lines:
         stripped = line.strip()
 
-        # Detect code block start
-        if not in_code and (
-            stripped.startswith("from ") or stripped.startswith("import ")
-        ):
+        # コードブロックの開始を検出
+        if not in_code and stripped.startswith(("from ", "import ")):
             in_code = True
             code_lines = [line]
             consecutive_empty = 0
@@ -88,7 +85,7 @@ def extract_code_emergency(text: str) -> str:
 
 
 def clip_text(text: str | None, max_chars: int) -> str:
-    """Clip text to max_chars, showing head and tail with ellipsis."""
+    """テキストをmax_charsに切り詰め、省略符付きで先頭と末尾を表示."""
     if text is None:
         return ""
     if len(text) <= max_chars:
@@ -97,29 +94,42 @@ def clip_text(text: str | None, max_chars: int) -> str:
     return text[:half] + "\n...<clipped>...\n" + text[-half:]
 
 
-# =============================================================================
-# Logging
-# =============================================================================
+def to_latex_scalar(text: str) -> str:
+    """生の文字列を評価用のLaTeXスカラーに変換."""
+    stripped = text.strip()
+    if not stripped or stripped.lower().startswith("error"):
+        return ""
 
+    candidate = stripped
+    if stripped.startswith("[") and stripped.endswith("]"):
+        inner = stripped[1:-1].strip()
+        candidate = inner.split(",", maxsplit=1)[0].strip() if inner else ""
+        if not candidate:
+            return ""
+    elif stripped.startswith("{") and stripped.endswith("}"):
+        inner = stripped[1:-1]
+        parts = [p for p in inner.split(",") if ":" in p]
+        candidate = parts[0].split(":", maxsplit=1)[1].strip() if parts else ""
+        if not candidate:
+            return ""
 
-class TraceLogger:
-    """Handles trace event logging to a file."""
+    try:
+        expr = sympify(candidate)
+    except Exception:
+        return stripped
 
-    def __init__(self, trace_file: TextIO, max_chars: int = 8000):
-        self.trace_file = trace_file
-        self.max_chars = max_chars
-
-    def write(self, event: dict[str, Any]) -> None:
-        """Write a trace event to the log."""
-        self.trace_file.write(json.dumps(event, ensure_ascii=False) + "\n")
-
-    def clip(self, text: str) -> str:
-        """Clip text to max_chars."""
-        return clip_text(text, self.max_chars)
+    if isinstance(expr, (list, tuple)):
+        expr = expr[0] if expr else None
+    if hasattr(expr, "values"):
+        values = list(expr.values())  # type: ignore[arg-type]
+        expr = values[0] if values else None
+    if expr is None:
+        return ""
+    return f"${latex(expr)}$"
 
 
 def safe_exec_view(exec_dict: dict[str, Any] | None, max_chars: int) -> dict[str, Any]:
-    """Create a safe view of execution results for logging."""
+    """ログ記録用に実行結果の安全なビューを作成."""
     if not exec_dict:
         return {}
     return {
@@ -131,14 +141,12 @@ def safe_exec_view(exec_dict: dict[str, Any] | None, max_chars: int) -> dict[str
     }
 
 
-# =============================================================================
-# Result Data Structures
-# =============================================================================
+# --- 結果データ構造 ---
 
 
 @dataclass
 class SolveResult:
-    """Result of solving a single problem."""
+    """単一の問題を解いた結果."""
 
     output: str
     session_id: str
@@ -159,8 +167,8 @@ class SolveResult:
     repair_used: int = 0
     raw_output: str = ""
 
-    def to_log_entry(self, include_raw_output: bool = False) -> dict[str, Any]:
-        """Convert to log entry dictionary."""
+    def to_log_entry(self) -> dict[str, Any]:
+        """ログエントリ辞書に変換（raw_outputは含まない）."""
         entry = {
             "id": self.session_id,
             "has_python_block": self.has_python_block,
@@ -180,6 +188,10 @@ class SolveResult:
             "stderr": self.stderr,
             "repair_used": self.repair_used,
         }
-        if include_raw_output:
-            entry["raw_output"] = self.raw_output
+        return entry
+
+    def to_log_entry_with_raw(self) -> dict[str, Any]:
+        """ログエントリ辞書に変換（raw_outputを含む）."""
+        entry = self.to_log_entry()
+        entry["raw_output"] = self.raw_output
         return entry

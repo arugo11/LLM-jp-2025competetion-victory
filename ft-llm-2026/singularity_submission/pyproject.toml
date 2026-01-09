@@ -12,4 +12,7 @@ dependencies = [
     "model-hosting-container-standards>=0.1.7",
     "httpx>=0.27",
     "uvicorn>=0.30",
+    "sympy>=1.12",
+    "weave>=0.51.56",
+    "gql<4.0.0",
 ]
