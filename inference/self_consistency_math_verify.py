@@ -86,7 +86,7 @@ def main():
     args = parser.parse_args()
 
     # LLMの初期化
-    llm = LLM(model=str(args.model_path.resolve()))
+    llm = LLM(model=str(args.model_path.resolve()),tokenizer_mode="slow",trust_remote_code=True,)
 
     # 問題ファイルの読み込み
     with open(args.input_path) as f:

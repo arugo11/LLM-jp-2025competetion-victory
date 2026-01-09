@@ -7,6 +7,7 @@ from pathlib import Path
 import time
 import re
 from collections import Counter
+import copy  # ★追加（中間ファイル用）
 
 from vllm import LLM, SamplingParams
 
@@ -113,7 +114,9 @@ def main():
         )
         tmp_outputs.append(outputs)
         # \\boxedタグ内の内容を抽出
-        extracted_contents = extract_boxed_content([output.outputs[0].text for output in outputs])
+        extracted_contents = extract_boxed_content(
+            [output.outputs[0].text for output in outputs]
+        )
         # 抽出結果を保存
         for j, content in enumerate(extracted_contents):
             all_outputs[j].append(content)
@@ -138,19 +141,39 @@ def main():
     # 結果の後処理と保存
     for problem, output in zip(problems, final_outputs):
         problem["output"] = f"$${output}$$"
+
+    # ==============================
+    # 中間ファイル（全サンプル保存）
+    # ==============================
+    solution_methods = copy.deepcopy(problems)
+
     # 以下は各サンプル出力を保存する場合のコード例
     # だが、正答率の計算時に不具合が生じたため検証目的以外ではコメントアウトする
     for i, tmp_output in enumerate(tmp_outputs):
-        for problem, output in zip(problems, tmp_output):
+        for problem, output in zip(solution_methods, tmp_output):
             problem[f"output_sample_{i}"] = output.outputs[0].text
 
+    # 多数決前の parsed 最終回答（n回分）を保存
+    for problem, parsed_answers in zip(solution_methods, all_outputs):
+        problem["parsed_final_answers"] = parsed_answers
+
+    # 最終結果ファイルの保存（各問1回答）
     with open(args.output_path, "w") as f:
         for problem in problems:
+            f.write(json.dumps(problem, ensure_ascii=False) + "\n")
+
+    # 中間ファイルの保存
+    all_samples_path = str(args.output_path).replace(
+        ".jsonl", "_all_samples.jsonl"
+    )
+    with open(all_samples_path, "w") as f:
+        for problem in solution_methods:
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
     
     # プログラムの総実行時間を表示
     program_finish_time = time.time()
     print("Total time: {}(s)".format(program_finish_time - program_start_time))
+
 
 if __name__ == "__main__":
     main()
