@@ -61,7 +61,7 @@ uv run python download_model.py --model_name team-victory/llm-jp-4-8b-instruct
 ダウンロード先: `models/team-victory/llm-jp-4-8b-instruct`
 
 ### 3. GPU環境の設定
-以下, GPU環境下で `LLM-jp-2025competition-victory/`
+以下, GPU環境下で `LLM-jp-2025competetion-victory/ft-llm-2026/singularity_submission`で作業することを想定しています.
 ABCI等でCUDA_VISIBLE_DEVICESがUUID形式の場合、数値に固定する必要がある。
 
 ```bash
