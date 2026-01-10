@@ -21,8 +21,8 @@ echo "REPO_ID is set to ${REPO_ID}"
 
 JOBID=${PBS_JOBID%%.*}
 mkdir -p ./.log
-LOGFILE=./.log/llmjudge-$JOBID.out
-ERRFILE=./.log/llmjudge-$JOBID.err
+LOGFILE=./.log/llmjudge_tir-$JOBID.out
+ERRFILE=./.log/llmjudge_tir-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -37,8 +37,10 @@ mkdir -p dist
 
 # コードを書き替えるたびにビルドする必要があるそうです。
 singularity build --fakeroot --force \
-       --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
-       dist/llmjudge.sif llmjudge.def
+       dist/llmjudge_tir.sif llmjudge_tir.def
+
+mkdir -p $(pwd)/sandbox_tmp
+export NEMO_SKILLS_SANDBOX_TMPDIR="/app/sandbox_tmp"
 
 # 推論を実行します。
 singularity run --nv --writable-tmpfs \
@@ -46,7 +48,7 @@ singularity run --nv --writable-tmpfs \
     --env HF_TOKEN=$HF_TOKEN \
     --bind "$(pwd)/models:/app/models" \
     --bind "$(pwd)/output:/app/output" \
-    dist/llmjudge.sif \
+    dist/llmjudge_tir.sif \
     --model_path "$MODEL_PATH" \
     --max_tokens 4096 \
     --repo_id $REPO_ID \

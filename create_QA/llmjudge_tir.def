@@ -1,0 +1,60 @@
+Bootstrap: docker
+From: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+Stage: builder
+
+%setup
+    mkdir -p ${SINGULARITY_ROOTFS}/app
+    mkdir -p ${SINGULARITY_ROOTFS}/root/.cache/uv
+    # カレントディレクトリのソースをコンテナへ
+    rsync -av --exclude-from=.dockerignore ./ ${SINGULARITY_ROOTFS}/app
+
+%post
+    export UV_COMPILE_BYTECODE=1
+    export UV_LINK_MODE=copy
+    cd /app
+    apt-get update && apt-get install -y git
+    
+    # プロジェクトの同期（仮想環境 .venv が作成される）
+    uv sync --no-dev
+    # 仮想環境のパスを直接指定せず、uv経由でインストールする
+    pip install flashinfer -i https://flashinfer.ai/whl/cu121/torch2.4/
+    uv pip install git+https://github.com/NVIDIA/NeMo-Skills.git
+    
+    # sympy も必要なので念のため明示的に入れる（すでに入っていればスキップされます）
+    pip install sympy
+    chmod -R 755 /app
+    
+Bootstrap: docker
+From: python:3.12-slim-bookworm
+Stage: final
+
+%post
+    # 実行に必要な最小限のランタイムライブラリをインストール
+    apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        libaio-dev \
+        git \
+        && rm -rf /var/lib/apt/lists/*
+
+%files from builder
+    # builderステージで作成したアプリと仮想環境を丸ごとコピー
+    /app /app
+
+%setup
+    # ホスト側のモデルをマウントするためのディレクトリを用意
+    mkdir -p ${SINGULARITY_ROOTFS}/app/models
+    # サンドボックス用の作業ディレクトリ
+    mkdir -p ${SINGULARITY_ROOTFS}/app/sandbox_tmp
+
+%environment
+    # 仮想環境のパスを最優先にする
+    export PATH="/app/.venv/bin:$PATH"
+    export PYTHONUNBUFFERED=1
+    # サンドボックスがネットワークを遮断するための設定など
+    export NEMO_SKILLS_SANDBOX_BLOCK_NETWORK=1
+
+%runscript
+    cd /app
+    # llmjudge_tir.py を実行。引数 $@ はそのまま python に渡される
+    exec python3 llmjudge_tir.py "$@"
