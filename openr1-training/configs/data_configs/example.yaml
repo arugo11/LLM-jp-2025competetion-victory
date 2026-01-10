@@ -1,8 +1,0 @@
-neko_sft_datasets:
-  - name: HayatoHongoEveryonesAI/qa_verify_new_v5
-    config: default
-    question_field: problem
-    answer_field: generated_solution
-    split: train
-    # from_id: 1
-    # to_id: 1000
