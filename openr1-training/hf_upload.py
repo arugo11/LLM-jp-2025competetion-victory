@@ -33,8 +33,7 @@ def upload_checkpoint():
             repo_id=repo_id,
             repo_type="model",
             # 必要に応じて除外するファイルパターンを指定できます (例: optim statesなど)
-            ignore_patterns=["checkpoint-*"],
-            # ignore_patterns=["*.pth", "*.pt", "optimizer.pt"],
+            ignore_patterns=["checkpoint-*", "*.pth", "*.pt", "optimizer.pt"],
         )
         print("Upload completed successfully!")
     except Exception as e:

@@ -158,6 +158,8 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
         # 4. map関数を適用して全データセットの各分割に新しいフォーマットを適用
         #    同時に、整形に使った 'prompt', 'completion' やその他不要なカラムをすべて削除
         current_columns = list(list(dataset.column_names.values())[0])
+        if 'category' in current_columns:
+            current_columns.remove('category')
         dataset = dataset.map(formatting_func, remove_columns=current_columns)
         
         # 一番目をprint
@@ -189,6 +191,12 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
     # DatasetDict全体をシャッフルする。引数で受け取ったseedを使用する。
     combined_dataset = combined_dataset.shuffle(seed=seed)
     print(f"シャッフルが完了しました！ (シード: {seed})")
+    
+    if 'category' in combined_dataset['train'].column_names:
+        print("categoryカラムを検出しました。カテゴリー順にソートします...")
+        # カテゴリでソート（文字列順）
+        combined_dataset['train'] = combined_dataset['train'].sort('category')
+        print("ソートが完了しました！")
     
     print("最終的なデータセットの情報:")
     print(combined_dataset)

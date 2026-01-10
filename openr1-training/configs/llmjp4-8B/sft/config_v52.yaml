@@ -12,7 +12,7 @@ torch_dtype: bfloat16 # bf16を使う
 attn_implementation: flash_attention_2 # flash-attnention_2は使えなかった。
 
 # LoRA arguments https://github.com/huggingface/trl/blob/v0.19.1/trl/trainer/model_config.py#L19
-use_peft: false # PEFT (Lora) を使うかどうか
+use_peft: true # PEFT (Lora) を使うかどうか
 lora_r: 32 # LoRAのr値
 lora_alpha: 64 # LoRAのalpha値
 lora_dropout: 0.05 # LoRAのドロップアウト率
@@ -34,11 +34,11 @@ data_seed: 42 # データセットの乱数シード
 bf16: true # bf16を使う
 do_eval: false # 評価を行うかどうか
 eval_strategy: 'no' # 評価を行うタイミング ('no' or 'steps' or 'epoch')
-gradient_accumulation_steps: 4 # 勾配蓄積のステップ数
+gradient_accumulation_steps: 2 # 勾配蓄積のステップ数
 gradient_checkpointing: false # 勾配チェックポイントを使うかどうか
 gradient_checkpointing_kwargs:
   use_reentrant: false
-hub_model_id: HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 # モデルをHuggingFace Hubにpushする際のモデルID
+hub_model_id: HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-1gpu-v5-2 # モデルをHuggingFace Hubにpushする際のモデルID
 hub_strategy: every_save # モデルをHuggingFace Hubにpushするタイミング (every_save: 保存する時毎回, end: 最後の保存時)
 learning_rate: 1.0e-05 # 学習率
 log_level: info # ログレベル(ログの詳細度)
@@ -52,7 +52,7 @@ max_grad_norm: 0.2
 max_length: 16384 # 32768 # 最大シーケンス長
 max_steps: -1
 num_train_epochs: 1 # 学習エポック数
-output_dir: /groups/gch51701/Team025/llm-jp-4-8b-instruct-sft-v5-2 # 結果の出力ディレクトリ
+output_dir: /groups/gch51701/Team025/llm-jp-4-8b-instruct-sft-1gpu-v5-2 # 結果の出力ディレクトリ
 optim: adamw_torch # オプティマイザの種類  何があるかはhttps://github.com/huggingface/transformers/blob/main/src/transformers/training_args.pyを参照
 overwrite_output_dir: false
 per_device_eval_batch_size: 1 # 評価時の1GPUあたりのバッチサイズ
@@ -61,7 +61,7 @@ push_to_hub: false # trueにするとHuggingFace Hubにモデルをpushする �
 report_to: # wandbにログインしているならこれをオンにするとwandbにログが送られる
 - wandb
 save_strategy: steps # モデルをローカルに保存するタイミング ('no' or 'steps' or 'epoch')
-save_steps: 100 # モデルをローカルに保存するステップ数(間隔)
+save_steps: 50 # モデルをローカルに保存するステップ数(間隔)
 save_only_model: true # 保存時にモデルのみ保存するかどうか (オプティマイザーやスケジューラは重いので保存しない)
 save_total_limit: 50
 seed: 42 # 乱数シード
