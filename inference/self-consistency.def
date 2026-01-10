@@ -25,7 +25,6 @@ Stage: final
     MODEL_NAMES=""
 
 %setup
-    mkdir -p ${SINGULARITY_ROOTFS}/app/models/HayatoHongoEveryonesAI/
     MODEL_NAMES={{ MODEL_NAMES }}
 
     if [[ -n "${MODEL_NAMES}" ]]; then
@@ -34,6 +33,9 @@ Stage: final
                 echo "Requested model directory models/${model} was not found" >&2
                 exit 1
             fi
+
+            mkdir -p "${SINGULARITY_ROOTFS}/app/models/$(dirname ${MODEL_NAMES})"
+
             rsync -av "models/${model}/" "${SINGULARITY_ROOTFS}/app/models/${model}/"
         done
     else
