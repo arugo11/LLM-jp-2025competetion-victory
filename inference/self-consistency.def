@@ -36,7 +36,7 @@ Stage: final
 
             mkdir -p "${SINGULARITY_ROOTFS}/app/models/$(dirname ${MODEL_NAMES})"
 
-            rsync -av "models/${model}/" "${SINGULARITY_ROOTFS}/app/models/${model}/"
+            rsync -av --exclude='checkpoint-*' "models/${model}/" "${SINGULARITY_ROOTFS}/app/models/${model}/"
         done
     else
         echo "No models were copied into the image. Use --build-arg MODEL_NAMES=\"name1 name2\"" >&2
