@@ -30,10 +30,8 @@ class PredictionExample:
     unit: str
     evaluation_method: str
     output: str
-    # JSONデータに含まれる parsed_final_answers を受け取るためのフィールドを追加
-    # デフォルト値を設定して、フィールドが存在しない場合のエラーを防ぐ
+    # JSONデータに含まれる parsed_final_answers を受け取るためのフィールド
     parsed_final_answers: List[str] = dataclasses.field(default_factory=list)
-    # その他のフィールド（output_sample_Xなど）は **kwargs で無視するか、必要なら追加
 
 
 @dataclasses.dataclass
@@ -56,12 +54,6 @@ def load_examples(file_path: str, example_cls: type) -> dict[str, Any]:
             except json.JSONDecodeError as e:
                 err_console.log(f"Error decoding JSON line in '{file_path}': {e}")
                 continue
-            
-            # dataclassのフィールド以外のキーがJSONに含まれている場合に対処するため
-            # 必要なフィールドのみを抽出して初期化するロジック、あるいは
-            # 単純に try-except で囲む（ここでは安全のためフィールドフィルタリングは行わずクラス生成に任せるが、
-            # 実際の運用では **item で渡す際に余計な引数があるとエラーになるため注意が必要。
-            # 今回のPredictionExampleは最低限の定義なので、余分なキーを無視する工夫を入れる）
             
             valid_keys = {f.name for f in dataclasses.fields(example_cls)}
             filtered_item = {k: v for k, v in item.items() if k in valid_keys}
@@ -166,7 +158,6 @@ def math_eval(
 ) -> None:
     """Evaluate predictions on mathematical reasoning tasks."""
     
-    # K値のリストをパース
     k_list = []
     if k_values:
         try:
@@ -177,30 +168,34 @@ def math_eval(
     id_prediction_map = load_examples(prediction_file, PredictionExample)
     id_gold_map = load_examples(gold_file, GoldExample)
 
-    # 結果を格納する辞書
-    # 構造: {category: {metric_name: [bool, bool, ...]}}
-    # metric_name は 'main', 'cons@20', 'pass@20' など
+    # カテゴリ別結果
     category_results: Dict[str, Dict[str, List[bool]]] = {}
     
-    # 全体の結果用
+    # 【追加】Unit別結果
+    unit_results: Dict[str, Dict[str, List[bool]]] = {}
+
+    # 全体の結果
     overall_results: Dict[str, List[bool]] = {}
 
     # 評価ループ
     for id_ in id_gold_map:
         gold = id_gold_map[id_]
         category = gold.category
+        unit = gold.unit  # Unitを取得
         
-        # カテゴリ初期化
+        # 初期化
         if category not in category_results:
             category_results[category] = {}
+        if unit not in unit_results:
+            unit_results[unit] = {}
         
         # 予測が存在しない場合
         if id_ not in id_prediction_map:
             err_console.log(f"Missing prediction for example ID '{id_}'; counting as incorrect.")
-            # 全てのメトリクスで False を登録
             metrics_to_record = ['main'] + [f'cons@{k}' for k in k_list] + [f'pass@{k}' for k in k_list]
             for m in metrics_to_record:
                 category_results[category].setdefault(m, []).append(False)
+                unit_results[unit].setdefault(m, []).append(False) # Unitにも追加
                 overall_results.setdefault(m, []).append(False)
             continue
 
@@ -208,41 +203,41 @@ def math_eval(
         
         # 1. main (Main Output)
         res_pass1 = check_equivalence(prediction.output, gold.solution)
-        # print(prediction.output, ",  ", gold.solution, ",  ", res_pass1)
+        
         category_results[category].setdefault('main', []).append(res_pass1)
+        unit_results[unit].setdefault('main', []).append(res_pass1) # Unitにも追加
         overall_results.setdefault('main', []).append(res_pass1)
 
         # 2. cons@k, pass@k
         samples = prediction.parsed_final_answers
         for k in k_list:
-            # 前方k個を取得
             current_samples = samples[:k] if samples else []
             
             # cons@k
             res_cons_k = calculate_cons_k(current_samples, gold.solution)
             category_results[category].setdefault(f'cons@{k}', []).append(res_cons_k)
+            unit_results[unit].setdefault(f'cons@{k}', []).append(res_cons_k) # Unitにも追加
             overall_results.setdefault(f'cons@{k}', []).append(res_cons_k)
             
             # pass@k
             res_pass_k = calculate_pass_k(current_samples, gold.solution)
             category_results[category].setdefault(f'pass@{k}', []).append(res_pass_k)
+            unit_results[unit].setdefault(f'pass@{k}', []).append(res_pass_k) # Unitにも追加
             overall_results.setdefault(f'pass@{k}', []).append(res_pass_k)
 
-    # 集計とテーブル作成
-    table = Table(title="Evaluation Results")
-    table.add_column("Category", justify="left")
+    # --- テーブル作成 (Category) ---
+    table_cat = Table(title="Evaluation Results (Category)")
+    table_cat.add_column("Category", justify="left")
     
-    # カラム定義
     metric_names = ['main']
     for k in k_list:
         metric_names.append(f'cons@{k}')
         metric_names.append(f'pass@{k}')
         
     for name in metric_names:
-        table.add_column(name, justify="right")
+        table_cat.add_column(name, justify="right")
 
-    # データ行の追加 (各カテゴリ)
-    final_metrics_data = {"overall": {}, "categories": {}}
+    final_metrics_data = {"overall": {}, "categories": {}, "units": {}}
 
     for category, metrics in category_results.items():
         row_data = [category]
@@ -251,18 +246,42 @@ def math_eval(
             acc = accuracy(metrics.get(name, []))
             row_data.append(f"{acc:.3f}")
             cat_metrics[name] = acc
-        table.add_row(*row_data)
+        table_cat.add_row(*row_data)
         final_metrics_data["categories"][category] = cat_metrics
 
-    # Overall行の追加
+    # Overall行
     overall_row = ["[bold]Overall[/bold]"]
     for name in metric_names:
         acc = accuracy(overall_results.get(name, []))
         overall_row.append(f"[bold]{acc:.3f}[/bold]")
         final_metrics_data["overall"][name] = acc
-    table.add_row(*overall_row)
+    table_cat.add_row(*overall_row)
 
-    console.print(table)
+    console.print(table_cat)
+    console.print() # 空行
+
+    # --- テーブル作成 (Unit) ---
+    # Unitごとの結果も見やすく表示します
+    table_unit = Table(title="Evaluation Results (Unit)")
+    table_unit.add_column("Unit", justify="left")
+    for name in metric_names:
+        table_unit.add_column(name, justify="right")
+    
+    # Unitデータをソートして表示（オプション）
+    sorted_units = sorted(unit_results.keys())
+    
+    for unit in sorted_units:
+        metrics = unit_results[unit]
+        row_data = [unit]
+        unit_metrics_data = {}
+        for name in metric_names:
+            acc = accuracy(metrics.get(name, []))
+            row_data.append(f"{acc:.3f}")
+            unit_metrics_data[name] = acc
+        table_unit.add_row(*row_data)
+        final_metrics_data["units"][unit] = unit_metrics_data
+
+    console.print(table_unit)
 
     if output_file:
         with open(output_file, "wt", encoding="utf-8") as f:
@@ -270,8 +289,6 @@ def math_eval(
                 json.dumps(
                     {
                         "metrics": final_metrics_data,
-                        # 詳細なTrue/Falseの結果が必要な場合はここに追加実装可能
-                        # "detailed_results": ...
                     },
                     indent=2,
                     ensure_ascii=False,
