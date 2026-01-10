@@ -25,3 +25,10 @@ uvx --from "git+https://github.com/llm-jp/ft-llm-2026#subdirectory=math-eval" ma
 - prediction_file: 予測結果のファイルパス
 - target_file: 正解データのファイルパス
 - -o output_file: 正答率の出力先 (オプション、なくても良い)
+
+## cons@k, pass@kの計算
+``` bash
+uv sync # 仮想環境の作成、インストール
+source ./.venv/bin/activate # 仮想環境の適用
+python src/math_eval/eval_consistency.py ./predictions/output-llm-jp-4-8b-instruct-sft-long-v5_all_samples.jsonl ./targets/dev.jsonl -o ./accuracy/acc-llm-jp-4-8b-instruct-sft-long-v5.jsonl -k "1,20,40"
+```
