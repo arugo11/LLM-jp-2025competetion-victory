@@ -12,10 +12,10 @@ qsub inference-1gpu.sh
 
 
 [2025/1/10 inference-1gpu.shの更新内容]`inference-1gpu.sh` のパラメータのデフォルト値が以下のとおり更新されました。
-`max_tokens`: 4096 → 16384, `num_samples`: **10 → 40**, `temperature`: **1.0 → 0.7**
-また、モデルがすでにダウンロードされている場合は、以下のように **コマンドライン引数でモデルを指定**して実行することも可能です。
+`max_tokens`: 4096 → 16384, `num_samples`: 10 → 40, `temperature`: 1.0 → 0.7
+また、モデルがすでにダウンロードされている場合は、以下のようにコマンドライン引数でモデルを指定して実行することも可能です。
 ```bash
-qsub -v MODEL_USER=openai,MODEL_REPO=gpt-oss-20b ./inference-eval-1gpu.sh
+qsub -v MODEL_USER=openai,MODEL_REPO=gpt-oss-20b ./inference-1gpu.sh
 ```
 なお、**シングルノード用の `inference-1node.sh` については特に変更はありません。**
 
