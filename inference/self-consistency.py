@@ -129,6 +129,10 @@ def main():
     for i, tmp_output in enumerate(tmp_outputs):
         for problem, output in zip(solution_methods, tmp_output):
             problem[f"output_sample_{i}"] = output.outputs[0].text
+            
+    # 多数決前の parsed 最終回答（n回分）を保存
+    for problem, parsed_answers in zip(solution_methods, all_outputs):
+        problem["parsed_final_answers"] = parsed_answers
 
     # 結果の保存
     with open(args.output_path, "w") as f:

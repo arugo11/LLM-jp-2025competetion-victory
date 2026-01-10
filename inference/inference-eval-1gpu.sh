@@ -8,6 +8,8 @@
 #PBS -o /dev/null
 #PBS -e /dev/null
 
+# bash inference-eval-1gpu.sh
+
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
 : ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
 : ${MODEL_BASE_PATH:="models/"}
@@ -63,9 +65,21 @@ singularity build --fakeroot --force \
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/$MODEL_REPO.sif \
-    --model_path models/$MODEL_NAME \
+    --model_path $MODEL_PATH \
     --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output-$MODEL_REPO.jsonl" \
     --max_tokens 16384 \
     --num_samples 40 \
     --temperature 0.7
+
+# 推論結果の評価
+echo "Start evaluation"
+cd ..
+cd math-eval
+uv sync
+source .venv/bin/activate
+python src/math_eval/eval_consistency.py \
+       ../inference/output/output-${MODEL_REPO}_all_samples.jsonl \
+       ./targets/dev.jsonl \
+       -o ./accuracy/acc-$MODEL_REPO.jsonl \
+       -k "1,20,40"

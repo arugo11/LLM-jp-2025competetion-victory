@@ -1,7 +1,23 @@
 # このディレクトリについて
 このディレクトリでは推論コードについてまとめています。
 
-# 推論処理の手順
+# 簡単な推論と評価
+
+## バッチジョブによる実行
+inference-*.shにバッチジョブ用のスクリプトがあります。以下のコマンドで実行できます。
+``` bash
+qsub inference-1gpu.sh
+```
+ターミナルの出力は.logディレクトリにoutファイルとerrファイルの形式で保存されます。
+
+## バッチジョブによる、推論実行と評価
+k回推論し、pass@kと、cons@kの評価も同時にします。
+結果ファイルは、../math-eval/accuracyに保存されます。
+``` bash
+qsub -v MODEL_USER=openai,MODEL_REPO=gpt-oss-20b ./inference-eval-1gpu.sh
+```
+
+# 詳しい推論処理の手順
 この例では、"HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5" を対象に、1GPUでSelf-Consistency による推論処理を行います。
 ## 前提条件
 - Singularity (ABCIでは `singularity-ce version 4.1.5-1.el9` が利用可能)
@@ -74,12 +90,6 @@ singularity run --nv --writable-tmpfs \
     --temperature 1.0
 ```
 [注] 実行する前に、"0. GPUサーバーへのアクセス"において、rf_HGの部分をrf_HFに変更し、1ノード用の計算ノードにアクセスしてください。
-## バッチジョブによる実行
-inference-*.shにバッチジョブ用のスクリプトがあります。以下のコマンドで実行できます。
-``` bash
-qsub inference-1gpu.sh
-```
-ターミナルの出力は.logディレクトリにoutファイルとerrファイルの形式で保存されます。
 
 ## 検証用データセットの変更
 dev.jsonlの形式になっていれば任意のデータセットで検証ができます。具体的には以下のキーを含むデータセットは、コードの変更なしに推論可能です。
