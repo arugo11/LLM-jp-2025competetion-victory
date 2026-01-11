@@ -86,6 +86,8 @@ def main():
     # サンプリング回数分の推論処理を実行
     all_outputs = [[] for _ in range(len(messages))]
     tmp_outputs = [] # 各イテレーションの出力を保存するリスト
+    # parse時の同値表現と対応するTeX記法の解答を保持する辞書
+    solution_dict = {} # key: parse時の同値表現, value: list(元の回答文字列)
     for i in range(args.num_samples):
         print("--------------------------------")
         print(f"Sampling iteration: {i+1}/{args.num_samples}")
@@ -104,6 +106,10 @@ def main():
         for j, content in enumerate(extracted_contents):
             if (content is not None) and (len(content) > 0):
                 all_outputs[j].append(str(content[0]))
+                if str(content[0]) not in list(solution_dict.keys()):
+                    solution_dict[str(content[0])] = [str(content[1])]
+                else:
+                    solution_dict[str(content[0])].append(str(content[1]))
             else:
                 all_outputs[j].append(None)
 
@@ -113,7 +119,7 @@ def main():
         if outputs is not None:
             # 最も頻出する解答を選択
             most_common = Counter(outputs).most_common()[0][0]
-            final_outputs.append(most_common)
+            final_outputs.append(solution_dict[f"{most_common}"][-1]) # 同値表現に対応する元の回答文字列を取得
         else:
             final_outputs.append(None) # すべてNoneの場合
         
