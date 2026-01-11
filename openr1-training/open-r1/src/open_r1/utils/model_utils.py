@@ -25,9 +25,8 @@ def get_tokenizer(
         trust_remote_code=model_args.trust_remote_code,
     )
 
-    # todo: 自作のDPOConfigを作成し、コメントを外す
-    # if training_args.chat_template is not None:
-    #    tokenizer.chat_template = training_args.chat_template
+    if training_args.chat_template is not None:
+        tokenizer.chat_template = training_args.chat_template
 
     return tokenizer
 
