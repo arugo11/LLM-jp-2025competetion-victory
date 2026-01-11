@@ -93,17 +93,23 @@ def calculate_cons_k(samples: List[str], gold: str) -> bool:
     groups = []
     
     for sample in samples:
+        if sample is None:  # Noneが含まれている場合はスキップ
+            continue
+        
+        parsed_sample = parse(sample)[0]
+        
         found_group = False
         # 既存のグループと一致するか確認
         for group in groups:
-            if check_equivalence(sample, group['rep']):
+            if check_equivalence(parsed_sample, group['rep']):
                 group['count'] += 1
                 found_group = True
+                group['default_samples'].append(sample)
                 break
         
         # 新しいグループを作成
         if not found_group:
-            groups.append({'rep': sample, 'count': 1})
+            groups.append({'rep': parsed_sample, 'count': 1, "default_samples": [sample]})
     
     # カウントの降順でソート
     if not groups:
@@ -112,7 +118,7 @@ def calculate_cons_k(samples: List[str], gold: str) -> bool:
     groups.sort(key=lambda x: x['count'], reverse=True)
     
     # 最多回答（多数決）が正解と一致するか判定
-    majority_rep = groups[0]['rep']
+    majority_rep = groups[0]['default_samples'][-1] # 同値表現に対応する元の回答文字列を取得
     return check_equivalence("$$"+majority_rep+"$$", gold)
 
 def calculate_cons_k_counter(samples: List[str], gold: str) -> bool:
@@ -135,6 +141,8 @@ def calculate_pass_k(samples: List[str], gold: str) -> bool:
         return False
     # サンプルの中に1つでも正解と一致するものがあれば True
     for sample in samples:
+        if sample is None:  # Noneが含まれている場合はスキップ
+            continue
         if check_equivalence("$$"+sample+"$$", gold):
             return True
     return False
@@ -203,6 +211,8 @@ def math_eval(
         
         # 1. main (Main Output)
         res_pass1 = check_equivalence(prediction.output, gold.solution)
+        # if res_pass1 == False:
+        #     print(prediction.output,",   ", gold.solution, ",   ", res_pass1)  # デバッグ用出力
         
         category_results[category].setdefault('main', []).append(res_pass1)
         unit_results[unit].setdefault('main', []).append(res_pass1) # Unitにも追加
@@ -214,7 +224,7 @@ def math_eval(
             current_samples = samples[:k] if samples else []
             
             # cons@k
-            res_cons_k = calculate_cons_k(current_samples, gold.solution)
+            res_cons_k = calculate_cons_k_counter(current_samples, gold.solution)
             category_results[category].setdefault(f'cons@{k}', []).append(res_cons_k)
             unit_results[unit].setdefault(f'cons@{k}', []).append(res_cons_k) # Unitにも追加
             overall_results.setdefault(f'cons@{k}', []).append(res_cons_k)

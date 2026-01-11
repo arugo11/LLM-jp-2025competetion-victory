@@ -85,6 +85,7 @@ def main():
 
     # サンプリング回数分の推論処理を実行
     all_outputs = [[] for _ in range(len(messages))]
+    all_non_parsed_outputs = [[] for _ in range(len(messages))]
     tmp_outputs = [] # 各イテレーションの出力を保存するリスト
     # parse時の同値表現と対応するTeX記法の解答を保持する辞書
     solution_dict = {} # key: parse時の同値表現, value: list(元の回答文字列)
@@ -104,8 +105,9 @@ def main():
         extracted_contents = [parse(output.outputs[0].text) for output in outputs]
         # 抽出結果を保存
         for j, content in enumerate(extracted_contents):
-            if (content is not None) and (len(content) > 0):
+            if (content is not None) and (len(content) >= 2):
                 all_outputs[j].append(str(content[0]))
+                all_non_parsed_outputs[j].append(str(content[1]))
                 if str(content[0]) not in list(solution_dict.keys()):
                     solution_dict[str(content[0])] = [str(content[1])]
                 else:
@@ -137,7 +139,7 @@ def main():
             problem[f"output_sample_{i}"] = output.outputs[0].text
             
     # 多数決前の parsed 最終回答（n回分）を保存
-    for problem, parsed_answers in zip(solution_methods, all_outputs):
+    for problem, parsed_answers in zip(solution_methods, all_non_parsed_outputs):
         problem["parsed_final_answers"] = parsed_answers
 
     # 結果の保存
