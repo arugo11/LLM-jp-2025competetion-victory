@@ -3,7 +3,7 @@ import datasets
 from datasets import DatasetDict, concatenate_datasets
 import json
 
-from configs import DataConfig
+from open_r1.configs import DataConfig
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def get_data_from_config(config: DataConfig, seed: int=42):
         #     # いずれかがNoneの場合、分割全体をロード
         #     split_spec = dataset_info.config
         #     print(f"  ({i+1}/{len(config.datasets)}) ロード中: {dataset_info.name}, 分割: {split_spec} (全件)")
-        
+
         # 1. データセットをロード
         dataset = datasets.load_dataset(dataset_info.name, name=dataset_info.config)
 
@@ -65,7 +65,7 @@ def get_data_from_config(config: DataConfig, seed: int=42):
             print(f"データセット [{dataset_info.name}] の rejected_field [{dataset_info.rejected_field}] を 'non_preferred_output' に変更しました")
         else:
             logger.warning(f"データセット [{dataset_info.name}] に指定された rejected_field: [{dataset_info.rejected_field}] がデータセットに存在しません")
-        
+
         # リネームを実行
         dataset = dataset.rename_columns(tmp_rename_dict)
 
@@ -76,7 +76,7 @@ def get_data_from_config(config: DataConfig, seed: int=42):
                 "chosen": example["preferred_output"],
                 "rejected": example["non_preferred_output"]
             }
-        
+
         # 4. map関数で全データセットに新しいフォーマットを適用
         dataset["train"] = dataset["train"].map(format_pref, remove_columns=dataset["train"].column_names)
 
@@ -84,10 +84,10 @@ def get_data_from_config(config: DataConfig, seed: int=42):
         print(f"データセット [{dataset_info.name}] のカラム: {list(dataset.column_names.values())}")
 
         loaded_dataset.append(dataset)
-    
+
     if not loaded_dataset:
         raise ValueError("ロードできるデータセットがありませんでした。")
-    
+
     print("\n全データセットを結合中...")
     # すべてのDatasetDictからキーの集合を取得
     all_keys = set(k for dd in loaded_dataset for k in dd.keys())
@@ -101,12 +101,12 @@ def get_data_from_config(config: DataConfig, seed: int=42):
 
     print("結合が完了しました！")
     # print(combined_dataset['train'][0])  # 最初のサンプルを表示して確認
-    
+
     print("\nデータセットをシャッフル中...")
     # DatasetDict全体をシャッフルする。引数で受け取ったseedを使用する。
     combined_dataset = combined_dataset.shuffle(seed=seed)
     print(f"シャッフルが完了しました！ (シード: {seed})")
-    
+
     print("最終的なデータセットの情報:")
     print(combined_dataset)
     print(combined_dataset["train"])

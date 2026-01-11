@@ -4,7 +4,7 @@ import datasets
 from datasets import DatasetDict, concatenate_datasets
 import json
 
-from configs import DataConfig
+from open_r1.configs import DataConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
         DatasetDict: 全てのデータセットを結合し、カラム名を整形した単一のDatasetオブジェクト。
     """
     loaded_datasets = []
-    
+
     print("データセットのロードを開始します...")
     for i, dataset_info in enumerate(config.datasets):
         print(f"  ({i+1}/{len(config.datasets)}) ロード中: {dataset_info.name} ({dataset_info.config})")
@@ -43,8 +43,8 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
             print(f"    -> 指定Split: {target_split} のみをロードします")
             # splitを指定してロード（戻り値は単体の Dataset オブジェクト）
             single_dataset = datasets.load_dataset(
-                dataset_info.name, 
-                name=dataset_info.config, 
+                dataset_info.name,
+                name=dataset_info.config,
                 split=target_split
             )
             # 後続の処理が DatasetDict 形式（dataset['train']）を期待しているため、
@@ -54,10 +54,10 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
             # split指定がない場合は通常通りロード（戻り値は DatasetDict）
             print(f"    -> 全Splitをロードします")
             dataset = datasets.load_dataset(
-                dataset_info.name, 
+                dataset_info.name,
                 name=dataset_info.config
             )
-        
+
         print(f"  データセット '{dataset_info.name}' の分割: {list(dataset.keys())}")
         print(f"  データセット '{dataset_info.name}' のカラム: {list(dataset.column_names.values())}")
         print(f"  データセット '{dataset_info.name}' のサンプル数: {len(dataset['train'])} (train)")
@@ -83,20 +83,22 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
         dataset = dataset.rename_columns(temp_rename_dict)
 
         # 3. 'text' カラムに整形する関数を定義
+        dataset_system_prompt = getattr(dataset_info, "system_prompt", None) or system_prompt
+
         def format_to_text_column(example):
             """
             'prompt' と 'completion' の内容から指定のJSON形式の文字列を作成する。
             """
             raw_prompt = example.get('prompt', "")
             raw_completion = example.get('completion', "")
-            
+
             # system_promptが指定されている場合、テンプレートの{question}を実際のプロンプトで埋める
-            if system_prompt:
+            if dataset_system_prompt:
                 # 文字列型であることを保証してformat
-                final_prompt = system_prompt.format(question=str(raw_prompt))
+                final_prompt = dataset_system_prompt.format(question=str(raw_prompt))
             else:
                 final_prompt = str(raw_prompt)
-                
+
             return {
                 "prompt": final_prompt,
                 "completion": str(raw_completion)
@@ -106,7 +108,7 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
         #    同時に、整形に使った 'prompt', 'completion' やその他不要なカラムをすべて削除
         current_columns = list(list(dataset.column_names.values())[0])
         dataset = dataset.map(format_to_text_column, remove_columns=current_columns)
-        
+
         # 一番目をprint
         print(f"  データセット '{dataset_info.name}' の最初のサンプル: {dataset['train'][0]}")
         print(f"  データセット '{dataset_info.name}' のカラム: {list(dataset.column_names.values())}")
@@ -126,17 +128,17 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
     combined_dataset = DatasetDict({
         "train" : concatenate_datasets([data["train"] for data in loaded_datasets]),
     })
-    
-    
+
+
 
     print("結合が完了しました！")
     # print(combined_dataset['train'][0])  # 最初のサンプルを表示して確認
-    
+
     print("\nデータセットをシャッフル中...")
     # DatasetDict全体をシャッフルする。引数で受け取ったseedを使用する。
     combined_dataset = combined_dataset.shuffle(seed=seed)
     print(f"シャッフルが完了しました！ (シード: {seed})")
-    
+
     print("最終的なデータセットの情報:")
     print(combined_dataset)
     print(combined_dataset['train'])
