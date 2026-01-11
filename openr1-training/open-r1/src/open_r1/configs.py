@@ -372,6 +372,10 @@ class DatasetClass:
     split: str = "train"
     question_field: str = "question"
     answer_field: str = "output"
+    # Optional prompt template applied in get_datas_from_config.
+    # If provided, this overrides training_args.system_prompt.
+    # Use Python str.format syntax, e.g. "...\n{question}".
+    system_prompt: Optional[str] = None
     from_id: int = None
     to_id: int = None
 
