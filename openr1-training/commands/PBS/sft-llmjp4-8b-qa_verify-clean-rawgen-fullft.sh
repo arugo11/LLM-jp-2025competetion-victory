@@ -33,7 +33,7 @@ source env/bin/activate
 cd open-r1/src || exit 1
 
 accelerate launch \
-  --config_file ../recipes/accelerate_configs/zero3.yaml \
+  --config_file ../recipes/accelerate_configs/zero3_1node8.yaml \
   --num_machines 1 \
   --num_processes 8 \
   --main_process_ip "$MASTER_ADDR" \

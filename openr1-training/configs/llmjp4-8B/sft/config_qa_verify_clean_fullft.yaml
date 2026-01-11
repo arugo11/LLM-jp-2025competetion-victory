@@ -25,6 +25,9 @@ chat_template: |
 use_cpu: false
 bf16: true
 
+# TRL SFTTrainer reads this field from dataset rows.
+dataset_text_field: text
+
 # Full FT on 8 GPUs: start conservative for stability.
 per_device_train_batch_size: 1
 gradient_accumulation_steps: 4
@@ -68,8 +71,7 @@ overwrite_output_dir: true
 
 # Misc
 seed: 42
-report_to:
-  - wandb
+report_to: []
 push_to_hub: false
 
 # EOS

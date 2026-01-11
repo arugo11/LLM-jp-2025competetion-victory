@@ -87,7 +87,7 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
 
         def format_to_text_column(example):
             """
-            'prompt' と 'completion' の内容から指定のJSON形式の文字列を作成する。
+            'prompt' と 'completion' から、SFT用の 'text'（単一文字列）を作成する。
             """
             raw_prompt = example.get('prompt', "")
             raw_completion = example.get('completion', "")
@@ -99,10 +99,12 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
             else:
                 final_prompt = str(raw_prompt)
 
-            return {
-                "prompt": final_prompt,
-                "completion": str(raw_completion)
-            }
+            completion_str = str(raw_completion)
+            # NOTE: tokenizer側のchat_templateと同等のフォーマットを、データ側で確定させる。
+            # TRL SFTTrainer は dataset_text_field='text' を読み、ここで作った文字列をそのまま学習する。
+            text = f"\n\n### 指示:\n{final_prompt}\n\n### 応答:\n{completion_str}<|eos|>"
+
+            return {"text": text}
 
         # 4. map関数を適用して全データセットの各分割に新しいフォーマットを適用
         #    同時に、整形に使った 'prompt', 'completion' やその他不要なカラムをすべて削除
@@ -143,10 +145,10 @@ def get_datas_from_config(config: DataConfig, system_prompt: str = None, seed: i
     print(combined_dataset)
     print(combined_dataset['train'])
 
-    # messagesキーは存在しないため、promptとcompletionの内容を表示するように変更
+    # messagesキーは存在しないため、textの内容を表示する
     sample = combined_dataset['train'][0]
     print("  最初のサンプル:", sample)
-    print("  最初のサンプルの合計文字数:", len(sample['prompt']) + len(sample['completion']))
+    print("  最初のサンプルの文字数:", len(sample['text']))
     print("  サンプル数:", len(combined_dataset['train']))
 
     return combined_dataset
