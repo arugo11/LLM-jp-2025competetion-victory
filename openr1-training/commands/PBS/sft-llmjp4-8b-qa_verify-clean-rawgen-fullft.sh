@@ -30,6 +30,15 @@ module load cuda/12.8
 export LD_LIBRARY_PATH=/apps/python/3.12.9/lib:$LD_LIBRARY_PATH
 source env/bin/activate
 
+# W&B (optional): configure in env or here
+export WANDB_PROJECT=${WANDB_PROJECT:-qa_verify_sft}
+export WANDB_RUN_GROUP=${WANDB_RUN_GROUP:-qa_verify-clean-rawgen-fullft}
+export WANDB_DIR=${WANDB_DIR:-"$PBS_O_WORKDIR/.wandb"}
+mkdir -p "$WANDB_DIR"
+# export WANDB_ENTITY=your_entity
+# export WANDB_API_KEY=...
+# export WANDB_MODE=online  # or offline
+
 cd open-r1/src || exit 1
 
 accelerate launch \

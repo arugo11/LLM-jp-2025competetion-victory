@@ -71,7 +71,11 @@ overwrite_output_dir: true
 
 # Misc
 seed: 42
-report_to: []
+run_name: llmjp4-8b-qa_verify-clean-rawgen-fullft
+report_to:
+  - wandb
+wandb_project: qa_verify_sft
+wandb_run_group: qa_verify-clean-rawgen-fullft
 push_to_hub: false
 
 # EOS
