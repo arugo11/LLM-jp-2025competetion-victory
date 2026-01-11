@@ -1,0 +1,80 @@
+# Full fine-tuning (8GPU, ZeRO-3) for qa_verify_1node_test8-TIR clean/raw_generation
+# References:
+# - openr1-training/commands/PBS/sft-llmjp4-8b.sh
+# - openr1-training/open-r1/src/open_r1/sft.py
+
+# Model arguments (trl.ModelConfig)
+model_name_or_path: HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5
+model_revision: main
+torch_dtype: bfloat16
+attn_implementation: sdpa
+
+# LoRA arguments (unused for Full FT)
+use_peft: false
+
+# Script arguments (open_r1.configs.ScriptArguments / trl.ScriptArguments)
+# Required even when using --dataconfig.
+dataset_name: HayatoHongoEveryonesAI/qa_verify_1node_test8-TIR
+dataset_config: clean
+
+# Use your custom chat template (jinja)
+chat_template: |
+  {% for message in messages %}{% if message['role'] == 'user' %}{{ '\n\n### 指示:\n' + message['content'] }}{% elif message['role'] == 'system' %}{{ '以下は、タスクを説明する指示です。要求を適切に満たす応答を書きなさい。' }}{% elif message['role'] == 'assistant' %}{{ '\n\n### 応答:\n' + message['content'] + eos_token }}{% endif %}{% if loop.last and add_generation_prompt %}{{ '\n\n### 応答:\n' }}{% endif %}{% endfor %}
+
+# SFT trainer / TrainingArguments (open_r1.configs.SFTConfig / trl.SFTConfig)
+use_cpu: false
+bf16: true
+
+# Full FT on 8 GPUs: start conservative for stability.
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+
+# Memory
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+
+# Sequence length
+max_length: 4096
+packing: true
+
+# Optimization
+learning_rate: 2.0e-05
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+max_grad_norm: 0.2
+optim: adamw_torch
+
+# Train length
+num_train_epochs: 1
+max_steps: -1
+
+# Logging / saving
+log_level: info
+logging_strategy: steps
+logging_steps: 10
+save_strategy: steps
+save_steps: 200
+save_total_limit: 10
+
+# Evaluation
+do_eval: false
+eval_strategy: 'no'
+per_device_eval_batch_size: 1
+
+# Output
+output_dir: data/llm-jp-4-8b-instruct-sft-long-v5-qa_verify_clean_rawgen-fullft
+overwrite_output_dir: true
+
+# Misc
+seed: 42
+report_to:
+  - wandb
+push_to_hub: false
+
+# EOS
+# For this model tokenizer eos is <|eos|>
+eos_token: <|eos|>
+
+# Note:
+# - system_prompt is supplied via dataconfig per-dataset (DatasetClass.system_prompt).
