@@ -219,3 +219,7 @@ __marimo__/
 .DS_Store
 
 wandb/
+
+output
+models
+accuracy
