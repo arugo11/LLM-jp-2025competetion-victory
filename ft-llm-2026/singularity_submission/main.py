@@ -1,62 +1,16 @@
-import argparse
-import json
-from pathlib import Path
+from __future__ import annotations
 
-from vllm import LLM, SamplingParams
+import asyncio
 
-
-PROMPT_TEMPLATE = """\
-以下は数学の問題です。
-問題に対する解答のみを出力してください。
-推論過程は出力しないでください。
-
-# 問題
-{question}
-
-# 解答
-"""
+from config import config_from_args, parse_args
+from pipeline import run_pipeline
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Singularity Submission Example")
-    parser.add_argument(
-        "--model_path", type=Path, required=True, help="Path to the model directory"
-    )
-    parser.add_argument(
-        "--input_path", type=Path, required=True, help="Path to the input file"
-    )
-    parser.add_argument(
-        "--output_path", type=Path, required=True, help="Path to the output file"
-    )
-
-    args = parser.parse_args()
-
-    llm = LLM(model=str(args.model_path.resolve()))
-
-    with open(args.input_path) as f:
-        problems = list(map(json.loads, f))
-
-    messages = []
-    for problem in problems:
-        messages.append(
-            [
-                {
-                    "role": "user",
-                    "content": PROMPT_TEMPLATE.format(question=problem["problem"]),
-                }
-            ]
-        )
-
-    outputs = llm.chat(
-        messages, sampling_params=SamplingParams(temperature=0.0, max_tokens=64)
-    )
-
-    for problem, output in zip(problems, outputs):
-        problem["output"] = output.outputs[0].text
-
-    with open(args.output_path, "w") as f:
-        for problem in problems:
-            f.write(json.dumps(problem, ensure_ascii=False) + "\n")
+def main() -> None:
+    """エントリーポイント."""
+    args = parse_args()
+    config = config_from_args(args)
+    asyncio.run(run_pipeline(config))
 
 
 if __name__ == "__main__":
