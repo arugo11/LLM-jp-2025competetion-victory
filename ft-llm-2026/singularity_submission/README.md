@@ -55,10 +55,11 @@ uv sync
 ### 2. モデルのダウンロード
 
 ```bash
-uv run python download_model.py --model_name team-victory/llm-jp-4-8b-instruct
+uv run python download_model.py --model_name HayatoHongoEveryonesAI/llm-jp-4-8b-instruct
 ```
 
-ダウンロード先: `models/team-victory/llm-jp-4-8b-instruct`
+
+ダウンロード先: `models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct`
 
 ### 3. GPU環境の設定
 以下, GPU環境下で `LLM-jp-2025competetion-victory/ft-llm-2026/singularity_submission`で作業することを想定しています.
@@ -74,8 +75,7 @@ ulimit -n 65536 || true
 ## ローカル実行
 
 ### サンドボックスとvLLMサーバの起動
-
-別々のターミナルで実行する。
+バックグラウンド実行を行っているため,以下の通り同一GPUターミナル内で実行
 
 ```bash
 # ターミナル1: サンドボックス
@@ -86,7 +86,7 @@ uv run python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server \
 ```bash
 # ターミナル2: vLLMサーバ
 uv run python -m nemo_skills.inference.server.serve_vllm \
-    --model models/team-victory/llm-jp-4-8b-instruct \
+    --model models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
     --num_gpus 1 \
     --num_nodes 1 \
     --port 8000 \
@@ -97,7 +97,7 @@ uv run python -m nemo_skills.inference.server.serve_vllm \
 
 ```bash
 uv run python main.py \
-    --model_path models/team-victory/llm-jp-4-8b-instruct \
+    --model_path models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
     --input_path sample_problems.jsonl \
     --output_path output.jsonl \
     --log_path inference_log.jsonl \
@@ -238,7 +238,6 @@ print(answer)
   "repair_used": 0
 }
 ```
-
 ## Singularityイメージのビルド
 
 ### 手動ビルド
@@ -248,7 +247,7 @@ export UV_CACHE_DIR="$(uv cache dir)"
 
 singularity build --fakeroot --force \
     --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
-    --build-arg MODEL_NAMES="team-victory/llm-jp-4-8b-instruct" \
+    --build-arg MODEL_NAMES="HayatoHongoEveryonesAI/llm-jp-4-8b-instruct" \
     dist/submission.sif submission.def
 ```
 
@@ -264,7 +263,7 @@ make dist/submission.sif
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 \
     dist/submission.sif \
-    --model_path /app/models/team-victory/llm-jp-4-8b-instruct \
+    --model_path /app/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
     --input_path /path/to/input.jsonl \
     --output_path /path/to/output.jsonl \
     --tir-llm-host 127.0.0.1 \
@@ -309,7 +308,7 @@ export CUDA_VISIBLE_DEVICES=0
 ```bash
 uv run python -m nemo_skills.inference.server.serve_vllm \
     --model models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5 \
-    --tokenizer models/team-victory/llm-jp-4-8b-instruct \
+    --tokenizer models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
     --num_gpus 1 \
     --num_nodes 1 \
     --port 8000 \
