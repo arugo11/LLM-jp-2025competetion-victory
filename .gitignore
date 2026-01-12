@@ -221,3 +221,8 @@ __marimo__/
 # Cluster job logs
 ft-llm-2026/tir/run_tir_interactive.sh.e*
 ft-llm-2026/tir/run_tir_interactive.sh.o*
+
+output
+input
+models
+accuracy
