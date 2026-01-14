@@ -20,10 +20,10 @@ CHECKPOINT_DIRS = [
 ]
 
 # 3. マージ手法の選択 ('linear', 'ties', 'dare_ties', 'dare_linear')
-METHOD = "dare_ties"
+METHOD = "linear"
 
 # 4. 出力先ディレクトリ
-OUTPUT_PATH = "../inference/models/HayatoHongoEveryonesAI"
+OUTPUT_PATH = "../inference/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2-merged-" + METHOD
 
 # 5. 生成するYAMLファイル名
 CONFIG_FILENAME = "merge_config_local.yaml"

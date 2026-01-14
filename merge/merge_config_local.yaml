@@ -1,5 +1,5 @@
 base_model: ../inference/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2/checkpoint-400
-merge_method: dare_ties
+merge_method: linear
 dtype: float16
 models:
 - model: ../inference/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2/checkpoint-400
@@ -8,12 +8,9 @@ models:
 - model: ../inference/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2/checkpoint-1200
   parameters:
     weight: 1.0
-    density: 0.2
 - model: ../inference/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2/checkpoint-1600
   parameters:
     weight: 1.0
-    density: 0.2
 - model: ../inference/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2/checkpoint-1960
   parameters:
     weight: 1.0
-    density: 0.2
