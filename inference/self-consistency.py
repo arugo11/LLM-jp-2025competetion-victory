@@ -118,12 +118,23 @@ def main():
     # Self-Consistencyによる最終解答の決定
     final_outputs = []
     for outputs in all_outputs:
-        if outputs is not None:
-            # 最も頻出する解答を選択
-            most_common = Counter(outputs).most_common()[0][0]
-            final_outputs.append(solution_dict[f"{most_common}"][-1]) # 同値表現に対応する元の回答文字列を取得
+        if outputs:
+            # 頻度順にすべての要素を取得（例: [('5', 3), (None, 2), ('4', 1)]）
+            ranked_answers = Counter(outputs).most_common()
+            
+            found_valid = False
+            for answer, count in ranked_answers:
+                # Noneではない最初の解答を探す
+                if answer is not None:
+                    final_outputs.append(solution_dict[f"{answer}"][-1])
+                    found_valid = True
+                    break
+            
+            # 全てのサンプルがNoneだった場合のフォールバック
+            if not found_valid:
+                final_outputs.append(None)
         else:
-            final_outputs.append(None) # すべてNoneの場合
+            final_outputs.append(None)
         
 
     # 推論時間の表示

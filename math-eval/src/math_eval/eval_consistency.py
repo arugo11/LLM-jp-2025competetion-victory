@@ -57,6 +57,8 @@ def load_examples(file_path: str, example_cls: type) -> dict[str, Any]:
             
             valid_keys = {f.name for f in dataclasses.fields(example_cls)}
             filtered_item = {k: v for k, v in item.items() if k in valid_keys}
+            if "evaluation_method" not in filtered_item:
+                filtered_item["evaluation_method"] = "soft"  # デフォルト値を設定
             
             try:
                 example = example_cls(**filtered_item)
@@ -76,7 +78,12 @@ def load_examples(file_path: str, example_cls: type) -> dict[str, Any]:
 
 def check_equivalence(pred_str: str, gold_str: str) -> bool:
     """Helper to parse and verify single prediction against gold."""
+    
     try:
+        if "$$" not in pred_str:
+            pred_str = "$$" + pred_str + "$$"
+        if "$$" not in gold_str:
+            gold_str = "$$" + gold_str + "$$"
         return verify(parse(pred_str), parse(gold_str))
     except Exception:
         return False
@@ -110,6 +117,9 @@ def calculate_cons_k(samples: List[str], gold: str) -> bool:
         # 新しいグループを作成
         if not found_group:
             groups.append({'rep': parsed_sample, 'count': 1, "default_samples": [sample]})
+            
+    # for group in groups:
+    #     print(f"Group representative: {group['rep']}, Count: {group['count']}, Samples: {group['default_samples']}")
     
     # カウントの降順でソート
     if not groups:
@@ -119,7 +129,7 @@ def calculate_cons_k(samples: List[str], gold: str) -> bool:
     
     # 最多回答（多数決）が正解と一致するか判定
     majority_rep = groups[0]['default_samples'][-1] # 同値表現に対応する元の回答文字列を取得
-    return check_equivalence("$$"+majority_rep+"$$", gold)
+    return check_equivalence(majority_rep, gold)
 
 def calculate_cons_k_counter(samples: List[str], gold: str) -> bool:
     """Calculate Consistency@k (Majority Vote) using exact string match."""
@@ -130,8 +140,13 @@ def calculate_cons_k_counter(samples: List[str], gold: str) -> bool:
     # most_common(1) は [(element, count)] のリストを返すので [0][0] で要素を取得
     majority_rep = Counter(samples).most_common(1)[0][0]
     
+    # if check_equivalence("$$"+majority_rep+"$$", gold) == False:
+    #     for sample in samples:
+    #         print(f"Sample: {sample}")
+    # print(f"Majority representative: {majority_rep}, Count: {Counter(samples)[majority_rep]}")
+    
     # 選ばれた回答が正解と一致するか判定（正誤判定自体は verify を使用して柔軟に行う）
-    return check_equivalence("$$"+majority_rep+"$$", gold)
+    return check_equivalence(majority_rep, gold)
 
 
 def calculate_pass_k(samples: List[str], gold: str) -> bool:
@@ -143,7 +158,7 @@ def calculate_pass_k(samples: List[str], gold: str) -> bool:
     for sample in samples:
         if sample is None:  # Noneが含まれている場合はスキップ
             continue
-        if check_equivalence("$$"+sample+"$$", gold):
+        if check_equivalence(sample, gold):
             return True
     return False
 
