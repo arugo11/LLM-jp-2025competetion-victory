@@ -218,4 +218,8 @@ __marimo__/
 # .DS_Store files by macOS
 .DS_Store
 
-wandb/
+wandb/open-instruct*backup*
+open-instruct-backup*
+*backup*
+*-backup
+*_backup
