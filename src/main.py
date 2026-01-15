@@ -3,9 +3,8 @@ import os
 import embeddings
 import utils
 
-parquet_directory = "data"
-vectorstore_path = "data/qa_vectorstore"
-
+parquet_directory = "./data/sample/" # Parquetファイルの保存先
+vectorstore_path = "./data/vectorstore/" # ベクトルストアの保存先
 
 def main():
     if os.path.exists(vectorstore_path):
