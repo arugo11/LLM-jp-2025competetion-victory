@@ -1,0 +1,46 @@
+# Script for setup environment for open-instruct
+
+ENV_DIR="${HOME}/LLM-jp-2025competition-victory/env" # FIXME: update this path
+
+# Setup Python environment
+source ${ENV_DIR}/scripts/environment.sh
+source ${ENV_DIR}/venv/bin/activate
+
+# Set TMPDIR
+export TMPDIR=${HOME}/tmp
+mkdir -p ${TMPDIR}
+
+# Determine master address:port
+export MASTER_ADDR=$(head -n 1 $PBS_NODEFILE | hostname -f)
+export MASTER_PORT=$((10000 + RANDOM % 1000))
+echo "MASTER_ADDR=${MASTER_ADDR}; MASTER_PORT=${MASTER_PORT}"
+
+# Determine amount of employed devices
+NUM_NODES=$(wc -l < $PBS_NODEFILE)
+NUM_GPUS_PER_NODE=8
+NUM_GPUS=$((${NUM_NODES} * ${NUM_GPUS_PER_NODE}))
+echo "NUM_NODES=${NUM_NODES}"
+echo "NUM_GPUS_PER_NODE=${NUM_GPUS_PER_NODE}"
+echo "NUM_GPUS=${NUM_GPUS}"
+
+cat $PBS_NODEFILE
+
+# Set NVIDIA_PYTORCH_VERSION
+export NVIDIA_PYTORCH_VERSION=""
+
+# Debug/logging flags
+export LOGLEVEL=INFO
+export NCCL_DEBUG=WARN
+export NCCL_DEBUG_SUBSYS=WARN
+export PYTHONFAULTHANDLER=1
+export CUDA_DEVICE_MAX_CONNECTIONS=1
+export CUDA_LAUNCH_BLOCKING=0
+export CUDNN_LOGDEST_DBG=stderr
+export CUDNN_LOGERR_DBG=1
+
+# Open-instruct specific environment variables
+export NCCL_CUMEM_ENABLE=0
+export VLLM_ALLOW_INSECURE_SERIALIZATION=1
+export VLLM_DISABLE_COMPILE_CACHE=1
+export VLLM_USE_V1=1
+export HF_HUB_ENABLE_HF_TRANSFER=1
