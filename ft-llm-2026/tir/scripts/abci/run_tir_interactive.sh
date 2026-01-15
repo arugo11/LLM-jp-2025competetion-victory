@@ -7,7 +7,7 @@
 set -eux
 
 # ジョブ実行時には $0 が /var/spool/pbs/mom_priv/jobs/... になるため、絶対パスで指定する
-source "$HOME/LLM-jp-2025competetion-victory/ft-llm-2026/tir/scripts/abci/environment.sh"
+source "$HOME/workspace/LLM-jp-2025competetion-victory/ft-llm-2026/tir/scripts/abci/environment.sh"
 
 singularity exec --nv \
   --env CUDA_VISIBLE_DEVICES=${SINGULARITYENV_CUDA_VISIBLE_DEVICES} \

@@ -1,11 +1,11 @@
 #!/bin/bash
 set -eux
 
-module load singularitypro/4.1.7
+module load singularitypro
 
 export SINGULARITY_TMPDIR="${PBS_LOCALDIR:-/tmp}"
 
-PROJECT_ROOT="$HOME/LLM-jp-2025competetion-victory/ft-llm-2026/tir"
+PROJECT_ROOT="$HOME/workspace/LLM-jp-2025competetion-victory/ft-llm-2026/tir"
 export PROJECT_ROOT
 
 # Force numeric GPU IDs both outside and inside the container.
