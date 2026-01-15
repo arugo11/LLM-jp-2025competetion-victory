@@ -166,6 +166,11 @@ def main():
     # (Majority Voteなどを実装する場合はここを変更する)
     for problem, candidates in zip(problems, current_candidates_list):
         problem["output"] = candidates[0]
+        
+    # すべての候補も保存（多数決用）
+    for problem, candidates in zip(problems, current_candidates_list):
+        for idx, candidate in enumerate(candidates):
+            problem[f"output_sample_{idx}"] = candidate
 
     with open(args.output_path, "w") as f:
         for problem in problems:
