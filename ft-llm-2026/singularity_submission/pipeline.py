@@ -62,7 +62,7 @@ async def run_pipeline(config: SolverConfig) -> None:
     problems = read_problems(config.input_path)
 
     if str(config.llm_server_type).lower() == "vllm":
-        model_name = str(config.model_path.resolve())
+        model_name: str = "models/" + "/".join(config.model_path.parts[-2:])
     else:
         model_name = str(config.model_path)
 
