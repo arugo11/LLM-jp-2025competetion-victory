@@ -1,0 +1,23 @@
+[project]
+name = "simple-rag-model"
+version = "0.1.0"
+description = "implementation of a simple RAG model"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=0.3.23",
+    "langchain-community>=0.3.21",
+    "langchain-huggingface>=0.1.0",
+    "sentence-transformers>=3.0.0",
+    "faiss-cpu>=1.10.0",
+    "pandas>=2.3.3",
+    "pyarrow>=22.0.0",
+]
+
+[tool.uv]
+dev-dependencies = ["pyright>=1.1.399", "ruff>=0.11.5"]
+
+[tool.pyright]
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
