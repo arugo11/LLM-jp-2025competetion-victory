@@ -4,6 +4,9 @@
 
 # 実行コマンド
 ``` bash
+# 初めてならモデルのダウンロードが必要
+python download_model.py
+
 qsub -v MODEL_USER=HayatoHongoEveryonesAI,MODEL_REPO=llm-jp-4-8b-instruct-sft-v5-2 ./inference-eval-1gpu-rsa.sh
 ```
 

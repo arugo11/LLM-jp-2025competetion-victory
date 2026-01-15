@@ -9,7 +9,7 @@ def main():
     parser.add_argument(
         "--model_name",
         type=str,
-        default="llm-jp/llm-jp-3.1-1.8b-instruct4",
+        default="HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2",
         help="Model name on Hugging Face Hub",
     )
     args = parser.parse_args()
