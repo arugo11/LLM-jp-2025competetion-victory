@@ -3,7 +3,7 @@
 #PBS -q rt_HF
 #PBS -N sft-qa_verify
 #PBS -l select=1:ncpus=192:ngpus=8
-#PBS -l walltime=168:00:00
+#PBS -l walltime=4:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
@@ -30,14 +30,36 @@ module load cuda/12.8
 export LD_LIBRARY_PATH=/apps/python/3.12.9/lib:$LD_LIBRARY_PATH
 source env/bin/activate
 
+# Some schedulers set CUDA_VISIBLE_DEVICES to GPU UUIDs (e.g. "GPU-...").
+# vLLM expects numeric indices, so normalize if needed.
+if [[ "${CUDA_VISIBLE_DEVICES:-}" == *"GPU-"* ]]; then
+  IFS=',' read -ra _cvis <<< "${CUDA_VISIBLE_DEVICES}"
+  if (( ${#_cvis[@]} > 0 )); then
+    export CUDA_VISIBLE_DEVICES="$(seq -s, 0 $((${#_cvis[@]} - 1)))"
+    echo "Rewrote CUDA_VISIBLE_DEVICES to indices: ${CUDA_VISIBLE_DEVICES}"
+  fi
+fi
+
+# Avoid harmless warnings like: df: ~/.triton/autotune: No such file or directory
+mkdir -p "$HOME/.triton/autotune" || true
+
 # W&B (optional): configure in env or here
 export WANDB_PROJECT=${WANDB_PROJECT:-qa_verify_sft}
 export WANDB_RUN_GROUP=${WANDB_RUN_GROUP:-qa_verify-clean-rawgen-fullft}
 export WANDB_DIR=${WANDB_DIR:-"$PBS_O_WORKDIR/.wandb"}
 mkdir -p "$WANDB_DIR"
-# export WANDB_ENTITY=your_entity
+export WANDB_ENTITY=${WANDB_ENTITY:-hongo-hayato-6281k-university-of-tokyo}
 # export WANDB_API_KEY=...
 # export WANDB_MODE=online  # or offline
+
+# HF Hub: require a token/login when push_to_hub is enabled in the config.
+# Prefer env var token on compute nodes.
+export HUGGINGFACE_HUB_TOKEN=${HUGGINGFACE_HUB_TOKEN:-${HF_TOKEN:-}}
+if [[ -z "${HUGGINGFACE_HUB_TOKEN:-}" && ! -f "$HOME/.cache/huggingface/token" && ! -f "$HOME/.huggingface/token" ]]; then
+  echo "[ERROR] No Hugging Face token found (HUGGINGFACE_HUB_TOKEN/HF_TOKEN not set, and no local token file)."
+  echo "        Set HUGGINGFACE_HUB_TOKEN (recommended) or run 'huggingface-cli login' on a node where home is shared."
+  exit 1
+fi
 
 cd open-r1/src || exit 1
 

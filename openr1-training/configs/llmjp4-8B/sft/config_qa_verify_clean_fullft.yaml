@@ -76,7 +76,9 @@ report_to:
   - wandb
 wandb_project: qa_verify_sft
 wandb_run_group: qa_verify-clean-rawgen-fullft
-push_to_hub: false
+push_to_hub: true
+hub_model_id: HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5-qa_verify_clean_rawgen-fullft
+hub_private_repo: true
 
 # EOS
 # For this model tokenizer eos is <|eos|>

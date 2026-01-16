@@ -46,7 +46,13 @@ from open_r1.configs import ScriptArguments, SFTConfig, DatasetClass, DataConfig
 from open_r1.utils import get_dataset, get_model, get_tokenizer
 from open_r1.utils.callbacks import get_callbacks
 from open_r1.utils.wandb_logging import init_wandb_training
-from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config, setup_chat_format
+from trl import ModelConfig, SFTTrainer, TrlParser, get_peft_config
+
+# TRL API compatibility: older versions provided setup_chat_format; newer ones removed it.
+try:
+    from trl import setup_chat_format  # type: ignore
+except Exception:  # pragma: no cover
+    setup_chat_format = None  # type: ignore
 
 from open_r1.get_datas import get_datas_from_config
 
@@ -166,7 +172,13 @@ def main(script_args, training_args, model_args, data_config: DataConfig):
                 print("[MoE][WARN] Could not find a SparseMoeBlock; ZeRO-3 leaf NOT set (collectives may hang).")
 
     if tokenizer.chat_template is None:
-        logger.info("No chat template provided, defaulting to ChatML.")
+        logger.info("No chat template provided.")
+        if setup_chat_format is None:
+            raise RuntimeError(
+                "Tokenizer.chat_template is None, and TRL.setup_chat_format is not available in this TRL version. "
+                "Provide 'chat_template' in the config (recommended) or use a TRL version that supports setup_chat_format."
+            )
+        logger.info("Defaulting to ChatML via TRL.setup_chat_format.")
         model, tokenizer = setup_chat_format(model, tokenizer, format="chatml")
 
     ############################

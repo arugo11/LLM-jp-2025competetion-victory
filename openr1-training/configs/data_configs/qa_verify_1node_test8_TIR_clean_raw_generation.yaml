@@ -1,6 +1,6 @@
 neko_sft_datasets:
   - name: HayatoHongoEveryonesAI/qa_verify_1node_test8-TIR
-    config: clean
+    config: default
     split: train
     question_field: problem
     answer_field: raw_generation
