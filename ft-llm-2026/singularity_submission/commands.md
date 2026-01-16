@@ -1,8 +1,8 @@
 ## テスト用実行コマンド
-uv run python main.py \
+uv run python tir-sc.py \
     --model_path models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
-    --input_path sample_problems.jsonl \
-    --output_path output.jsonl \
+    --input_path input/dev.jsonl \
+    --output_path output-dev.jsonl \
     --log_path inference_log.jsonl \
     --tir-llm-host 127.0.0.1 \
     --tir-llm-port 8000 \
