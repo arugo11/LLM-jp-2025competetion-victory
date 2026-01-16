@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 import sys
 import random  # <--- 追加
-
+from math_verify import parse
 from vllm import LLM, SamplingParams
 
 # 初回生成用のテンプレート（元のまま）
@@ -165,12 +165,15 @@ def main():
     # 最終的な出力は、最後のループで生成された候補の「最初の1つ」を採用する
     # (Majority Voteなどを実装する場合はここを変更する)
     for problem, candidates in zip(problems, current_candidates_list):
-        problem["output"] = candidates[0]
+        problem["output"] = parse(candidates[0])[1]  # 最初の候補の解答部分を採用
         
     # すべての候補も保存（多数決用）
     for problem, candidates in zip(problems, current_candidates_list):
+        problem["parsed_final_answers"] = []
         for idx, candidate in enumerate(candidates):
             problem[f"output_sample_{idx}"] = candidate
+            problem["parsed_final_answers"].append(parse(candidate)[1])
+            
 
     with open(args.output_path, "w") as f:
         for problem in problems:
