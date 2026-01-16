@@ -13,10 +13,9 @@ from utils import read_problems
 from wandb_tracer import WeaveConfig, WeaveTracer, init_tracer
 
 from math_verify import parse
+from collections import Counter
 
 # パイプライン初期化
-
-
 def _init_weave_tracer(config: SolverConfig) -> WeaveTracer | None:
     """有効な場合、Weaveトレーサーを初期化."""
     if not config.enable_wandb:
@@ -37,8 +36,6 @@ def _ensure_output_dirs(config: SolverConfig) -> None:
 
 
 # メインパイプライン
-
-
 async def run_pipeline(config: SolverConfig) -> None:
     """完全な数学問題解決パイプラインを実行.
 
@@ -108,18 +105,40 @@ async def _process_problems(
         for idx, problem in enumerate(problems):
             tmp_outputs = [] # Self-Consistency用の出力を一時的に保存するリスト
             solution_dict = {}
-            for i in range(5):
+            for i in range(10):
                 result = await solver.solve(problem, idx)
                 parsed_solution = parse(result.output) # 出力を解析
-                tmp_outputs.append(parsed_solution[0])
-                # 解がユニークであれば辞書に追加
-                if str(parsed_solution[0]) not in solution_dict.keys():
-                    solution_dict[str(parsed_solution[0])] = parsed_solution[1]
+                # 解答が存在しない場合はスキップ
+                if parsed_solution is None or len(parsed_solution) < 2:
+                    continue
+                else:
+                    tmp_outputs.append(parsed_solution[0])
+                    # 解がユニークであれば辞書に追加
+                    if str(parsed_solution[0]) not in solution_dict.keys():
+                        solution_dict[str(parsed_solution[0])] = parsed_solution[1]
+            
             # 多数決で解答を決定
+            # もし出力がなければNoneを設定
+            if not tmp_outputs:
+                ranked_solutions = None
+            else:
+                ranked_solutions = Counter(tmp_outputs).most_common()
+
+            found_valid = False
             final_solution = None
+            if ranked_solutions:
+                for answer, count in ranked_solutions:
+                    if answer is not None:
+                        final_solution = answer
+                        found_valid = True
+                        break
 
             # 対応するLaTeX表現を保存
-            problem["output"] = solution_dict[final_solution]
+            if found_valid:
+                problem["output"] = solution_dict[str(final_solution)]
+            else:
+                problem["output"] = "None"
+            
             out_f.write(json.dumps(problem, ensure_ascii=False) + "\n")
 
             log_entry = (
