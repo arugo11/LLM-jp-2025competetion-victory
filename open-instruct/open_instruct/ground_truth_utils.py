@@ -262,18 +262,21 @@ class MathVerify_Verifier(VerifierFunction):
     """
 
     def __init__(self, verifier_config: VerifierConfig | None = None) -> None:
-        super().__init__("math_verify", verifier_config=verifier_config, weight=1.0)
+        super().__init__("math-verify", verifier_config=verifier_config, weight=1.0)
 
     def __call__(
         self, tokenized_prediction: list[int], prediction: str, label: str, query: str | None = None
     ) -> VerificationResult:
-        parsed_prediction = str(parse(prediction)[1])
-        
+        parsed = parse(prediction, parsing_timeout=None)
+        if parsed is None or len(parsed) < 2:
+            return VerificationResult(score=0.0)
+        parsed_prediction = str(parsed[1])
         if "$$" not in parsed_prediction:
             parsed_prediction = "$$" + parsed_prediction + "$$"
         if "$$" not in label:
             label = "$$" + label + "$$"
-        answer = verify(parse(parsed_prediction), parse(label))
+        answer = verify(parse(parsed_prediction, parsing_timeout=None), parse(label, parsing_timeout=None), timeout_seconds=None)
+        # print("prediction: "+ str(parsed_prediction) + " label: " + label + " answer: " + str(answer))
         score = 1.0 if answer else 0.0
         
         return VerificationResult(score=score)

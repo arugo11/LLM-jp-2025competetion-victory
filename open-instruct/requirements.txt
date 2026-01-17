@@ -312,6 +312,8 @@ markupsafe==3.0.3
     #   jinja2
     #   mkdocs
     #   werkzeug
+math-verify>=0.8.0
+
 matplotlib==3.10.7
     # via open-instruct
 mdurl==0.1.2
