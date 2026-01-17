@@ -1,0 +1,102 @@
+#!/bin/bash
+#PBS -q rt_HC
+#PBS -l select=1:ncpus=32:mem=64gb
+#PBS -l walltime=0:30:00
+#PBS -P gch51701
+#PBS -N validate_range
+#PBS -m n
+
+set -eu -o pipefail
+
+# validate_range は Singularity 不要のため environment.sh を使わずに絶対パスで移動
+PROJECT_ROOT="$HOME/LLM-jp-2025competetion-victory/ft-llm-2026/tir"
+export PROJECT_ROOT
+cd "${PROJECT_ROOT}"
+
+JOB_ID="${PBS_JOBID%%.*}"
+LOG_DIR="${LOG_DIR:-${PROJECT_ROOT}/logs}"
+mkdir -p "${LOG_DIR}"
+LOGFILE="${LOG_DIR}/validate_${JOB_ID}.out"
+ERRFILE="${LOG_DIR}/validate_${JOB_ID}.err"
+exec > "${LOGFILE}" 2> "${ERRFILE}"
+
+source /etc/profile.d/modules.sh || true
+module load python/3.12/3.12.9
+PYTHON_BIN="python3.12"
+"${PYTHON_BIN}" -V
+
+DATASET_REPO="${DATASET_REPO:-HayatoHongoEveryonesAI/qa_verify_tir_1.3M_v0}"
+START_ID="${START_ID:?START_ID is required}"
+END_ID="${END_ID:?END_ID is required}"
+OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/validation_shards}"
+OUTPUT_PARQUET="${OUTPUT_PARQUET:-${OUTPUT_DIR}/validation_${START_ID}_${END_ID}.parquet}"
+
+LOG_EVERY="${LOG_EVERY:-1000}"
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-10}"
+MAX_OUTPUT_CHARS="${MAX_OUTPUT_CHARS:-4096}"
+CODE_MAX_CHARS="${CODE_MAX_CHARS:-20000}"
+
+NEMO_SKILLS_SANDBOX_HOST="${NEMO_SKILLS_SANDBOX_HOST:-127.0.0.1}"
+# local_sandbox_server の実装は 6000 固定のため合わせる
+NEMO_SKILLS_SANDBOX_PORT="${NEMO_SKILLS_SANDBOX_PORT:-6000}"
+export NEMO_SKILLS_SANDBOX_HOST
+export NEMO_SKILLS_SANDBOX_PORT
+
+VENV_DIR="${VENV_DIR:-${PROJECT_ROOT}/.venv_validate_py312}"
+if [[ ! -d "${VENV_DIR}" ]]; then
+  "${PYTHON_BIN}" -m venv "${VENV_DIR}"
+fi
+source "${VENV_DIR}/bin/activate"
+python -m pip install --upgrade pip
+python -m pip install -r "${PROJECT_ROOT}/requirements.lock.txt"
+
+mkdir -p "${OUTPUT_DIR}"
+
+cleanup() {
+  if [[ -n "${SANDBOX_PID:-}" ]]; then
+    kill "${SANDBOX_PID}" || true
+    wait "${SANDBOX_PID}" || true
+  fi
+}
+trap cleanup EXIT
+
+python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server \
+  --host "${NEMO_SKILLS_SANDBOX_HOST}" \
+  --port "${NEMO_SKILLS_SANDBOX_PORT}" \
+  > "${LOG_DIR}/sandbox_${JOB_ID}.log" 2>&1 &
+SANDBOX_PID=$!
+
+echo "waiting for sandbox at ${NEMO_SKILLS_SANDBOX_HOST}:${NEMO_SKILLS_SANDBOX_PORT}"
+python - <<'PY'
+import os
+import socket
+import sys
+import time
+
+host = os.environ.get("NEMO_SKILLS_SANDBOX_HOST", "127.0.0.1")
+port = int(os.environ.get("NEMO_SKILLS_SANDBOX_PORT", "5000"))
+deadline = time.time() + 180
+last_err = None
+while time.time() < deadline:
+    sock = socket.socket()
+    try:
+        sock.connect((host, port))
+        sock.close()
+        print("sandbox ready")
+        sys.exit(0)
+    except OSError as e:
+        last_err = e
+        time.sleep(1)
+print(f"sandbox not ready: {last_err}", file=sys.stderr)
+sys.exit(1)
+PY
+
+python "${PROJECT_ROOT}/scripts/validate_qa_verify.py" validate_range \
+  --dataset-repo "${DATASET_REPO}" \
+  --start-id "${START_ID}" \
+  --end-id "${END_ID}" \
+  --output-parquet "${OUTPUT_PARQUET}" \
+  --timeout-seconds "${TIMEOUT_SECONDS}" \
+  --max-output-chars "${MAX_OUTPUT_CHARS}" \
+  --code-max-chars "${CODE_MAX_CHARS}" \
+  --log-every "${LOG_EVERY}"

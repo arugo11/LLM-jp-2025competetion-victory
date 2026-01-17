@@ -1,0 +1,6 @@
+nemo-skills @ git+https://github.com/NVIDIA-NeMo/Skills@df9fbd97c710504bdfd085e88db2535433cfb6ce
+datasets==3.6.0
+pyarrow==22.0.0
+gql==3.5.3
+httpx==0.27.2
+uvicorn==0.38.0

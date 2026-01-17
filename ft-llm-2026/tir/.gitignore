@@ -1,0 +1,10 @@
+.venv_validate_py312/*
+.venv_validate/*
+
+*.parquet
+
+*.err
+*.out
+
+
+wandb/*

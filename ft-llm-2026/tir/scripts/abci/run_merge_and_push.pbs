@@ -1,0 +1,56 @@
+#!/bin/bash
+#PBS -q rt_HC
+#PBS -l select=1:ncpus=32:mem=64gb
+#PBS -l walltime=0:30:00
+#PBS -P gch51701
+#PBS -N merge_and_push
+#PBS -m n
+
+set -eu -o pipefail
+
+# merge_and_push は Singularity 不要のため environment.sh を使わずに絶対パスで移動
+PROJECT_ROOT="$HOME/LLM-jp-2025competetion-victory/ft-llm-2026/tir"
+export PROJECT_ROOT
+cd "${PROJECT_ROOT}"
+
+JOB_ID="${PBS_JOBID%%.*}"
+LOG_DIR="${LOG_DIR:-${PROJECT_ROOT}/logs}"
+mkdir -p "${LOG_DIR}"
+LOGFILE="${LOG_DIR}/merge_${JOB_ID}.out"
+ERRFILE="${LOG_DIR}/merge_${JOB_ID}.err"
+exec > "${LOGFILE}" 2> "${ERRFILE}"
+
+source /etc/profile.d/modules.sh || true
+module load python/3.12/3.12.9
+PYTHON_BIN="python3.12"
+"${PYTHON_BIN}" -V
+
+DATASET_REPO="${DATASET_REPO:-HayatoHongoEveryonesAI/qa_verify_tir_1.3M_v0}"
+VALIDATION_DIR="${VALIDATION_DIR:-}"
+COMMIT_MESSAGE="${COMMIT_MESSAGE:-validate train ids=[START,END) via nemo-skills local sandbox, update is_valid and add validation_*}"
+MAX_SHARD_SIZE="${MAX_SHARD_SIZE:-1GB}"
+REVISION="${REVISION:-}"
+PRIVATE="${PRIVATE:-1}"
+
+VENV_DIR="${VENV_DIR:-${PROJECT_ROOT}/.venv_validate_py312}"
+if [[ ! -d "${VENV_DIR}" ]]; then
+  "${PYTHON_BIN}" -m venv "${VENV_DIR}"
+fi
+source "${VENV_DIR}/bin/activate"
+python -m pip install --upgrade pip
+python -m pip install -r "${PROJECT_ROOT}/requirements.lock.txt"
+
+ARGS=(
+  --dataset-repo "${DATASET_REPO}"
+  --validation-dir "${VALIDATION_DIR}"
+  --commit-message "${COMMIT_MESSAGE}"
+  --max-shard-size "${MAX_SHARD_SIZE}"
+)
+if [[ -n "${REVISION}" ]]; then
+  ARGS+=(--revision "${REVISION}")
+fi
+if [[ "${PRIVATE}" == "1" ]]; then
+  ARGS+=(--private)
+fi
+
+python "${PROJECT_ROOT}/scripts/merge_qa_verify.py" merge_and_push "${ARGS[@]}"
