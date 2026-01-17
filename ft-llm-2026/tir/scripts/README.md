@@ -50,7 +50,7 @@ qsub -v START_ID=0,END_ID=10001 \
 よく使う環境変数:
 - `DATASET_REPO`
 - `VALIDATION_DIR`
-- `COMMIT_MESSAGE` (必須)
+- `COMMIT_MESSAGE` (任意)
 - `MAX_SHARD_SIZE`, `REVISION`, `PRIVATE=1` (default)
 
 投入例:

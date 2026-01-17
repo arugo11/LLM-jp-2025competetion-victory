@@ -151,7 +151,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     merge_parser.add_argument("--dataset-repo", required=True)
     merge_parser.add_argument("--validation-dir", required=True)
-    merge_parser.add_argument("--commit-message", required=True)
+    merge_parser.add_argument(
+        "--commit-message",
+        default="validate train ids=[START,END) via nemo-skills local sandbox, update is_valid and add validation_*",
+    )
     merge_parser.add_argument("--max-shard-size", default="1GB")
     privacy_group = merge_parser.add_mutually_exclusive_group()
     privacy_group.add_argument(
