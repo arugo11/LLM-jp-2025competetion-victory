@@ -1,11 +1,12 @@
 #!/bin/bash
 #PBS -q rt_HC
 #PBS -l select=1:ncpus=32:mem=64gb
-#PBS -l walltime=0:30:00
+#PBS -l walltime=04:00:00
 #PBS -P gch51701
 #PBS -N validate_range
 #PBS -m n
 
+# walltimeは`件数*1s+バッファ`程度を目安に設定してください。
 set -eu -o pipefail
 
 # validate_range は Singularity 不要のため environment.sh を使わずに絶対パスで移動
