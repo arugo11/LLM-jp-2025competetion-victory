@@ -3,7 +3,7 @@
 #PBS -q rt_HF
 #PBS -N sft-qa_verify
 #PBS -l select=1:ncpus=192:ngpus=8
-#PBS -l walltime=4:00:00
+#PBS -l walltime=2:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
