@@ -1,0 +1,20 @@
+compute_environment: LOCAL_MACHINE
+distributed_type: MULTI_GPU
+downcast_bf16: 'auto'
+machine_rank: 0
+main_process_ip: null
+main_process_port: null
+mixed_precision: bf16
+num_machines: 1
+num_processes: 8
+use_deepspeed: true
+deepspeed_config:
+  zero_allow_untested_optimizer: true
+  zero_optimization:
+    stage: 3
+    contiguous_gradients: false
+    reduce_bucket_size: 5e8
+    stage3_prefetch_bucket_size: 5e8
+    stage3_param_persistence_threshold: 1e5
+    stage3_max_live_parameters: 1e9
+  gradient_clipping: 1.0
