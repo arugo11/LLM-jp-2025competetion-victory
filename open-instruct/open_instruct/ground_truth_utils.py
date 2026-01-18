@@ -48,6 +48,7 @@ logging.getLogger("litellm._client").setLevel(logging.CRITICAL)
 logging.getLogger("cost_calculator").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
+from math_verify import parse, verify
 
 @dataclass
 class VerifierConfig:
@@ -250,6 +251,35 @@ class MathVerifier(VerifierFunction):
             if is_equiv(answer, label) or hendrycks_is_equiv(answer, label):
                 return VerificationResult(score=1.0)
         return VerificationResult(score=0.0)
+    
+    
+class MathVerify_Verifier(VerifierFunction):
+    """
+    Verifier for math problems.
+
+    Attempts several extraction methods (boxed answers, Minerva format,
+    last LaTeX answer) and compares the extracted answers to the ground truth.
+    """
+
+    def __init__(self, verifier_config: VerifierConfig | None = None) -> None:
+        super().__init__("math-verify", verifier_config=verifier_config, weight=1.0)
+
+    def __call__(
+        self, tokenized_prediction: list[int], prediction: str, label: str, query: str | None = None
+    ) -> VerificationResult:
+        parsed = parse(prediction, parsing_timeout=None)
+        if parsed is None or len(parsed) < 2:
+            return VerificationResult(score=0.0)
+        parsed_prediction = str(parsed[1])
+        if "$$" not in parsed_prediction:
+            parsed_prediction = "$$" + parsed_prediction + "$$"
+        if "$$" not in label:
+            label = "$$" + label + "$$"
+        answer = verify(parse(parsed_prediction, parsing_timeout=None), parse(label, parsing_timeout=None), timeout_seconds=None)
+        # print("prediction: "+ str(parsed_prediction) + " label: " + label + " answer: " + str(answer))
+        score = 1.0 if answer else 0.0
+        
+        return VerificationResult(score=score)
 
 
 class StrictMathVerifier(VerifierFunction):
