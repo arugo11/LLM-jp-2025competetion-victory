@@ -71,7 +71,7 @@ singularity run --nv --writable-tmpfs \
     --max_tokens 16384 \
     --loops 4 \
     --population 40 \
-    --k 20 \
+    --k 2 \
     --temperature 0.7
 
 # model_path: 推論に使用するモデルのパス

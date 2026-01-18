@@ -6,6 +6,7 @@ import sys
 import random  # <--- 追加
 from math_verify import parse
 from vllm import LLM, SamplingParams
+from collections import Counter  # <--- 追加
 
 # 初回生成用のテンプレート（元のまま）
 INITIAL_TEMPLATE = """\
@@ -26,9 +27,8 @@ INITIAL_TEMPLATE = """\
 # 2回目以降の洗練（Refinement）用のテンプレート
 # 過去の候補(candidates)を受け取り、より良い回答を作成させる指示を含みます
 REFINEMENT_TEMPLATE = """\
-以下は数学の問題と、それに対するいくつかの解答候補です。
-解答候補には誤りが含まれている可能性があります。
-複数の候補の良い点を取り入れ、誤りを修正し、最も確実で質の高い解答を新たに作成してください。
+以下は数学の問題と、別のアプローチで導出された答えの候補とその頻度です。
+これらの答えを参考にしつつ、自身の思考プロセスで問題を解き、最も正確な解答を導き出してください。
 
 # 制約事項
 - 必ず最終的な解答を\\boxedタグ内に記述する。
@@ -118,8 +118,26 @@ def main():
                 selected_cands = random.sample(cands, num_samples)
 
                 # 選ばれた候補を文字列として結合
-                for idx, cand in enumerate(selected_cands):
-                    candidates_str += f"--- 候補 {idx+1} ---\n{cand}\n\n"
+                #for idx, cand in enumerate(selected_cands):
+                    #candidates_str += f"--- 候補 {idx+1} ---\n{cand}\n\n"
+                parsed_answers = []
+                for cand in selected_cands:
+                    res = parse(cand)
+                    # エラー対策: parse結果が期待通り（[0, 1]の形）かチェック
+                    if isinstance(res, (list, tuple)) and len(res) > 1 and res[1] is not None:
+                        parsed_answers.append(str(res[1]))
+                
+                # 重複を排除して結合（トークン激減）
+                unique_answers = list(set(parsed_answers))
+                if unique_answers:
+                    candidates_str = "過去の試行で導出された答えの候補: " + ", ".join(unique_answers)
+                else:
+                    candidates_str = "（過去の試行で有効な形式の答えが得られませんでした）"
+                
+                prompt_content = REFINEMENT_TEMPLATE.format(
+                    question=problem["problem"], 
+                    candidates=candidates_str
+                )
                 # --- 変更箇所ここまで ---
                 
                 prompt_content = REFINEMENT_TEMPLATE.format(
@@ -172,12 +190,29 @@ def main():
         problem["parsed_final_answers"] = []
         for idx, candidate in enumerate(candidates):
             problem[f"output_sample_{idx}"] = candidate
-            problem["parsed_final_answers"].append(parse(candidate)[1])
+            res = parse(candidate)
+            # インデックスエラーを防ぐ安全な取得方法
+            if isinstance(res, (list, tuple)) and len(res) > 1:
+                ans = res[1]
+            else:
+                ans = None # パース失敗時はNoneを入れる
+            
+            problem["parsed_final_answers"].append(ans)
+            #problem["parsed_final_answers"].append(parse(candidate)[1])
             
 
-    with open(args.output_path, "w") as f:
+    #with open(args.output_path, "w") as f:
+        #for problem in problems:
+            #f.write(json.dumps(problem, ensure_ascii=False) + "\n")
+    output_all_path = args.output_path.parent / (args.output_path.stem + "_all_samples.jsonl")
+
+    with open(output_all_path, "w") as f:
         for problem in problems:
+            # 各サンプルをリスト形式で保持していることを確認
+            # 評価スクリプトの仕様に合わせ、必要ならここでフォーマットを整えます
             f.write(json.dumps(problem, ensure_ascii=False) + "\n")
+    
+    print(f"Saved results to {output_all_path}")
     
     # プログラムの総実行時間を表示
     program_finish_time = time.time()
