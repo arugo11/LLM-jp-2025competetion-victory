@@ -439,7 +439,7 @@ python open_instruct/grpo_fast.py \
     --model_name_or_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 \
     --stop_strings "</answer>" \
     --apply_verifiable_reward true \
-    --remap_verifier qa_10k=gsm8k \
+    --remap_verifier qa_10k=math-verify \
     --temperature 1.0 \
     --ground_truths_key ground_truth \
     --chat_template_name r1_simple_chat_postpend_think \
