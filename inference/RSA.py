@@ -107,19 +107,24 @@ def main():
             else:
                 # 2回目以降: 前回の候補を含めたプロンプトを作成
                 candidates_str = ""
-                
-                # --- 変更箇所ここから ---
-                # 現在の候補リストを取得
                 cands = current_candidates_list[i]
                 
-                # populationの中からランダムにk個サンプリングする
-                # (もし候補数がk未満の場合はあるだけ全て使う)
                 num_samples = min(len(cands), args.k)
                 selected_cands = random.sample(cands, num_samples)
 
-                # 選ばれた候補を文字列として結合
+                # --- 修正箇所：タグを利用してCoT（analysis）を除去 ---
                 for idx, cand in enumerate(selected_cands):
-                    candidates_str += f"--- 候補 {idx+1} ---\n{cand}\n\n"
+                    # <assistantfinal> 以降だけを抽出する
+                    if "<assistantfinal>" in cand:
+                        # <assistantfinal> タグ以降の文字列を取得
+                        final_part = cand.split("<assistantfinal>")[-1].strip()
+                        # タグ自体も残したい場合は以下のように整形
+                        clean_cand = f"<assistantfinal>\n{final_part}"
+                    else:
+                        # タグが見当たらない場合のフォールバック（そのまま、または parse を使用）
+                        clean_cand = cand.strip()
+
+                    candidates_str += f"--- 候補 {idx+1} ---\n{clean_cand}\n\n"
                 # --- 変更箇所ここまで ---
                 
                 prompt_content = REFINEMENT_TEMPLATE.format(
