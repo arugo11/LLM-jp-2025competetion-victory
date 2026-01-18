@@ -86,7 +86,7 @@ uv run python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server \
 ```bash
 # ターミナル2: vLLMサーバ
 uv run python -m nemo_skills.inference.server.serve_vllm \
-    --model models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
+    --model models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 \
     --num_gpus 1 \
     --num_nodes 1 \
     --port 8000 \

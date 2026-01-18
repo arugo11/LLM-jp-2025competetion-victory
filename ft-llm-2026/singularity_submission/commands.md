@@ -1,6 +1,6 @@
 ## テスト用実行コマンド
 uv run python tir-sc.py \
-    --model_path models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
+    --model_path models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 \
     --input_path input/dev.jsonl \
     --output_path output-dev.jsonl \
     --log_path inference_log.jsonl \
