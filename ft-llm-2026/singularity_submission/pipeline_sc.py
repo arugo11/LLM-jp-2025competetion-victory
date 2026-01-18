@@ -14,6 +14,7 @@ from wandb_tracer import WeaveConfig, WeaveTracer, init_tracer
 
 from math_verify import parse
 from collections import Counter
+import time
 
 # パイプライン初期化
 def _init_weave_tracer(config: SolverConfig) -> WeaveTracer | None:
@@ -101,13 +102,17 @@ async def _process_problems(
     ):
         solver = ProblemSolver(llm, sandbox, config, weave_tracer)
 
+        # 推論時間の計測
+        start_time = time.time()
+
         # 問題を1問ごとに処理
         for idx, problem in enumerate(problems):
             tmp_outputs = [] # Self-Consistency用の出力を一時的に保存するリスト
             solution_dict = {}
             for i in range(10):
                 result = await solver.solve(problem, idx)
-                parsed_solution = parse(result.output) # 出力を解析
+                output = f"$${result.output}$$"
+                parsed_solution = parse(output) # 出力を解析
                 # 解答が存在しない場合はスキップ
                 if parsed_solution is None or len(parsed_solution) < 2:
                     continue
@@ -133,6 +138,7 @@ async def _process_problems(
                         found_valid = True
                         break
 
+            print(final_solution)
             # 対応するLaTeX表現を保存
             if found_valid:
                 problem["output"] = solution_dict[str(final_solution)]
@@ -147,3 +153,7 @@ async def _process_problems(
                 else result.to_log_entry()
             )
             log_f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        
+        # 推論時間の計測終了
+        end_time = time.time()
+        print(f"Total inference time: {end_time - start_time}(s)")
