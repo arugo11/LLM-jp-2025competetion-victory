@@ -25,6 +25,7 @@ bash run_setup.sh ${HOME}/LLM-jp-2025competetion-victory/env
 ## コマンドライン引数
 
 ほとんどの引数はgrpo_fast.pyのArgsクラスに定義されています。
+
 バッチサイズ = num_unique_prompts_rollout * num_samples_per_prompt_rollout = 360
 ```
 python open_instruct/grpo_fast.py \
