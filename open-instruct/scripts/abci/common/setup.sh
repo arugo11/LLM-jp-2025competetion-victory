@@ -1,6 +1,6 @@
 # Script for setup environment for open-instruct
 
-ENV_DIR="${HOME}/LLM-jp-2025competetion-victory/env" # FIXME: update this path
+ENV_DIR="${HOME}/LLM-jp-2025competition-victory/env"
 
 # Setup Python environment
 source ${ENV_DIR}/scripts/environment.sh
