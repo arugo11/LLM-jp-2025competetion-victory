@@ -11,7 +11,7 @@
 # bash inference-eval-1gpu.sh
 
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
-: ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
+: ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5-2"}
 : ${MODEL_BASE_PATH:="models/"}
 
 MODEL_NAME="${MODEL_USER}/${MODEL_REPO}"
@@ -69,7 +69,7 @@ singularity run --nv --writable-tmpfs \
     --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output-$MODEL_REPO.jsonl" \
     --max_tokens 16384 \
-    --loops 4 \
+    --loops 5 \
     --population 40 \
     --k 2 \
     --temperature 0.7
