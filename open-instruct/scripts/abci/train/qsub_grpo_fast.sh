@@ -480,7 +480,7 @@ python open_instruct/grpo_fast.py \
     --with_tracking \
     --wandb_entity hongo-hayato-6281k-university-of-tokyo \
     --wandb_project_name open-instruct-grpo-fast \
-    --verbose \
+    --verbose 
 
 echo "End time: $(date)"
 echo "Training completed!"
