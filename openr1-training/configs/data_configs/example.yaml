@@ -1,8 +1,8 @@
 neko_sft_datasets:
-  - name: HayatoHongoEveryonesAI/qa_verify_new_v5
+  - name: HayatoHongoEveryonesAI/qa_verify_tir_1.3M_v0
     config: default
     question_field: problem
-    answer_field: generated_solution
+    answer_field: solution_cot
     split: train
     # from_id: 1
     # to_id: 1000

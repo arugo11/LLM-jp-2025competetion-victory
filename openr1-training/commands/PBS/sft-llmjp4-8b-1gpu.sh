@@ -49,8 +49,8 @@ accelerate launch \
     --main_process_port "$MASTER_PORT" \
     --rdzv_backend c10d \
     open_r1/sft.py \
-    --config ../../configs/llmjp4-8B/sft/config_long-1gpu.yaml \
-    --dataconfig ../../configs/data_configs/long.yaml
+    --config ../../configs/llmjp4-8B/sft/config_v5-1gpu.yaml \
+    --dataconfig ../../configs/data_configs/example.yaml
 
 # 実行方法
 # openr1-trainingで実行する。cd open-r1/srcが出来るように

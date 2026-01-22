@@ -4,13 +4,14 @@ from huggingface_hub import HfApi
 # スクリプトがあるディレクトリを基準とした相対パスを設定
 hf_token = os.getenv("HF_TOKEN")  # 環境変数からHugging Faceのトークンを取得
 script_dir = os.path.dirname(os.path.abspath(__file__))
-relative_path = "/groups/gch51701/Team025/llm-jp-4-8b-instruct-sft-long-v5"
+# relative_path = "/groups/gch51701/Team025/llm-jp-4-8b-instruct-sft-long-v5"
+relative_path = "open-r1/src/data/llm-jp-4-8b-instruct-code"
 local_dir = os.path.join(script_dir, relative_path)
+print(f"Local directory to upload: {local_dir}")
 
 # アップロード先のRepository IDを指定 (ユーザー名/リポジトリ名)
 # ※ 必要に応じて変更してください
-repo_id = "HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-long-v5"
-
+repo_id = "HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-code"
 def upload_checkpoint():
     if not os.path.exists(local_dir):
         print(f"Error: Directory not found: {local_dir}")

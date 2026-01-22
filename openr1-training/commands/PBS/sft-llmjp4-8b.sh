@@ -3,7 +3,7 @@
 #PBS -q rt_HF
 #PBS -N sft-llmjp4-8b-1node
 #PBS -l select=1:ncpus=192:ngpus=8
-#PBS -l walltime=8:00:00
+#PBS -l walltime=12:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
