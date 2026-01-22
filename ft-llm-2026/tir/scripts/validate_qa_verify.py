@@ -51,19 +51,23 @@ def _normalize_generated_solution(value: Any) -> tuple[str, bool]:
 def _extract_python_code(
     text: str, code_max_chars: int
 ) -> tuple[str | None, str | None]:
-    open_count = text.count(PYTHON_TAG_OPEN)
-    close_count = text.count(PYTHON_TAG_CLOSE)
-    if open_count == 0 or close_count == 0:
-        return None, "no_python_tag"
-    if open_count > 1 or close_count > 1:
-        return None, "multiple_python_tags"
-    start = text.find(PYTHON_TAG_OPEN)
+    # 最後の <PYTHON> タグを探す（最新/最も確実なコードブロックを優先）
+    start = text.rfind(PYTHON_TAG_OPEN)
     if start == -1:
         return None, "no_python_tag"
+
+    # その <PYTHON> タグの後に対応する </PYTHON> を探す
     end = text.find(PYTHON_TAG_CLOSE, start + len(PYTHON_TAG_OPEN))
-    if end == -1 or end < start:
+    if end == -1:
         return None, "no_python_tag"
+
     code = text[start + len(PYTHON_TAG_OPEN) : end].strip()
+
+    # 余分なタグチェック: このペアの後にまだタグがあるか
+    remaining = text[end + len(PYTHON_TAG_CLOSE) :]
+    if PYTHON_TAG_OPEN in remaining or PYTHON_TAG_CLOSE in remaining:
+        return None, "multiple_python_tags"
+
     if len(code) > code_max_chars:
         return code, "code_too_long"
     return code, None
