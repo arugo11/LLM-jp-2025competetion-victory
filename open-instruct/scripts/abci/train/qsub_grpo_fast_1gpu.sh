@@ -3,7 +3,7 @@
 #PBS -q rt_HG
 #PBS -N grpo_fast_1gpu
 #PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=2:00:00
+#PBS -l walltime=00:30:00
 #PBS -m n
 
 # Setup logs
@@ -247,6 +247,7 @@ export VLLM_USE_V1=1
 
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
+
 # Fix Ray GPU device ID issue with single_gpu_mode
 export RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
 export CUDA_VISIBLE_DEVICES=0
@@ -411,14 +412,139 @@ echo "=========================================="
 
 # Rayを事前に起動
 echo "========== Rayクラスターの起動 =========="
+
+# 1. Rayクラスターの完全なクリーンアップ
+echo "Rayクラスターの完全なクリーンアップを実行中..."
 ray stop --force || true
+# すべてのRayプロセスを確認して強制終了
+pkill -9 ray || true
+
+# Rayの一時ファイル保存先を確認してからクリーンアップ
+echo "========== Ray一時ファイル保存先の確認 =========="
+echo "TMPDIR=${TMPDIR:-/tmp}"
+python3 << 'EOF'
+import os
+import glob
+
+tmpdir = os.environ.get('TMPDIR', '/tmp')
+print(f"TMPDIR: {tmpdir}")
+print(f"Expected Ray session directory: {tmpdir}/ray/session_*")
+
+# 実際のディレクトリを確認
+ray_dirs = glob.glob(f"{tmpdir}/ray/session_*")
+if ray_dirs:
+    print(f"Found Ray session directories in {tmpdir}: {ray_dirs}")
+else:
+    print(f"No Ray session directories found in {tmpdir}/ray/")
+
+# /tmpも確認
+tmp_ray_dirs = glob.glob("/tmp/ray/session_*")
+if tmp_ray_dirs:
+    print(f"Found Ray session directories in /tmp: {tmp_ray_dirs}")
+else:
+    print("No Ray session directories found in /tmp/ray/")
+EOF
+echo "=========================================="
+
+# Rayの一時ファイルをクリーンアップ（TMPDIRを考慮）
+if [ -n "$TMPDIR" ] && [ "$TMPDIR" != "/tmp" ]; then
+    echo "TMPDIRが設定されています: $TMPDIR"
+    
+    # 削除前のセッションディレクトリ数を確認
+    if [ -d "${TMPDIR}/ray" ]; then
+        before_count=$(find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" 2>/dev/null | wc -l)
+        echo "削除前のRayセッションディレクトリ数: ${before_count}"
+    else
+        before_count=0
+        echo "削除前: Rayディレクトリが存在しません"
+    fi
+    
+    echo "クリーンアップ実行: rm -rf ${TMPDIR}/ray*"
+    # シンボリックリンクも含めて削除（ワイルドカードは引用符の外に）
+    rm -rf "${TMPDIR}"/ray* 2>/dev/null || true
+    # 少し待ってから確認
+    sleep 2
+    
+    # クリーンアップ後の確認
+    if [ -d "${TMPDIR}/ray" ]; then
+        remaining_dirs=$(find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" 2>/dev/null | wc -l)
+        if [ "$remaining_dirs" -gt 0 ]; then
+            echo "警告: ${remaining_dirs}個のRayセッションディレクトリが残っています（削除前: ${before_count}個）"
+            echo "強制削除を試みます..."
+            # 各ディレクトリを個別に削除
+            find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" -exec rm -rf {} + 2>/dev/null || true
+            # シンボリックリンクも削除
+            find "${TMPDIR}/ray" -maxdepth 1 -type l -name "session_*" -delete 2>/dev/null || true
+            # 再度確認
+            remaining_dirs_after=$(find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" 2>/dev/null | wc -l)
+            if [ "$remaining_dirs_after" -gt 0 ]; then
+                echo "警告: まだ${remaining_dirs_after}個のRayセッションディレクトリが残っています（使用中の可能性があります）"
+            else
+                echo "✅ 強制削除によりクリーンアップが完了しました（${before_count}個のディレクトリを削除）"
+            fi
+        else
+            echo "✅ ${TMPDIR}/ray*のクリーンアップが完了しました（${before_count}個のディレクトリを削除）"
+        fi
+    else
+        if [ "$before_count" -gt 0 ]; then
+            echo "✅ ${TMPDIR}/ray*のクリーンアップが完了しました（${before_count}個のディレクトリを削除）"
+        else
+            echo "✅ ${TMPDIR}/ray*のクリーンアップが完了しました（削除対象はありませんでした）"
+        fi
+    fi
+fi
+# デフォルトの/tmpもクリーンアップ（念のため）
+echo "クリーンアップ実行: rm -rf /tmp/ray*"
+rm -rf /tmp/ray* || true
+
+# 十分な待機時間を確保（前回の実行のRayアクターが完全に停止するまで）
+echo "Rayクラスターのクリーンアップを待機中..."
+sleep 60
+
 RAY_NODE_PORT=8888
 ray start --head --port=${RAY_NODE_PORT} --dashboard-host=0.0.0.0 --num-gpus=1
 
 # RAY_ADDRESSを設定（既存のクラスターに接続するため）
 export RAY_ADDRESS="localhost:${RAY_NODE_PORT}"
 
-# Rayクラスターの状態確認
+# Ray起動後に実際のセッションディレクトリを確認
+echo "========== Ray起動後のセッションディレクトリ確認 =========="
+python3 << 'EOF'
+import ray
+import os
+import glob
+
+try:
+    if ray.is_initialized():
+        # Rayが初期化されている場合、実際のセッションディレクトリを取得
+        try:
+            # Ray 2.50.0でのセッションディレクトリの取得方法
+            import ray._private.utils as ray_utils
+            session_dir = ray_utils.get_ray_temp_dir()
+            print(f"Ray session directory (via API): {session_dir}")
+        except Exception as e:
+            print(f"Could not get Ray session directory via API: {e}")
+            # フォールバック: TMPDIRから推測
+            tmpdir = os.environ.get('TMPDIR', '/tmp')
+            print(f"TMPDIR: {tmpdir}")
+            print(f"Expected Ray session directory: {tmpdir}/ray/session_*")
+            
+            # 実際のディレクトリを確認
+            ray_dirs = glob.glob(f"{tmpdir}/ray/session_*")
+            if ray_dirs:
+                print(f"Found Ray session directories: {ray_dirs}")
+    else:
+        print("Ray is not initialized yet")
+except Exception as e:
+    print(f"Error checking Ray session directory: {e}")
+EOF
+echo "=========================================="
+
+# 2. 実行前のRayアクター確認
+echo "Rayクラスターの状態を確認中..."
+ray status --address="${RAY_ADDRESS}" || echo "Ray cluster not running"
+# ray kill --all コマンドはRay 2.50.0では存在しないため削除
+# 再度状態確認
 ray status --address="${RAY_ADDRESS}"
 
 echo "========== Rayクラスター起動完了 =========="
@@ -428,8 +554,6 @@ echo "========== Rayクラスター起動完了 =========="
 python open_instruct/grpo_fast.py \
     --dataset_mixer_list HayatoHongoEveryonesAI/qa_verify_2M_v5 1.0 \
     --dataset_mixer_list_splits train \
-    --dataset_mixer_eval_list HayatoHongoEveryonesAI/qa_verify_2M_v5 0.1 \
-    --dataset_mixer_eval_list_splits train \
     --dataset_skip_cache \
     --max_prompt_token_length 1024 \
     --response_length 7168 \
@@ -445,28 +569,27 @@ python open_instruct/grpo_fast.py \
     --ground_truths_key ground_truth \
     --chat_template_name r1_simple_chat_postpend_think \
     --learning_rate 1e-6 \
-    --total_episodes 360000 \
+    --total_episodes 720 \
     --deepspeed_stage 2 \
     --num_epochs 1 \
     --num_learners_per_node 1 \
     --vllm_tensor_parallel_size 1 \
     --lr_scheduler_type constant \
     --vllm_num_engines 1 \
-    --vllm_gpu_memory_utilization 0.25 \
+    --vllm_gpu_memory_utilization 0.5 \
     --beta 0.00 \
     --load_ref_policy false \
     --seed 3 \
-    --local_eval_every 100 \
     --vllm_sync_backend gloo \
     --vllm_enable_prefix_caching \
     --save_traces \
     --vllm_enforce_eager \
     --gradient_checkpointing \
     --save_freq 100 \
+    --local_eval_every -1 \
     --single_gpu_mode \
     --checkpoint_state_dir output/grpo_fast_checkpoint_state \
     --checkpoint_state_freq 100 \
-    --push_to_hub \
     --hf_entity HayatoHongoEveryonesAI \
     --hf_repo_id open-instruct-grpo-fast \
     --system_prompt_override_file scripts/train/debug/cute_debug_system_prompt.txt \
@@ -482,66 +605,10 @@ python open_instruct/grpo_fast.py \
     --with_tracking \
     --wandb_entity hongo-hayato-6281k-university-of-tokyo \
     --wandb_project_name open-instruct-grpo-fast \
-    --verbose \
+    --push_to_hub false \
+    --verbose 
 
 echo "End time: $(date)"
 echo "Training completed!"
-
-# ========== チェックポイントをHuggingFace Hubにアップロード ==========
-if [ "$UPLOAD_CHECKPOINTS_TO_HUB" = "true" ] && [ -n "$HF_REPO_ID" ]; then
-    echo "========== チェックポイントをHuggingFace Hubにアップロード開始 =========="
-    
-    # OUTPUT_DIR配下で*_checkpointsパターンのディレクトリを検索
-    # grpo_fast.pyでは output_dir が output/run_name になるため
-    # チェックポイントディレクトリは output/{run_name}_checkpoints に保存される
-    CHECKPOINT_BASE_DIR=$(find "${OUTPUT_DIR}" -maxdepth 2 -type d -name "*_checkpoints" 2>/dev/null | head -1)
-    
-    if [ -z "$CHECKPOINT_BASE_DIR" ] || [ ! -d "$CHECKPOINT_BASE_DIR" ]; then
-        echo "Warning: Checkpoint directory not found in ${OUTPUT_DIR}"
-        echo "Searched for pattern: ${OUTPUT_DIR}/*_checkpoints"
-        echo "Skipping checkpoint upload."
-    else
-        echo "Found checkpoint directory: $CHECKPOINT_BASE_DIR"
-        # 保存されているすべてのチェックポイントを検索してアップロード
-        for checkpoint_dir in "${CHECKPOINT_BASE_DIR}"/step_*; do
-            if [ -d "$checkpoint_dir" ]; then
-                # step_500 -> 500 のようにステップ番号を抽出
-                step_number=$(basename "$checkpoint_dir" | sed 's/step_//')
-                
-                if [ -n "$step_number" ]; then
-                    # リビジョン名を生成（例: checkpoint_step_500）
-                    if [ -n "$HF_REPO_BASE_REVISION" ]; then
-                        revision_name="${HF_REPO_BASE_REVISION}_step_${step_number}"
-                    else
-                        revision_name="checkpoint_step_${step_number}"
-                    fi
-                    
-                    echo "Uploading checkpoint: $checkpoint_dir -> ${HF_REPO_ID}/${revision_name}"
-                    # HF_DEBUGが有効な場合は詳細ログを出力（既に学習開始前に設定済み）
-                    if [ "${HF_DEBUG:-false}" = "true" ]; then
-                        huggingface-cli upload \
-                            --repo-id "${HF_REPO_ID}" \
-                            --revision "${revision_name}" \
-                            "${checkpoint_dir}" \
-                            . -v || echo "Failed to upload $checkpoint_dir"
-                    else
-                        huggingface-cli upload \
-                            --repo-id "${HF_REPO_ID}" \
-                            --revision "${revision_name}" \
-                            "${checkpoint_dir}" \
-                            . || echo "Failed to upload $checkpoint_dir"
-                    fi
-                fi
-            fi
-        done
-        echo "========== チェックポイントアップロード完了 =========="
-    fi
-else
-    if [ "$UPLOAD_CHECKPOINTS_TO_HUB" != "true" ]; then
-        echo "Checkpoint upload to Hub is disabled (set UPLOAD_CHECKPOINTS_TO_HUB=true to enable)"
-    elif [ -z "$HF_REPO_ID" ]; then
-        echo "Checkpoint upload to Hub is disabled (set HF_REPO_ID to enable)"
-    fi
-fi
 
 echo "Test completed!"

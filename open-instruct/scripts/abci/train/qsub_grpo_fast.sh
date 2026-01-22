@@ -3,7 +3,7 @@
 #PBS -q rt_HF
 #PBS -N grpo_fast_test
 #PBS -l select=1
-#PBS -l walltime=40:00:00
+#PBS -l walltime=25:00:00
 #PBS -m n
 
 # Setup logs
@@ -247,6 +247,11 @@ export VLLM_USE_V1=1
 
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
+# We need to set NCCL_CUMEM_ENABLE=0 for performance reasons; see:
+# https://github.com/vllm-project/vllm/issues/5723#issuecomment-2554389656
+#export NCCL_CUMEM_ENABLE=0
+echo "[DEBUG] qsub_grpo_fast.sh: NCCL_CUMEM_ENABLE=${NCCL_CUMEM_ENABLE:-NOT SET}"
+
 # Fix Ray GPU device ID issue with single_gpu_mode
 export RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -411,15 +416,157 @@ echo "=========================================="
 
 # Rayを事前に起動
 echo "========== Rayクラスターの起動 =========="
+
+# 0. デバッグ用スクリプトのプロセスもクリーンアップ（ポート競合を防ぐため）
+echo "デバッグ用スクリプトのプロセスをクリーンアップ中..."
+# デバッグ用Rayクラスターを停止（ポート8889）
+ray stop --address="localhost:8889" --force 2>/dev/null || true
+# vLLMエンジンのプロセスも確認して停止
+pkill -9 -f "EngineCore" || true
+pkill -9 -f "vllm.*EngineCore" || true
+# PyTorch distributedのプロセスも確認
+pkill -9 -f "torch.distributed" || true
+# 使用されている可能性のあるポートを確認（例：41163など）
+for port in 41163 41164 41165 41166 41167 41168; do
+    if lsof -ti:${port} > /dev/null 2>&1; then
+        echo "ポート${port}を使用しているプロセスを停止..."
+        lsof -ti:${port} | xargs kill -9 || true
+    fi
+done
+echo "デバッグ用プロセスのクリーンアップ完了"
+
+# 1. Rayクラスターの完全なクリーンアップ
+echo "Rayクラスターの完全なクリーンアップを実行中..."
 ray stop --force || true
+# すべてのRayプロセスを確認して強制終了
+pkill -9 ray || true
+
+# Rayの一時ファイル保存先を確認してからクリーンアップ
+echo "========== Ray一時ファイル保存先の確認 =========="
+echo "TMPDIR=${TMPDIR:-/tmp}"
+python3 << 'EOF'
+import os
+import glob
+
+tmpdir = os.environ.get('TMPDIR', '/tmp')
+print(f"TMPDIR: {tmpdir}")
+print(f"Expected Ray session directory: {tmpdir}/ray/session_*")
+
+# 実際のディレクトリを確認
+ray_dirs = glob.glob(f"{tmpdir}/ray/session_*")
+if ray_dirs:
+    print(f"Found Ray session directories in {tmpdir}: {ray_dirs}")
+else:
+    print(f"No Ray session directories found in {tmpdir}/ray/")
+
+# /tmpも確認
+tmp_ray_dirs = glob.glob("/tmp/ray/session_*")
+if tmp_ray_dirs:
+    print(f"Found Ray session directories in /tmp: {tmp_ray_dirs}")
+else:
+    print("No Ray session directories found in /tmp/ray/")
+EOF
+echo "=========================================="
+
+# Rayの一時ファイルをクリーンアップ（TMPDIRを考慮）
+if [ -n "$TMPDIR" ] && [ "$TMPDIR" != "/tmp" ]; then
+    echo "TMPDIRが設定されています: $TMPDIR"
+    
+    # 削除前のセッションディレクトリ数を確認
+    if [ -d "${TMPDIR}/ray" ]; then
+        before_count=$(find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" 2>/dev/null | wc -l)
+        echo "削除前のRayセッションディレクトリ数: ${before_count}"
+    else
+        before_count=0
+        echo "削除前: Rayディレクトリが存在しません"
+    fi
+    
+    echo "クリーンアップ実行: rm -rf ${TMPDIR}/ray*"
+    # シンボリックリンクも含めて削除（ワイルドカードは引用符の外に）
+    rm -rf "${TMPDIR}"/ray* 2>/dev/null || true
+    # 少し待ってから確認
+    sleep 2
+    
+    # クリーンアップ後の確認
+    if [ -d "${TMPDIR}/ray" ]; then
+        remaining_dirs=$(find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" 2>/dev/null | wc -l)
+        if [ "$remaining_dirs" -gt 0 ]; then
+            echo "警告: ${remaining_dirs}個のRayセッションディレクトリが残っています（削除前: ${before_count}個）"
+            echo "強制削除を試みます..."
+            # 各ディレクトリを個別に削除
+            find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" -exec rm -rf {} + 2>/dev/null || true
+            # シンボリックリンクも削除
+            find "${TMPDIR}/ray" -maxdepth 1 -type l -name "session_*" -delete 2>/dev/null || true
+            # 再度確認
+            remaining_dirs_after=$(find "${TMPDIR}/ray" -maxdepth 1 -type d -name "session_*" 2>/dev/null | wc -l)
+            if [ "$remaining_dirs_after" -gt 0 ]; then
+                echo "警告: まだ${remaining_dirs_after}個のRayセッションディレクトリが残っています（使用中の可能性があります）"
+            else
+                echo "✅ 強制削除によりクリーンアップが完了しました（${before_count}個のディレクトリを削除）"
+            fi
+        else
+            echo "✅ ${TMPDIR}/ray*のクリーンアップが完了しました（${before_count}個のディレクトリを削除）"
+        fi
+    else
+        if [ "$before_count" -gt 0 ]; then
+            echo "✅ ${TMPDIR}/ray*のクリーンアップが完了しました（${before_count}個のディレクトリを削除）"
+        else
+            echo "✅ ${TMPDIR}/ray*のクリーンアップが完了しました（削除対象はありませんでした）"
+        fi
+    fi
+fi
+# デフォルトの/tmpもクリーンアップ（念のため）
+echo "クリーンアップ実行: rm -rf /tmp/ray*"
+rm -rf /tmp/ray* || true
+
+# 十分な待機時間を確保（前回の実行のRayアクターが完全に停止するまで）
+echo "Rayクラスターのクリーンアップを待機中..."
+sleep 60
+
 RAY_NODE_PORT=8888
 ray start --head --port=${RAY_NODE_PORT} --dashboard-host=0.0.0.0 --num-gpus=8
 
 # RAY_ADDRESSを設定（既存のクラスターに接続するため）
 export RAY_ADDRESS="localhost:${RAY_NODE_PORT}"
 
-# Rayクラスターの状態確認
+# 2. 実行前のRayアクター確認
+echo "Rayクラスターの状態を確認中..."
+ray status --address="${RAY_ADDRESS}" || echo "Ray cluster not running"
+# 再度状態確認
 ray status --address="${RAY_ADDRESS}"
+
+# Ray起動後に実際のセッションディレクトリを確認
+echo "========== Ray起動後のセッションディレクトリ確認 =========="
+python3 << 'EOF'
+import ray
+import os
+import glob
+
+try:
+    if ray.is_initialized():
+        # Rayが初期化されている場合、実際のセッションディレクトリを取得
+        try:
+            # Ray 2.50.0でのセッションディレクトリの取得方法
+            import ray._private.utils as ray_utils
+            session_dir = ray_utils.get_ray_temp_dir()
+            print(f"Ray session directory (via API): {session_dir}")
+        except Exception as e:
+            print(f"Could not get Ray session directory via API: {e}")
+            # フォールバック: TMPDIRから推測
+            tmpdir = os.environ.get('TMPDIR', '/tmp')
+            print(f"TMPDIR: {tmpdir}")
+            print(f"Expected Ray session directory: {tmpdir}/ray/session_*")
+            
+            # 実際のディレクトリを確認
+            ray_dirs = glob.glob(f"{tmpdir}/ray/session_*")
+            if ray_dirs:
+                print(f"Found Ray session directories: {ray_dirs}")
+    else:
+        print("Ray is not initialized yet")
+except Exception as e:
+    print(f"Error checking Ray session directory: {e}")
+EOF
+echo "=========================================="
 
 echo "========== Rayクラスター起動完了 =========="
 
@@ -427,8 +574,6 @@ echo "========== Rayクラスター起動完了 =========="
 python open_instruct/grpo_fast.py \
     --dataset_mixer_list HayatoHongoEveryonesAI/qa_verify_2M_v5 1.0 \
     --dataset_mixer_list_splits train \
-    --dataset_mixer_eval_list HayatoHongoEveryonesAI/qa_verify_2M_v5 0.1 \
-    --dataset_mixer_eval_list_splits train \
     --dataset_skip_cache \
     --max_prompt_token_length 1024 \
     --response_length 7168 \
@@ -439,7 +584,7 @@ python open_instruct/grpo_fast.py \
     --model_name_or_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 \
     --stop_strings "</answer>" \
     --apply_verifiable_reward true \
-    --remap_verifier qa_10k=math-verify \
+    --remap_verifier qa_10k=math \
     --temperature 1.0 \
     --ground_truths_key ground_truth \
     --chat_template_name r1_simple_chat_postpend_think \
@@ -455,13 +600,13 @@ python open_instruct/grpo_fast.py \
     --beta 0.00 \
     --load_ref_policy false \
     --seed 3 \
-    --local_eval_every 100 \
     --vllm_sync_backend nccl \
     --vllm_enable_prefix_caching \
     --save_traces \
     --vllm_enforce_eager \
     --gradient_checkpointing \
     --save_freq 100 \
+    --local_eval_every -1 \
     --checkpoint_state_dir output/grpo_fast_checkpoint_state \
     --checkpoint_state_freq 100 \
     --push_to_hub \

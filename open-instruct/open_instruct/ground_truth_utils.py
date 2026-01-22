@@ -24,6 +24,13 @@ import numpy as np
 import requests
 from litellm import acompletion
 
+try:
+    from sympy import latex, sympify
+except ImportError:
+    # Fallback if sympy is not available
+    latex = None
+    sympify = None
+
 from open_instruct import logger_utils
 from open_instruct.if_functions import IF_FUNCTIONS_MAP
 from open_instruct.IFEvalG import instructions_registry
@@ -49,6 +56,136 @@ logging.getLogger("cost_calculator").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 from math_verify import parse, verify
+
+
+# ============================================================================
+# Utility functions for code execution and result extraction
+# ============================================================================
+
+
+def extract_blocks(text: str, begin: str, end: str) -> list[str]:
+    """Extract all blocks between begin and end markers.
+    
+    Args:
+        text: Text to search in
+        begin: Start marker (e.g., "<python>")
+        end: End marker (e.g., "</python>")
+    
+    Returns:
+        List of extracted block contents (stripped)
+    """
+    if not text:
+        return []
+    pattern = re.compile(re.escape(begin) + r"(.*?)" + re.escape(end), re.DOTALL)
+    return [match.strip() for match in pattern.findall(text)]
+
+
+def last_non_empty_line(text: str) -> str:
+    """Get the last non-empty line from text.
+    
+    Args:
+        text: Text to extract from
+    
+    Returns:
+        Last non-empty line (stripped), or empty string if none found
+    """
+    for line in reversed(text.splitlines()):
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def to_latex_scalar(text: str) -> str:
+    """Convert raw string to LaTeX scalar for evaluation.
+    
+    Matches the normalization logic used in the inference system.
+    Handles lists, dicts, and converts expressions to LaTeX format.
+    Also handles already-LaTeX-formatted strings (e.g., "$\\frac{1}{2}$").
+    
+    Args:
+        text: Raw string to normalize (may already be LaTeX format)
+    
+    Returns:
+        Normalized LaTeX scalar string (e.g., "$\\frac{1}{2}$") or original text if conversion fails
+    """
+    if latex is None or sympify is None:
+        # Fallback if sympy is not available
+        return text.strip()
+    
+    stripped = text.strip()
+    if not stripped or stripped.lower().startswith("error"):
+        return ""
+
+    # If already in LaTeX format ($...$), extract the content and try to parse
+    if stripped.startswith("$") and stripped.endswith("$"):
+        inner = stripped[1:-1].strip()
+        # Try to parse the LaTeX directly using sympy's latex parser
+        try:
+            from sympy.parsing.latex import parse_latex
+            expr = parse_latex(inner)
+            return f"${latex(expr)}$"
+        except (ImportError, Exception):
+            # If LaTeX parsing fails or not available, try sympify on the inner content
+            try:
+                expr = sympify(inner)
+                # Handle lists/tuples: take first element
+                if isinstance(expr, (list, tuple)):
+                    expr = expr[0] if expr else None
+                # Handle dict-like objects: take first value
+                if hasattr(expr, "values"):
+                    values = list(expr.values())
+                    expr = values[0] if values else None
+                if expr is None:
+                    return ""
+                return f"${latex(expr)}$"
+            except Exception:
+                # If both fail, return the original LaTeX string (already normalized)
+                return stripped
+
+    # Check if the string contains LaTeX commands (e.g., \sqrt, \frac) but is not wrapped in $
+    # This handles ground truth values that are already in LaTeX format without $ delimiters
+    if "\\" in stripped and any(cmd in stripped for cmd in ["\\sqrt", "\\frac", "\\left", "\\right", "\\cdot", "\\times", "\\pm", "\\mp"]):
+        try:
+            from sympy.parsing.latex import parse_latex
+            expr = parse_latex(stripped)
+            return f"${latex(expr)}$"
+        except (ImportError, Exception):
+            # If LaTeX parsing fails, fall through to sympify attempt
+            pass
+
+    candidate = stripped
+    # Extract first element from list: [1, 2, 3] -> 1
+    if stripped.startswith("[") and stripped.endswith("]"):
+        inner = stripped[1:-1].strip()
+        candidate = inner.split(",", maxsplit=1)[0].strip() if inner else ""
+        if not candidate:
+            return ""
+    # Extract first value from dict: {"a": 1, "b": 2} -> 1
+    elif stripped.startswith("{") and stripped.endswith("}"):
+        inner = stripped[1:-1]
+        parts = [p for p in inner.split(",") if ":" in p]
+        candidate = parts[0].split(":", maxsplit=1)[1].strip() if parts else ""
+        if not candidate:
+            return ""
+
+    try:
+        expr = sympify(candidate)
+    except Exception:
+        return stripped
+
+    # Handle lists/tuples: take first element
+    if isinstance(expr, (list, tuple)):
+        expr = expr[0] if expr else None
+    # Handle dict-like objects: take first value
+    if hasattr(expr, "values"):
+        values = list(expr.values())
+        expr = values[0] if values else None
+    if expr is None:
+        return ""
+    
+    return f"${latex(expr)}$"
+
 
 @dataclass
 class VerifierConfig:
@@ -91,6 +228,21 @@ class CodeVerifierConfig(VerifierConfig):
     code_max_execution_time: float
     code_pass_rate_reward_threshold: float
     code_apply_perf_penalty: bool
+
+
+@dataclass
+class CodeOutputVerifierConfig(VerifierConfig):
+    code_output_api_url: str
+    code_max_execution_time: float
+
+    @classmethod
+    def from_args(cls, args) -> "CodeOutputVerifierConfig":
+        if args.code_output_api_url is None:
+            raise ValueError("code_output_api_url must be set to use CodeOutputVerifier")
+        return cls(
+            code_output_api_url=args.code_output_api_url,
+            code_max_execution_time=args.code_max_execution_time,
+        )
 
 
 @dataclass
@@ -790,16 +942,20 @@ class LMJudgeVerifier(VerifierFunction):
             label (str): An optional reference for the judge. Can be a reference answer or a rubric.
         Returns:
             float: The calculated reward (parsed_rating)
+        
+        Note: This method should not be called from within an async context.
+        Use async_call() instead when in an async context.
         """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                raise RuntimeError(
-                    "Cannot call synchronous __call__ method from within an async context. Use async_call instead."
-                )
-            else:
-                return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
+            # get_running_loop() raises RuntimeError if no loop is running
+            # If it succeeds, we're in an async context - raise error
+            asyncio.get_running_loop()
+            raise RuntimeError(
+                "Cannot call synchronous __call__ method from within an async context. "
+                "Use async_call() instead."
+            )
         except RuntimeError:
+            # No event loop is running - safe to use asyncio.run()
             return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
 
     @classmethod
@@ -942,16 +1098,20 @@ class CodeVerifier(VerifierFunction):
     ) -> VerificationResult:
         """
         Synchronously verify code execution against test cases.
+        
+        Note: This method should not be called from within an async context.
+        Use async_call() instead when in an async context.
         """
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                raise RuntimeError(
-                    "Cannot call synchronous __call__ method from within an async context. Use async_call instead."
-                )
-            else:
-                return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
+            # get_running_loop() raises RuntimeError if no loop is running
+            # If it succeeds, we're in an async context - raise error
+            asyncio.get_running_loop()
+            raise RuntimeError(
+                "Cannot call synchronous __call__ method from within an async context. "
+                "Use async_call() instead."
+            )
         except RuntimeError:
+            # No event loop is running - safe to use asyncio.run()
             return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
 
     @classmethod
@@ -965,6 +1125,248 @@ class CodeVerifier(VerifierFunction):
         return CodeVerifierConfig
 
 
+class CodeOutputVerifier(VerifierFunction):
+    """
+    Verifier that executes Python code and compares output to ground truth.
+    
+    Matches the inference system's logic:
+    - Extracts code from <python> tags (or assistantfinal<PYTHON> for backward compatibility)
+    - Extracts answer from stdout (priority) or <result> tags (fallback)
+    - Normalizes both answer and ground truth using to_latex_scalar()
+    """
+
+    PYTHON_BEGIN = "<python>"
+    PYTHON_END = "</python>"
+    RESULT_BEGIN = "<result>"
+    RESULT_END = "</result>"
+
+    def __init__(self, verifier_config: CodeOutputVerifierConfig) -> None:
+        super().__init__("code-output", verifier_config=verifier_config, weight=1.0)
+        self.api_url = verifier_config.code_output_api_url
+
+    def extract_python_code(self, model_output: str) -> str | None:
+        """Extract Python code from model output.
+        
+        Priority order (matches inference system):
+        1. <python>...</python> tags (inference system format)
+        2. assistantfinal<PYTHON>...</PYTHON> tags (backward compatibility)
+        3. assistantfinal<python>...</python> tags (backward compatibility)
+        4. ```python ...``` code blocks (fallback)
+        
+        Returns:
+            Extracted Python code string, or None if no code found.
+            Returns None instead of entire output to prevent natural language
+            text from being executed in sandbox.
+        """
+        # Priority 1: <python>...</python> tags (inference system format)
+        python_blocks = extract_blocks(model_output, self.PYTHON_BEGIN, self.PYTHON_END)
+        if python_blocks:
+            extracted = python_blocks[0].strip()
+            logger.debug(f"CodeOutputVerifier: Extracted code using <python> pattern (length: {len(extracted)})")
+            return extracted
+        
+        # Priority 2: assistantfinal<PYTHON>...</PYTHON> (backward compatibility)
+        assistantfinal_upper_pattern = r"assistantfinal\s*<PYTHON>(.*?)</PYTHON>"
+        assistantfinal_upper_matches = re.findall(assistantfinal_upper_pattern, model_output, re.DOTALL)
+        if assistantfinal_upper_matches:
+            extracted = assistantfinal_upper_matches[-1].strip()
+            logger.debug(f"CodeOutputVerifier: Extracted code using assistantfinal<PYTHON> pattern (length: {len(extracted)})")
+            return extracted
+        
+        # Priority 3: assistantfinal<python>...</python> (backward compatibility)
+        assistantfinal_pattern = r"assistantfinal\s*<python>(.*?)</python>"
+        assistantfinal_matches = re.findall(assistantfinal_pattern, model_output, re.DOTALL | re.IGNORECASE)
+        if assistantfinal_matches:
+            extracted = assistantfinal_matches[-1].strip()
+            logger.debug(f"CodeOutputVerifier: Extracted code using assistantfinal<python> pattern (length: {len(extracted)})")
+            return extracted
+        
+        # Priority 4: Fallback to ```python``` code blocks
+        code_block_pattern = r"```(?:python)?(.*?)```"
+        code_matches = re.findall(code_block_pattern, model_output, re.DOTALL)
+        if code_matches:
+            extracted = code_matches[-1].strip()
+            logger.debug(f"CodeOutputVerifier: Extracted code using ```python``` pattern (length: {len(extracted)})")
+            return extracted
+        
+        # No code found - return None instead of entire output
+        # This prevents natural language text from being executed in sandbox
+        logger.warning(
+            f"CodeOutputVerifier: No code blocks found in model output (length: {len(model_output)}). "
+            f"Returning None (score will be 0.0). Output preview (safe): {model_output[:100]}..."
+        )
+        return None
+
+    def extract_result(self, model_output: str) -> str | None:
+        """Extract result from <result> tags.
+        
+        Args:
+            model_output: Model output text
+        
+        Returns:
+            Extracted result string, or None if no result tag found
+        """
+        result_blocks = extract_blocks(model_output, self.RESULT_BEGIN, self.RESULT_END)
+        if result_blocks:
+            return result_blocks[0].strip()
+        return None
+
+    async def async_call(
+        self, tokenized_prediction: list[int], prediction: str, label: str, query: str | None = None
+    ) -> VerificationResult:
+        """
+        Asynchronously verify code execution by comparing output to ground truth.
+        
+        Matches inference system logic:
+        1. Extract code from <python> tags (or backward-compatible formats)
+        2. Execute code and capture stdout
+        3. Extract answer: stdout (priority) or <result> tag (fallback)
+        4. Normalize both answer and ground truth using to_latex_scalar()
+        5. Compare normalized values
+
+        Args:
+            tokenized_prediction: Unused tokenized representation
+            prediction: The model output containing Python code and optionally <result> tags
+            label: Ground truth string to compare against
+            query: Unused original query
+
+        Returns:
+            VerificationResult with score 1.0 if normalized answer matches normalized ground_truth, else 0.0
+        """
+        # Extract Python code and result tags
+        python_code = self.extract_python_code(prediction)
+        result_blocks = self.extract_result(prediction)
+        
+        # Execute code if available
+        stdout = ""
+        if python_code:
+            # Check if extracted code is empty (invalid)
+            if not python_code.strip():
+                logger.debug("CodeOutputVerifier: Extracted code is empty, returning score 0.0")
+                return VerificationResult(score=0.0)
+            
+            # Debug: Log if extracted code is suspiciously long (might be entire output)
+            if len(python_code) > 500:
+                logger.warning(
+                    f"CodeOutputVerifier: Extracted code is very long ({len(python_code)} chars). "
+                    f"First 200 chars: {python_code[:200]}"
+                )
+
+            payload = {
+                "code": python_code,
+                "timeout": self.verifier_config.code_max_execution_time,
+            }
+
+            try:
+                # Use connection pooling session from CodeVerifier
+                session = CodeVerifier._get_session()
+                http_timeout = max(30, min(300, self.verifier_config.code_max_execution_time * 10))
+
+                # Make request in thread pool to keep it async
+                def make_request():
+                    response = session.post(
+                        self.api_url,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        timeout=http_timeout,
+                    )
+                    response.raise_for_status()
+                    return response.json()
+
+                result = await asyncio.to_thread(make_request)
+
+                # Error check
+                if not result.get("success") or result.get("error"):
+                    error_msg = result.get("error", "Unknown error")
+                    logger.warning(
+                        f"CodeOutputVerifier: Code execution failed. Error: {error_msg}, "
+                        f"Code length: {len(python_code)}, First 100 chars: {python_code[:100]}"
+                    )
+                    # Continue to check result tag as fallback
+                else:
+                    stdout = result.get("output", "").strip()
+            except Exception as e:
+                logger.warning(
+                    f"CodeOutputVerifier: Exception during code execution: {e}, "
+                    f"Code length: {len(python_code)}, First 100 chars: {python_code[:100]}"
+                )
+                # Continue to check result tag as fallback
+        
+        # Extract answer using inference system logic (priority: stdout -> result tag)
+        answer = None
+        used_stdout = False
+        used_result_fallback = False
+        
+        # Priority 1: stdout's last non-empty line
+        if stdout:
+            last_line = last_non_empty_line(stdout)
+            if last_line:
+                answer = last_line
+                used_stdout = True
+        
+        # Priority 2: <result> tag
+        if not answer and result_blocks:
+            answer = result_blocks
+            used_result_fallback = True
+        
+        # No answer found
+        if not answer:
+            logger.debug("CodeOutputVerifier: No answer found (no stdout and no result tag)")
+            return VerificationResult(score=0.0)
+        
+        # Normalize both answer and ground truth using inference system logic
+        normalized_answer = to_latex_scalar(answer)
+        normalized_ground_truth = to_latex_scalar(str(label))
+        
+        score = 1.0 if normalized_answer == normalized_ground_truth else 0.0
+        
+        # Debug: Log mismatch details (only for mismatches)
+        if score == 0.0:
+            logger.warning(
+                f"CodeOutputVerifier: Output mismatch. "
+                f"Answer (raw): '{answer}', "
+                f"Answer (normalized): '{normalized_answer}', "
+                f"Ground truth (raw): '{str(label)}', "
+                f"Ground truth (normalized): '{normalized_ground_truth}', "
+                f"Used stdout: {used_stdout}, Used result tag: {used_result_fallback}"
+            )
+        else:
+            logger.debug(f"CodeOutputVerifier: Output match! Answer: '{normalized_answer}'")
+
+        return VerificationResult(score=score)
+
+    def __call__(
+        self, tokenized_prediction: list[int], prediction: str, label: Any, query: str | None = None
+    ) -> VerificationResult:
+        """
+        Synchronously verify code execution by comparing stdout to ground truth.
+        
+        Note: This method should not be called from within an async context.
+        Use async_call() instead when in an async context.
+        """
+        try:
+            # get_running_loop() raises RuntimeError if no loop is running
+            # If it succeeds, we're in an async context - raise error
+            asyncio.get_running_loop()
+            raise RuntimeError(
+                "Cannot call synchronous __call__ method from within an async context. "
+                "Use async_call() instead."
+            )
+        except RuntimeError:
+            # No event loop is running - safe to use asyncio.run()
+            return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
+
+    @classmethod
+    def get_config_class(cls) -> type:
+        """
+        Return the configuration class for this verifier.
+
+        Returns:
+            type: The CodeOutputVerifierConfig class
+        """
+        return CodeOutputVerifierConfig
+
+
 def build_all_verifiers(args) -> dict[str, VerifierFunction]:
     """
     Build all verifiers with the given judge config.
@@ -974,9 +1376,22 @@ def build_all_verifiers(args) -> dict[str, VerifierFunction]:
         if subclass == LMJudgeVerifier:
             continue
 
-        verifier_config = subclass.get_config_class().from_args(args)
-        instance = subclass(verifier_config)
-        verifiers[instance.name.lower()] = instance
+        # CodeOutputVerifierは条件付きで登録
+        if subclass == CodeOutputVerifier:
+            if args.code_output_api_url is None:
+                continue  # URLが設定されていなければ登録しない
+
+        try:
+            verifier_config = subclass.get_config_class().from_args(args)
+            instance = subclass(verifier_config)
+            verifiers[instance.name.lower()] = instance
+        except (ValueError, AttributeError) as e:
+            # CodeOutputVerifierの場合は設定が無い場合のエラーをスキップ（念のため）
+            if subclass == CodeOutputVerifier:
+                logger.debug(f"Skipping CodeOutputVerifier: {e}")
+                continue
+            # 他のVerifierのエラーはそのまま伝播
+            raise
 
         # add the code_stdio verifier
         if subclass == CodeVerifier:
@@ -1006,9 +1421,48 @@ def build_all_verifiers(args) -> dict[str, VerifierFunction]:
 def soft_format_reward_func(responses: list[str], reward_scale: float = 1.0) -> list[float]:
     """
     Check if the completion has a specific format defined by a pattern.
+    
+    Matches inference system format with priority order:
+    1. <python>...</python> + <result>...</result> (both tags present, inference system format)
+    2. <python>...</python> (code execution possible)
+    3. assistantfinal<PYTHON>...</PYTHON> (backward compatibility)
+    4. assistantfinal<python>...</python> (backward compatibility)
+    5. <result>...</result> (fallback, lower reward)
+    6. </think>\s*<answer>.*?</answer> (R1 style format, fallback)
 
     Returns a list of rewards scaled by reward_scale.
     """
+    # Priority 1: <python>...</python> + <result>...</result> (inference system format)
+    python_result_pattern = r".*?<python>.*?</python>.*?<result>.*?</result>"
+    python_result_matches = [re.match(python_result_pattern, r, re.DOTALL | re.IGNORECASE) for r in responses]
+    if any(python_result_matches):
+        return [reward_scale if match else 0.0 for match in python_result_matches]
+    
+    # Priority 2: <python>...</python> (code execution possible)
+    python_pattern = r".*?<python>.*?</python>"
+    python_matches = [re.match(python_pattern, r, re.DOTALL | re.IGNORECASE) for r in responses]
+    if any(python_matches):
+        return [reward_scale if match else 0.0 for match in python_matches]
+    
+    # Priority 3: assistantfinal<PYTHON>...</PYTHON> (backward compatibility)
+    python_upper_pattern = r".*?assistantfinal\s*<PYTHON>.*?</PYTHON>"
+    python_upper_matches = [re.match(python_upper_pattern, r, re.DOTALL) for r in responses]
+    if any(python_upper_matches):
+        return [reward_scale if match else 0.0 for match in python_upper_matches]
+    
+    # Priority 4: assistantfinal<python>...</python> (backward compatibility)
+    python_lower_pattern = r".*?assistantfinal\s*<python>.*?</python>"
+    python_lower_matches = [re.match(python_lower_pattern, r, re.DOTALL | re.IGNORECASE) for r in responses]
+    if any(python_lower_matches):
+        return [reward_scale if match else 0.0 for match in python_lower_matches]
+    
+    # Priority 5: <result>...</result> (fallback, lower reward)
+    result_pattern = r".*?<result>.*?</result>"
+    result_matches = [re.match(result_pattern, r, re.DOTALL) for r in responses]
+    if any(result_matches):
+        return [reward_scale * 0.5 if match else 0.0 for match in result_matches]
+    
+    # Priority 6: Fallback to R1 style format
     pattern = r".*?</think>\s*<answer>.*?</answer>"
     matches = [re.match(pattern, r, re.DOTALL) for r in responses]
     return [reward_scale if match else 0.0 for match in matches]

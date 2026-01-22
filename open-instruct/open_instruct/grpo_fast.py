@@ -321,6 +321,11 @@ class Args:
     code_apply_perf_penalty: bool = False
     """whether to apply a performance penalty to the code verifier"""
 
+    # -- code output verifier (新規追加)
+    code_output_api_url: str | None = os.environ.get("CODE_OUTPUT_API_URL")
+    """the api url for code execution output (tool_server /execute endpoint).
+    If None, CodeOutputVerifier is not used. Defaults to CODE_OUTPUT_API_URL env var."""
+
     # -- max length verifier
     max_length_verifier_max_length: int = 32768
     """the max length to use for the max length verifier"""
@@ -2061,6 +2066,14 @@ def setup_runtime_variables(args: Args) -> Args:
     if args.with_tracking and args.wandb_entity is None:
         args.wandb_entity = maybe_use_ai2_wandb_entity()
     args.tool_use = args.tools is not None and len(args.tools) > 0
+    
+    # code_output_api_urlの設定（既存の動作を変更しない）
+    if args.code_output_api_url is None:
+        # 環境変数から取得を試みる（設定されていなければNoneのまま）
+        env_url = os.environ.get("CODE_OUTPUT_API_URL")
+        if env_url:
+            args.code_output_api_url = env_url
+    
     return args
 
 
@@ -2784,12 +2797,29 @@ def maybe_evaluate(
 ):
     """Optionally evaluate the model."""
     if eval_dataset is None:
+        logger.debug(f"[maybe_evaluate] Step {training_step}: eval_dataset is None, skipping")
         return
-
+    
+    # local_eval_every=-1の場合は評価をスキップ（追加）
+    if args.local_eval_every < 0:
+        logger.debug(f"[maybe_evaluate] Step {training_step}: local_eval_every={args.local_eval_every} (< 0), skipping evaluation")
+        return
+    
+    # 評価ステップかどうかをチェック（追加）
+    if training_step % args.local_eval_every != 0:
+        logger.debug(f"[maybe_evaluate] Step {training_step}: not an evaluation step (local_eval_every={args.local_eval_every}), skipping")
+        return
+    
+    if not (args.eval_on_step_0 or training_step > 1):
+        logger.debug(f"[maybe_evaluate] Step {training_step}: eval_on_step_0={args.eval_on_step_0}, training_step={training_step}, skipping")
+        return
+    
+    logger.info(f"[maybe_evaluate] Step {training_step}: Starting evaluation with {len(eval_dataset)} prompts")
     try:
         # timeout 0.01 if this is not the last training step
         # otherwise, wait to get the last evaluation generations (long timeout just in case)
         timeout = 0.01 if training_step < args.num_training_steps else 100
+        logger.debug(f"[maybe_evaluate] Step {training_step}: timeout={timeout}, num_training_steps={args.num_training_steps}")
 
         # Accumulate evaluation results from all vLLM engines
         eval_result, eval_batch, eval_reward_metrics, _ = accumulate_inference_batches(
@@ -2845,7 +2875,10 @@ def maybe_evaluate(
             print_rich_table(df.iloc[:1])
         del table
     except Empty:
-        logger.warning("[Main Thread] 🙈 Evaluation responses not received")
+        logger.warning(f"[maybe_evaluate] Step {training_step}: Evaluation responses not received (timeout={timeout})")
+    except Exception as e:
+        logger.error(f"[maybe_evaluate] Step {training_step}: Exception during evaluation: {type(e).__name__}: {e}", exc_info=True)
+        raise
 
 
 def save_final_model(
@@ -3012,12 +3045,98 @@ def run_training(
     )
 
     def health_check_fn():
-        [f.result() for f in [packing_future, weight_sync_thread_future] if f.done()]
-        ray_get_with_progress(
-            [engine.check_background_threads.remote() for engine in vllm_engines],
-            desc="Checking vLLM engine health",
-            enable=False,
-        )
+        logger.debug(f"[Health Check] Checking background threads...")
+        for f_name, f in [("packing_future", packing_future), ("weight_sync_thread_future", weight_sync_thread_future)]:
+            if f.done():
+                try:
+                    result = f.result()  # 例外が発生した場合はここで再発生
+                    logger.debug(f"[Health Check] ✅ {f_name} completed successfully")
+                except Exception as e:
+                    logger.error(
+                        f"[Health Check] ❌ {f_name} raised an exception: {type(e).__name__}: {e}",
+                        exc_info=True
+                    )
+                    raise  # トレーニングを停止させる（既存の挙動を維持）
+        
+        # Weight Sync状態を確認（3値判定）
+        sync_state = None  # None = UNKNOWN
+        try:
+            is_weight_syncing = ray.get(actor_manager.should_stop.remote(), timeout=1.0)
+            sync_state = "SYNCING" if is_weight_syncing else "NOT_SYNCING"
+            logger.debug(f"[Health Check] Weight sync state: {sync_state}")
+        except Exception as e:
+            sync_state = "UNKNOWN"
+            logger.warning(
+                f"[Health Check] ⚠️ Failed to check weight sync state: {type(e).__name__}: {e}, "
+                f"treating as UNKNOWN (will perform degraded check)"
+            )
+        
+        # vLLM engine health check（状態に応じて動作を変える）
+        try:
+            if sync_state == "SYNCING":
+                # Weight Sync中: スキップ（OK扱い）
+                logger.debug("[Health Check] ⏭️ Skipping vLLM engine health check during weight sync")
+            elif sync_state == "UNKNOWN":
+                # 判定不能: 短時間チェック、タイムアウトしても許容
+                logger.debug("[Health Check] ⚠️ Weight sync state unknown, performing degraded health check")
+
+                degraded_timeout = 2.0 + 1.0 * len(vllm_engines)
+
+                refs = [engine.check_background_threads.remote() for engine in vllm_engines]
+                results, times = ray_get_with_progress(
+                    refs,
+                    desc="Checking vLLM engine health (degraded mode)",
+                    enable=False,
+                    timeout=degraded_timeout,
+                    return_partial_on_timeout=True,
+                )
+                
+                # 状態の分類
+                done = [i for i, t in enumerate(times) if t is not None]  # 完了（成功+失敗）
+                errs = [i for i in done if isinstance(results[i], Exception)]  # 完了したが例外
+                ok = [i for i in done if (results[i] is not None and not isinstance(results[i], Exception))]  # 完了して成功
+                pending = [i for i, t in enumerate(times) if t is None]  # 未完了
+                
+                # 成功したものの統計
+                if ok:
+                    completed_times = [times[i] for i in ok if times[i] is not None]
+                    if completed_times:
+                        max_time = max(completed_times)
+                        min_time = min(completed_times)
+                        avg_time = sum(completed_times) / len(completed_times)
+                        logger.debug(
+                            f"[Health Check] ✅ degraded check observed "
+                            f"(min={min_time:.2f}s, avg={avg_time:.2f}s, max={max_time:.2f}s, "
+                            f"ok={len(ok)}/{len(vllm_engines)}, done={len(done)}, errors={len(errs)}, pending={len(pending)})"
+                        )
+                
+                # 警告（エラーやペンディングがあれば）
+                if errs or pending:
+                    logger.warning(
+                        f"[Health Check] ⚠️ degraded: ok={len(ok)}/{len(refs)} "
+                        f"done={len(done)} errors={len(errs)} pending={len(pending)} "
+                        f"timeout={degraded_timeout:.1f}s"
+                    )
+            else:  # NOT_SYNCING
+                # 通常時: 厳格にチェック
+                ray_get_with_progress(
+                    [engine.check_background_threads.remote() for engine in vllm_engines],
+                    desc="Checking vLLM engine health",
+                    enable=False,
+                    timeout=None,  # デフォルトタイムアウト
+                )
+                logger.debug(f"[Health Check] ✅ vLLM engines health check passed")
+        except Exception as e:
+            # UNKNOWN状態でのエラーは既に警告レベルで処理済み
+            # SYNCING状態ではここには到達しない
+            # NOT_SYNCING状態でのみ致命的エラーとして扱う
+            if sync_state == "NOT_SYNCING":
+                logger.error(
+                    f"[Health Check] ❌ vLLM engine health check failed: {type(e).__name__}: {e}",
+                    exc_info=True
+                )
+                raise
+            # それ以外の場合は既に警告として処理済みなので、ここでは何もしない
 
     # Send initial data to ensure we have a N-step offset.
     for _ in range(args.async_steps * args.num_unique_prompts_rollout):
@@ -3049,12 +3168,22 @@ def run_training(
         wandb_url=wandb_url,
     )
     for training_step in range(resume_training_step, args.num_training_steps + 1):
+        logger.debug(f"[Main Thread] ========== Starting training step {training_step}/{args.num_training_steps} ==========")
         start_time = time.perf_counter()
 
         # Check if any of the threads have raised an exception.
         health_check_start = time.perf_counter()
-        health_check_fn()
+        try:
+            health_check_fn()
+        except Exception as e:
+            logger.error(
+                f"[Main Thread] ❌ Health check failed at step {training_step}: {type(e).__name__}: {e}",
+                exc_info=True
+            )
+            raise  # 既存の挙動を維持
         health_check_time = time.perf_counter() - health_check_start
+
+        logger.debug(f"[Main Thread] Step {training_step}: Health check passed ({health_check_time:.3f}s)")
 
         (
             collated_data,
@@ -3067,13 +3196,18 @@ def run_training(
         ) = load_data_from_packing_thread(packed_sequences_Q, num_total_tokens, stop_event, health_check_fn)
 
         if (
-            training_step % args.local_eval_every == 0
+            args.local_eval_every > 0
+            and training_step % args.local_eval_every == 0
             and eval_data_loader is not None
             and (args.eval_on_step_0 or training_step > 1)
         ):
+            logger.debug(f"[Main Thread] Step {training_step}: Adding evaluation prompts to queue (local_eval_every={args.local_eval_every})")
             for eval_example in iter(eval_data_loader):
                 add_prompt_to_generator(eval_example, prompt_Q, generation_configs["eval"], is_eval=True)
+        else:
+            logger.debug(f"[Main Thread] Step {training_step}: Skipping evaluation prompt queue (local_eval_every={args.local_eval_every}, eval_data_loader={'exists' if eval_data_loader is not None else 'None'})")
         if collated_data is None:
+            logger.warning(f"[Main Thread] Step {training_step}: collated_data is None, skipping training step")
             continue
 
         episode += args.num_unique_prompts_rollout * args.num_samples_per_prompt_rollout
@@ -3138,6 +3272,7 @@ def run_training(
         logger.debug(f"[Main Thread] Triggered weight sync for step {training_step}")
         weight_sync_trigger_event.set()
 
+        logger.debug(f"[Main Thread] Step {training_step}: Calling maybe_evaluate()")
         maybe_evaluate(
             args,
             training_step,
@@ -3149,6 +3284,7 @@ def run_training(
             model_dims,
             actor_manager,
         )
+        logger.debug(f"[Main Thread] Step {training_step}: maybe_evaluate() completed")
 
         maybe_update_beaker_description(
             current_step=training_step,
@@ -3156,7 +3292,10 @@ def run_training(
             start_time=training_start_time,
             wandb_url=wandb_url,
         )
+        
+        logger.debug(f"[Main Thread] ========== Completed training step {training_step}/{args.num_training_steps} ==========")
 
+    logger.info(f"[Main Thread] Training loop completed normally: {args.num_training_steps} steps")
     if resume_training_step > args.num_training_steps:
         raise ValueError(f"Training didn't run since {resume_training_step=} > {args.num_training_steps=}")
 
@@ -3367,10 +3506,16 @@ def main(args: Args, tc: TokenizerConfig, model_config: ModelConfig):
             checkpoint_state,
         )
     except Exception as e:
+        logger.error(
+            f"[Main Thread] ❌ Exception in run_training: {type(e).__name__}: {e}",
+            exc_info=True
+        )
+        logger.error(f"[Main Thread] Training stopped at step: {training_step if 'training_step' in locals() else 'unknown'}")
         if args.send_slack_alerts:
             utils.send_slack_message(f"<!here> A RL job has died. Error message: {e}.")
         raise
     finally:
+        logger.info(f"[Main Thread] Entering cleanup (training_step: {training_step if 'training_step' in locals() else 'unknown'})")
         cleanup_training_resources(
             stop_event, executor, [inference_results_Q, prompt_Q, evaluation_inference_results_Q], actor_manager
         )

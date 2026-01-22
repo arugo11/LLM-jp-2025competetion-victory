@@ -166,7 +166,11 @@ def repeat_each(seq, k):
 
 
 def ray_get_with_progress(
-    ray_refs: list[ray.ObjectRef], desc: str = "Processing", enable: bool = True, timeout: float | None = None
+    ray_refs: list[ray.ObjectRef], 
+    desc: str = "Processing", 
+    enable: bool = True, 
+    timeout: float | None = None,
+    return_partial_on_timeout: bool = False,
 ):
     """Execute ray.get() with a progress bar using futures and collect timings.
 
@@ -175,14 +179,18 @@ def ray_get_with_progress(
         desc: Description for the progress bar
         enable: Whether to show the progress bar (default: True)
         timeout: Optional timeout in seconds for all operations to complete
+        return_partial_on_timeout: If True, return partial results on timeout instead of raising
 
     Returns:
         (results, completion_times)
-        - results: List of results in the same order as ray_refs
-        - completion_times: time from function start until each ref completed (seconds), aligned to ray_refs
+        - results: List of results in the same order as ray_refs. 
+                   May contain Exception objects for failed tasks, or None for incomplete tasks.
+        - completion_times: time from function start until each ref completed (seconds), 
+                           aligned to ray_refs (None for incomplete tasks)
 
     Raises:
         TimeoutError: If timeout is specified and operations don't complete in time
+                     (unless return_partial_on_timeout=True)
     """
     t0 = time.perf_counter()
 
@@ -192,17 +200,25 @@ def ray_get_with_progress(
     results = [None] * len(ray_refs)
     completion_times = [None] * len(ray_refs)
 
-    futures_iter = futures.as_completed(ray_futures, timeout=timeout)
+    futures_iter = futures.as_completed(ray_futures) if timeout is None else futures.as_completed(ray_futures, timeout=timeout)
     if enable:
         futures_iter = tqdm(futures_iter, total=len(ray_futures), desc=desc, bar_format="{l_bar}{bar}{r_bar}\n")
 
     try:
         for future in futures_iter:
             idx = fut_to_idx[future]
-            results[idx] = future.result()
+            try:
+                results[idx] = future.result()
+            except Exception as ex:
+                # 例外を格納して継続（呼び出し側で判定可能）
+                results[idx] = ex
+            # 成功/失敗に関わらず完了時刻を記録
             completion_times[idx] = time.perf_counter() - t0
     except TimeoutError as e:
-        raise TimeoutError(f"{desc} failed.") from e
+        done = sum(t is not None for t in completion_times)
+        if return_partial_on_timeout:
+            return results, completion_times
+        raise TimeoutError(f"{desc} failed (completed {done}/{len(ray_refs)}).") from e
 
     return results, completion_times
 

@@ -674,8 +674,8 @@ python open_instruct/grpo_fast.py \
     --dataset_mixer_list_splits train \
     --dataset_skip_cache \
     --max_prompt_token_length 1024 \
-    --response_length 7168 \
-    --pack_length 8192 \
+    --response_length 3072 \
+    --pack_length 4096 \
     --per_device_train_batch_size 1 \
     --num_unique_prompts_rollout 12 \
     --num_samples_per_prompt_rollout 30 \
