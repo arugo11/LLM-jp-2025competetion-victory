@@ -8,8 +8,8 @@
 #PBS -o /dev/null
 #PBS -e /dev/null
 
-: ${MODEL_USER:="openai"}
-: ${MODEL_REPO:="gpt-oss-20b"}
+: ${MODEL_USER:="HayatoHongoEveryonesAI"}
+: ${MODEL_REPO:="llm-jp-4-8b-instruct"}
 : ${MODEL_BASE_PATH:="models/"}
 
 MODEL_NAME="${MODEL_USER}/${MODEL_REPO}"
@@ -33,8 +33,8 @@ JOBID=${PBS_JOBID%%.*}
 # ログの保存
 # 保存先は実行ディレクトリの./.logとする
 mkdir -p ./.log
-LOGFILE=./.log/inference-1node-$JOBID.out
-ERRFILE=./.log/inference-1node-$JOBID.err
+LOGFILE=./.log/baseline-1gpu-$JOBID.out
+ERRFILE=./.log/baseline-1gpu-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -63,7 +63,7 @@ uv run python -m nemo_skills.code_execution.local_sandbox.local_sandbox_server \
 
 # vLLMサーバーの起動
 uv run python -m nemo_skills.inference.server.serve_vllm \
-    --model models/openai/gpt-oss-20b \
+    --model HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
     --num_gpus 1 \
     --num_nodes 1 \
     --port 8000 \
@@ -71,10 +71,10 @@ uv run python -m nemo_skills.inference.server.serve_vllm \
 
 # 推論動作の実行
 uv run python tir-sc.py \
-    --model_path models/openai/gpt-oss-20b \
+    --model_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
     --input_path input/dev.jsonl \
-    --output_path dev-gpt-oss20b.jsonl \
-    --log_path inference_log_gpt_oss20b.jsonl \
+    --output_path dev-baseline.jsonl \
+    --log_path inference_log_baseline.jsonl \
     --tir-llm-host 127.0.0.1 \
     --tir-llm-port 8000 \
     --tir-sandbox-host 127.0.0.1 \
@@ -87,4 +87,4 @@ uv run python tir-sc.py \
     --direct-answer-attempts 2 \
     --log-raw-output \
     --enable-wandb \
-    --wandb-project "miyako-personal/gpt-oss-20b-tir-eval"
+    --wandb-project "miyako-personal/llm-jp-4-8b-instruct-tir-eval"

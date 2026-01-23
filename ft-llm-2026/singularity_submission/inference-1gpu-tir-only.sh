@@ -70,11 +70,11 @@ uv run python -m nemo_skills.inference.server.serve_vllm \
     --enforce-eager > vllm.log 2>&1 &
 
 # 推論動作の実行
-uv run python tir-sc.py \
+uv run python main.py \
     --model_path models/openai/gpt-oss-20b \
     --input_path input/dev.jsonl \
-    --output_path dev-gpt-oss20b.jsonl \
-    --log_path inference_log_gpt_oss20b.jsonl \
+    --output_path dev-gpt-oss20b-tir-only.jsonl \
+    --log_path inference_log_gpt_oss20b-tir-only.jsonl \
     --tir-llm-host 127.0.0.1 \
     --tir-llm-port 8000 \
     --tir-sandbox-host 127.0.0.1 \
@@ -87,4 +87,4 @@ uv run python tir-sc.py \
     --direct-answer-attempts 2 \
     --log-raw-output \
     --enable-wandb \
-    --wandb-project "miyako-personal/gpt-oss-20b-tir-eval"
+    --wandb-project "miyako-personal/gpt-oss-20b-tir-only-eval"
