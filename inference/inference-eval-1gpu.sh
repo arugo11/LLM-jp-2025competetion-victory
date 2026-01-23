@@ -51,7 +51,7 @@ mkdir -p "$UV_CACHE_DIR"
 echo "Check if model exists at $(pwd)/$MODEL_PATH"
 if [ ! -d "$(pwd)/$MODEL_PATH" ]; then
     echo "Model not found at $MODEL_PATH. Downloading..."
-    uv run python download_model.py --MODEL_NAME "$MODEL_NAME"
+    uv run python download_model.py --model_name "$MODEL_NAME"
 fi
 
 # Singularityイメージのビルド

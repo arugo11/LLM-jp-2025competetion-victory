@@ -29,6 +29,49 @@ PROMPT_TEMPLATE = """\
 {question}
 """
 
+def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: SamplingParams, wait_count: int):
+    """LLMの解答の最後にWaitを追加してさらに推論させる。"""
+    # 初回のプロンプト変換
+    prompts = llm.preprocess_chat(messages=messages)
+    
+    print("Initial prompts prepared for chat_with_wait.")
+    print(messages[0])
+    
+    outputs = None # outputsの初期化
+
+    for attempt in range(wait_count):
+        # 推論実行
+        
+        outputs = llm.generate(
+            prompts, sampling_params=sampling_params
+        )
+        
+        new_messages = []
+        for msg, output in zip(messages, outputs):
+            content = output.outputs[0].text
+            # assistantfinalより前を抜き出して、Waitを追加
+            # 注意: 生成テキストが空の場合などのエラーハンドリングが必要な場合があります
+            if "assistantfinal" in content:
+                 content_before_final = re.split(r"\s*assistantfinal\s*", content)[0]
+            else:
+                 content_before_final = content
+
+            new_messages.append([{
+                "role": "assistant",
+                "content": msg[0]["content"] + " " + content_before_final + " Wait, ",
+            }])        
+        # 【修正箇所】
+        # new_messages（辞書リスト）をそのままpromptsに入れず、
+        # 次のイテレーション用にメッセージリストを更新し、再度preprocess_chatを通す
+        prompts = llm.preprocess_chat(messages=new_messages)
+        messages = new_messages
+        print(f"Attempt {attempt + 1}/{wait_count} completed. Updated prompts for next iteration.")
+        print(messages[0])
+        print("token_len :", len(prompts[0]["prompt_token_ids"]))
+        
+    return outputs
+    
+
 # MARK: main
 def main():
     sys.set_int_max_str_digits(0) # 無制限に設定
@@ -57,6 +100,9 @@ def main():
     # サンプリング時の温度パラメータ
     parser.add_argument(
         "--temperature", type=float, default=0.5, help="Temperature for sampling"
+    )
+    parser.add_argument(
+        "--wait_count", type=int, default=4, help="Number of waits for LLM readiness"
     )
 
     args = parser.parse_args()
@@ -97,9 +143,10 @@ def main():
             max_tokens=args.max_tokens,
             top_k=40,
         )
-        outputs = llm.chat(
-            messages, sampling_params=sampling_params
-        )
+        # outputs = llm.chat(
+        #     messages, sampling_params=sampling_params
+        # )
+        outputs = chat_with_wait(llm, messages, sampling_params, args.wait_count)
         tmp_outputs.append(outputs)
         # 答えを抽出
         extracted_contents = [parse(output.outputs[0].text) for output in outputs]
