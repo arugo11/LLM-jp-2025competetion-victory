@@ -34,8 +34,8 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
     # 初回のプロンプト変換
     prompts = llm.preprocess_chat(messages=messages)
     
-    print("Initial prompts prepared for chat_with_wait.")
-    print(messages[0])
+    # print("Initial prompts prepared for chat_with_wait.")
+    # print(messages[0])
     
     outputs = None # outputsの初期化
 
@@ -65,9 +65,9 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
         # 次のイテレーション用にメッセージリストを更新し、再度preprocess_chatを通す
         prompts = llm.preprocess_chat(messages=new_messages)
         messages = new_messages
-        print(f"Attempt {attempt + 1}/{wait_count} completed. Updated prompts for next iteration.")
-        print(messages[0])
-        print("token_len :", len(prompts[0]["prompt_token_ids"]))
+        # print(f"Attempt {attempt + 1}/{wait_count} completed. Updated prompts for next iteration.")
+        # print(messages[0])
+        # print("token_len :", len(prompts[0]["prompt_token_ids"]))
         
     return outputs
     
