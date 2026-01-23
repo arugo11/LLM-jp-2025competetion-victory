@@ -111,7 +111,7 @@ async def _process_problems(
             solution_dict = {}
             for i in range(10):
                 result = await solver.solve(problem, idx)
-                output = f"$${result.output}$$"
+                output = f"${result.output}$"
                 parsed_solution = parse(output) # 出力を解析
                 # 解答が存在しない場合はスキップ
                 if parsed_solution is None or len(parsed_solution) < 2:
@@ -141,7 +141,7 @@ async def _process_problems(
             print(final_solution)
             # 対応するLaTeX表現を保存
             if found_valid:
-                problem["output"] = solution_dict[str(final_solution)]
+                problem["output"] = f"${solution_dict[str(final_solution)]}$"
             else:
                 problem["output"] = "None"
             
