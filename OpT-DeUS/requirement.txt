@@ -1,0 +1,7 @@
+transformers
+datasets
+lm_eval
+accelerate
+POT
+torch
+trl
