@@ -18,28 +18,45 @@ PROMPT_TEMPLATE = """\
 以下は数学の問題です。
 解答を段階的に考え、最終的な答えとなる数値や解を\\boxedタグ内に記述してください。
 
-# 制約事項
+### 制約事項
 - 最終的な解答を必ず\\boxedタグ内に記述する。
 - 最終的な解答は必ず数値または数式で出力する。
 - \\displaystyleを用いてはいけない。
 - 最終的な解答では単位を出力してはならない。
 - 数式は必ずlatex表記で出力する。
 
-# 問題
+### 問題
 {question}
 """
 
+PROMPT_TEMPLATE2 = """以下は数学の問題です。\n解答を段階的に考え、最終的な解答の数値のみを\boxedタグ内に記述してください。\n\n# 問題\n{question}"""
+
 def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: SamplingParams, wait_count: int):
     """LLMの解答の最後にWaitを追加してさらに推論させる。"""
-    # 初回のプロンプト変換
     prompts = llm.preprocess_chat(messages=messages)
+    
+    # --- デバッグ用出力: 逆トークナイズして中身を確認 (ここを追加) ---
+    # print("=== DEBUG: Detokenized Prompt (Start) ===")
+    # # バッチ内の最初のデータのトークンIDを取得
+    # tokenizer = llm.get_tokenizer()
+    # if len(prompts) > 0 and "prompt_token_ids" in prompts[0]:
+    #     first_token_ids = prompts[0]["prompt_token_ids"]
+    #     decoded_text = tokenizer.decode(first_token_ids)
+    #     print(decoded_text)
+    # print("=== DEBUG: Detokenized Prompt (End) ===")
+    # -----------------------------------------------------------
     
     # print("Initial prompts prepared for chat_with_wait.")
     # print(messages[0])
     
     outputs = None # outputsの初期化
+    
+    THINK_END_TOKEN = "assistantfinal"
+    WAIT_STR = "\nWait, "
+    tokenizer = llm.get_tokenizer()
+    wait_token_ids = tokenizer.encode(WAIT_STR, add_special_tokens=False)
 
-    for attempt in range(wait_count):
+    for attempt in range(wait_count + 1):
         # 推論実行
         
         outputs = llm.generate(
@@ -59,15 +76,7 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
             new_messages.append([{
                 "role": "assistant",
                 "content": msg[0]["content"] + " " + content_before_final + " Wait, ",
-            }])        
-        # 【修正箇所】
-        # new_messages（辞書リスト）をそのままpromptsに入れず、
-        # 次のイテレーション用にメッセージリストを更新し、再度preprocess_chatを通す
-        prompts = llm.preprocess_chat(messages=new_messages)
-        messages = new_messages
-        # print(f"Attempt {attempt + 1}/{wait_count} completed. Updated prompts for next iteration.")
-        # print(messages[0])
-        # print("token_len :", len(prompts[0]["prompt_token_ids"]))
+            }])     
         
     return outputs
     
@@ -102,7 +111,7 @@ def main():
         "--temperature", type=float, default=0.5, help="Temperature for sampling"
     )
     parser.add_argument(
-        "--wait_count", type=int, default=4, help="Number of waits for LLM readiness"
+        "--wait_count", type=int, default=0, help="Number of waits for LLM readiness"
     )
 
     args = parser.parse_args()
@@ -121,7 +130,7 @@ def main():
             [
                 {
                     "role": "user",
-                    "content": PROMPT_TEMPLATE.format(question=problem["problem"]),
+                    "content": PROMPT_TEMPLATE2.format(question=problem["problem"]),
                 }
             ]
         )
