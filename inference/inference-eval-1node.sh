@@ -1,12 +1,14 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q rt_HG
-#PBS -N inference-1gpu
+#PBS -q rt_HF
+#PBS -N inference-1node
 #PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=3:00:00
+#PBS -l walltime=8:20:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
+
+# bash inference-eval-1gpu.sh
 
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
 : ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
@@ -49,7 +51,7 @@ mkdir -p "$UV_CACHE_DIR"
 echo "Check if model exists at $(pwd)/$MODEL_PATH"
 if [ ! -d "$(pwd)/$MODEL_PATH" ]; then
     echo "Model not found at $MODEL_PATH. Downloading..."
-    uv run python download_model.py --model_name "$MODEL_NAME"
+    uv run python download_model.py --MODEL_NAME "$MODEL_NAME"
 fi
 
 # Singularityイメージのビルド
@@ -63,9 +65,21 @@ singularity build --fakeroot --force \
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/$MODEL_REPO.sif \
-    --model_path models/$MODEL_NAME \
+    --model_path $MODEL_PATH \
     --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output-$MODEL_REPO.jsonl" \
     --max_tokens 16384 \
-    --num_samples 40 \
+    --num_samples 100 \
     --temperature 0.7
+
+# 推論結果の評価
+echo "Start evaluation"
+cd ..
+cd math-eval
+uv sync
+source .venv/bin/activate
+python src/math_eval/eval_consistency.py \
+       ../inference/output/output-${MODEL_REPO}_all_samples.jsonl \
+       ./targets/dev.jsonl \
+       -o ./accuracy/acc-$MODEL_REPO.jsonl \
+       -k "1,20,40,100"
