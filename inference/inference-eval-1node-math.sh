@@ -1,9 +1,9 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q rt_HG
-#PBS -N inference-1gpu
+#PBS -q rt_HF
+#PBS -N inference-1node-math
 #PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=6:00:00
+#PBS -l walltime=3:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
@@ -14,7 +14,6 @@
 : ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
 : ${MODEL_BASE_PATH:="models/"}
 : ${NAME:=""}
-: ${T:=0.7}
 
 MODEL_NAME="${MODEL_USER}/${MODEL_REPO}"
 MODEL_PATH="$MODEL_BASE_PATH/$MODEL_NAME"
@@ -38,8 +37,8 @@ JOBID=${PBS_JOBID%%.*}
 # ログの保存
 # 保存先は実行ディレクトリの./.logとする
 mkdir -p ./.log
-LOGFILE=./.log/inference-1gpu-$JOBID.out
-ERRFILE=./.log/inference-1gpu-$JOBID.err
+LOGFILE=./.log/inference-1node-$JOBID.out
+ERRFILE=./.log/inference-1node-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -68,11 +67,11 @@ echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/$MODEL_REPO$NAME.sif \
     --model_path $MODEL_PATH \
-    --input_path input/dev.jsonl \
-    --output_path "$(pwd)/output/output-$MODEL_REPO$NAME.jsonl" \
+    --input_path input/math-500-formatted.jsonl \
+    --output_path "$(pwd)/output/output-$MODEL_REPO$NAME-math.jsonl" \
     --max_tokens 16384 \
     --num_samples 40 \
-    --temperature $T
+    --temperature 0.7
 
 # 推論結果の評価
 echo "Start evaluation"
@@ -81,7 +80,7 @@ cd math-eval
 uv sync
 source .venv/bin/activate
 python src/math_eval/eval_consistency.py \
-       ../inference/output/output-${MODEL_REPO$NAME}_all_samples.jsonl \
-       ./targets/dev.jsonl \
-       -o ./accuracy/acc-$MODEL_REPO$NAME-dev.jsonl \
+       ../inference/output/output-${MODEL_REPO$NAME}-math_all_samples.jsonl \
+       ./targets/math-500-formatted.jsonl \
+       -o ./accuracy/acc-$MODEL_REPO$NAME-math500.jsonl \
        -k "1,20,40"
