@@ -87,8 +87,74 @@ python open_instruct/grpo_fast.py \
     --verbose
 ```
 
-## 学習実行
+## 1️⃣ HF_TOKEN の設定
+
+```bash
+# トークンを環境変数に設定
+export HF_TOKEN="hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+# 設定内容を確認
+echo $HF_TOKEN
+# → hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX が表示される
 ```
+
+
+```bash
+cd \~/.cache/huggingface/      # トークンが保存されるディレクトリ
+ls
+# token   ← ここに現在使用中のトークンが書かれています
+cat token
+# → hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX が表示されれば OK
+```
+
+### export で設定したHF_TOKENと、キャッシュに設定されているtokenが一致しない場合
+
+```bash
+# Hugging Face CLI からログアウト
+hf auth logout
+
+# 再度ログイン（ブラウザで認証コードを入力）
+hf auth login
+```
+
+
+---
+
+## 2️⃣ Hugging Face アクセス確認
+
+```bash
+# 必要なライブラリをインストール
+pip install -U huggingface_hub
+
+# モデル情報を取得できるかテスト
+python -c "from huggingface_hub import HfApi; \
+print(HfApi().model_info('HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2'))"
+# 情報が出力されればトークンは正しく認証されています
+```
+
+
+---
+
+## 4️⃣ wandb にログイン
+
+```bash
+# wandb のログイン（APIキーをブラウザに貼り付け）
+wandb login
+```
+
+---
+
+## ✅ 確認チェックリスト
+
+- [ ] `HF_TOKEN` が `echo $HF_TOKEN` で正しく表示される  
+- [ ] `~/.cache/huggingface/token` に同一のトークンが保存されている  
+- [ ] `python -c …model_info…` が成功し、モデル情報が取得できる  
+- [ ] 必要なら `hf auth logout && hf auth login` を実行した  
+- [ ] `wandb login` が成功した
+
+## 学習実行
+
+```bash
 cd open-instruct
 qsub scripts/abci/train/qsub_grpo_fast.sh
 ```
