@@ -1,9 +1,9 @@
 #!/bin/bash
 #PBS -P gch51701
 #PBS -q rt_HG
-#PBS -N inference-1gpu
+#PBS -N gpt-oss-20b-inference
 #PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=4:00:00
+#PBS -l walltime=3:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
@@ -33,8 +33,8 @@ JOBID=${PBS_JOBID%%.*}
 # ログの保存
 # 保存先は実行ディレクトリの./.logとする
 mkdir -p ./.log
-LOGFILE=./.log/inference-1node-$JOBID.out
-ERRFILE=./.log/inference-1node-$JOBID.err
+LOGFILE=./.log/gpt-oss-20b-$JOBID.out
+ERRFILE=./.log/gpt-oss-20b-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -72,19 +72,19 @@ uv run python -m nemo_skills.inference.server.serve_vllm \
 # 推論動作の実行
 uv run python tir-sc.py \
     --model_path models/openai/gpt-oss-20b \
-    --input_path input/dev.jsonl \
+    --input_path dev.jsonl \
     --output_path dev-gpt-oss20b.jsonl \
     --log_path inference_log_gpt_oss20b.jsonl \
     --tir-llm-host 127.0.0.1 \
     --tir-llm-port 8000 \
     --tir-sandbox-host 127.0.0.1 \
     --tir-sandbox-port 6000 \
-    --max-new-tokens 512 \
-    --temperature 0.0 \
-    --retry-temperature 0.4 \
+    --max-new-tokens 8192 \
+    --temperature 0.5 \
+    --retry-temperature 0.1 \
     --repair-attempts 3 \
     --format-retry-attempts 5 \
     --direct-answer-attempts 2 \
     --log-raw-output \
     --enable-wandb \
-    --wandb-project "miyako-personal/gpt-oss-20b-tir-eval"
+    --wandb-project "miyako-personal/gpt-oss-20b-tir-sc-eval"

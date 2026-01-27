@@ -109,7 +109,7 @@ async def _process_problems(
         for idx, problem in enumerate(problems):
             tmp_outputs = [] # Self-Consistency用の出力を一時的に保存するリスト
             solution_dict = {}
-            for i in range(10):
+            for i in range(2):
                 result = await solver.solve(problem, idx)
                 output = f"${result.output}$"
                 parsed_solution = parse(output) # 出力を解析
@@ -131,14 +131,13 @@ async def _process_problems(
 
             found_valid = False
             final_solution = None
-            if ranked_solutions:
+            if ranked_solutions is not None:
                 for answer, count in ranked_solutions:
                     if answer is not None:
                         final_solution = answer
                         found_valid = True
                         break
 
-            print(final_solution)
             # 対応するLaTeX表現を保存
             if found_valid:
                 problem["output"] = f"${solution_dict[str(final_solution)]}$"
