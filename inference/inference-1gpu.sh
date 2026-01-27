@@ -45,6 +45,8 @@ set -euxo pipefail
 export UV_CACHE_DIR="$HOME/.cache/uv"
 mkdir -p "$UV_CACHE_DIR"
 
+echo NAME="$NAME"
+
 # モデルが存在しなければダウンロードして配置
 echo "Check if model exists at $(pwd)/$MODEL_PATH"
 if [ ! -d "$(pwd)/$MODEL_PATH" ]; then
