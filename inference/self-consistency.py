@@ -29,56 +29,81 @@ PROMPT_TEMPLATE = """\
 {question}
 """
 
-PROMPT_TEMPLATE2 = """以下は数学の問題です。\n解答を段階的に考え、最終的な解答の数値のみを\boxedタグ内に記述してください。\n\n# 問題\n{question}"""
-
 def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: SamplingParams, wait_count: int):
     """LLMの解答の最後にWaitを追加してさらに推論させる。"""
-    prompts = llm.preprocess_chat(messages=messages)
-    
-    # --- デバッグ用出力: 逆トークナイズして中身を確認 (ここを追加) ---
-    # print("=== DEBUG: Detokenized Prompt (Start) ===")
-    # # バッチ内の最初のデータのトークンIDを取得
-    # tokenizer = llm.get_tokenizer()
-    # if len(prompts) > 0 and "prompt_token_ids" in prompts[0]:
-    #     first_token_ids = prompts[0]["prompt_token_ids"]
-    #     decoded_text = tokenizer.decode(first_token_ids)
-    #     print(decoded_text)
-    # print("=== DEBUG: Detokenized Prompt (End) ===")
-    # -----------------------------------------------------------
-    
-    # print("Initial prompts prepared for chat_with_wait.")
-    # print(messages[0])
-    
-    outputs = None # outputsの初期化
-    
-    THINK_END_TOKEN = "assistantfinal"
-    WAIT_STR = "\nWait, "
+    # 1. 最初のプロンプトをトークンID化
+    prompts_data = llm.preprocess_chat(messages=messages)
+    print(prompts_data[0])
+    print(prompts_data)
     tokenizer = llm.get_tokenizer()
+    
+    # " Wait" のトークンIDを取得
+    WAIT_STR = " Wait"
+    STOP_STR = "assistantfinal"
     wait_token_ids = tokenizer.encode(WAIT_STR, add_special_tokens=False)
+    stop_token_ids = tokenizer.encode(STOP_STR, add_special_tokens=False)
+    print(f"wait_token_ids: {wait_token_ids}, stop_token_ids: {stop_token_ids}")
+    
+    # 現在の入力（トークンIDのリスト）を管理
+    current_input_configs = prompts_data
+    
+    sampling_params_wait = copy.deepcopy(sampling_params)
+    sampling_params_wait.stop_token_ids = stop_token_ids
 
-    for attempt in range(wait_count + 1):
-        # 推論実行
+    # --- Waitループ開始 ---
+    for attempt in range(wait_count):
+        # 現時点のコンテキストで生成を実行
+        # sampling_params は適宜、中間生成用に調整してもOK
+        outputs = llm.generate(current_input_configs, sampling_params=sampling_params_wait)
         
-        outputs = llm.generate(
-            prompts, sampling_params=sampling_params
-        )
-        
-        new_messages = []
-        for msg, output in zip(messages, outputs):
-            content = output.outputs[0].text
-            # assistantfinalより前を抜き出して、Waitを追加
-            # 注意: 生成テキストが空の場合などのエラーハンドリングが必要な場合があります
-            if "assistantfinal" in content:
-                 content_before_final = re.split(r"\s*assistantfinal\s*", content)[0]
+        new_configs = []
+        token_lens = []
+        token_len_sum = 0
+        token_len_max = 0
+        token_len_min = float('inf')
+        for i, output in enumerate(outputs):
+            generated_ids = list(output.outputs[0].token_ids)
+            
+            # --- ここで assistantfinal を除去 ---
+            # stop_token_ids が生成結果の末尾に含まれているかチェックして削除
+            print(generated_ids[-len(stop_token_ids):])
+            if generated_ids[-len(stop_token_ids):] == stop_token_ids:
+                generated_ids = generated_ids[:-len(stop_token_ids)]
+            
+            # これまでの入力 + 今回の生成結果 + " Wait,"
+            combined_ids = (
+                current_input_configs[i]["prompt_token_ids"]
+                + generated_ids 
+                + wait_token_ids
+            )
+            if len(combined_ids) < sampling_params.max_tokens:
+                new_configs.append({"prompt_token_ids": combined_ids})
             else:
-                 content_before_final = content
-
-            new_messages.append([{
-                "role": "assistant",
-                "content": msg[0]["content"] + " " + content_before_final + " Wait, ",
-            }])     
+                if len(new_configs) > 0:
+                    new_configs.append({"prompt_token_ids": new_configs[-1]["prompt_token_ids"]})
+            token_lens.append(len(combined_ids))
+            token_len_sum += len(combined_ids)
+            token_len_max = max(token_len_max, len(combined_ids))
+            token_len_min = min(token_len_min, len(combined_ids))
         
-    return outputs
+        # 次のループ（または最終出力）のための入力を更新
+        current_input_configs = new_configs
+        print(f"token len:  avg {token_len_sum / len(outputs):.1f}, max {token_len_max}, min {token_len_min}")
+        print("token lens per sample:", token_lens)
+        
+        print(f"Wait Attempt {attempt + 1}/{wait_count} processed.")
+        print(output.outputs[0].text)
+        print("--------------------------------")
+        print("decoded text after Wait addition:")
+        print(tokenizer.decode(combined_ids))
+        print("================================")
+    # --- Waitループ終了 ---
+
+    # 最終的な回答生成
+    # ここでは "Wait," と言われた後の「本当の答え」を出力させる
+    final_outputs = llm.generate(current_input_configs, sampling_params=sampling_params)
+        
+    return final_outputs
     
 
 # MARK: main
@@ -111,7 +136,7 @@ def main():
         "--temperature", type=float, default=0.5, help="Temperature for sampling"
     )
     parser.add_argument(
-        "--wait_count", type=int, default=0, help="Number of waits for LLM readiness"
+        "--wait_count", type=int, default=1, help="Number of waits for LLM readiness"
     )
 
     args = parser.parse_args()
@@ -130,7 +155,7 @@ def main():
             [
                 {
                     "role": "user",
-                    "content": PROMPT_TEMPLATE2.format(question=problem["problem"]),
+                    "content": PROMPT_TEMPLATE.format(question=problem["problem"]),
                 }
             ]
         )

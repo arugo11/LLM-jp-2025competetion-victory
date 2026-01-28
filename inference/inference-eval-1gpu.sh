@@ -13,6 +13,7 @@
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
 : ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
 : ${MODEL_BASE_PATH:="models/"}
+: ${WAIT:=1}
 
 MODEL_NAME="${MODEL_USER}/${MODEL_REPO}"
 MODEL_PATH="$MODEL_BASE_PATH/$MODEL_NAME"
@@ -70,7 +71,8 @@ singularity run --nv --writable-tmpfs \
     --output_path "$(pwd)/output/output-$MODEL_REPO.jsonl" \
     --max_tokens 16384 \
     --num_samples 40 \
-    --temperature 0.7
+    --temperature 0.7 \
+    --wait_count $WAIT
 
 # 推論結果の評価
 echo "Start evaluation"
