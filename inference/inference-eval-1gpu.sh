@@ -13,8 +13,8 @@
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
 : ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
 : ${MODEL_BASE_PATH:="models/"}
-: ${WAIT:=1}
-: ${NAME:=""}
+: ${WAIT:=0}
+: ${NAME:="_"}
 : ${T:=0.7}
 
 MODEL_NAME="${MODEL_USER}/${MODEL_REPO}"
@@ -73,7 +73,6 @@ singularity run --nv --writable-tmpfs \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}.jsonl" \
     --max_tokens 16384 \
     --num_samples 40 \
-    --temperature 0.7 \
     --wait_count $WAIT \
     --temperature $T
 

@@ -33,16 +33,13 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
     """LLMの解答の最後にWaitを追加してさらに推論させる。"""
     # 1. 最初のプロンプトをトークンID化
     prompts_data = llm.preprocess_chat(messages=messages)
-    print(prompts_data[0])
-    print(prompts_data)
     tokenizer = llm.get_tokenizer()
     
     # " Wait" のトークンIDを取得
-    WAIT_STR = " Wait"
+    WAIT_STR = "Wait"
     STOP_STR = "assistantfinal"
     wait_token_ids = tokenizer.encode(WAIT_STR, add_special_tokens=False)
     stop_token_ids = tokenizer.encode(STOP_STR, add_special_tokens=False)
-    print(f"wait_token_ids: {wait_token_ids}, stop_token_ids: {stop_token_ids}")
     
     # 現在の入力（トークンIDのリスト）を管理
     current_input_configs = prompts_data
@@ -66,9 +63,8 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
             
             # --- ここで assistantfinal を除去 ---
             # stop_token_ids が生成結果の末尾に含まれているかチェックして削除
-            print(generated_ids[-len(stop_token_ids):])
-            if generated_ids[-len(stop_token_ids):] == stop_token_ids:
-                generated_ids = generated_ids[:-len(stop_token_ids)]
+            #if generated_ids[-len(stop_token_ids):] == stop_token_ids:
+            generated_ids = generated_ids[:-len(stop_token_ids)]
             
             # これまでの入力 + 今回の生成結果 + " Wait,"
             combined_ids = (
@@ -92,8 +88,6 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
         print("token lens per sample:", token_lens)
         
         print(f"Wait Attempt {attempt + 1}/{wait_count} processed.")
-        print(output.outputs[0].text)
-        print("--------------------------------")
         print("decoded text after Wait addition:")
         print(tokenizer.decode(combined_ids))
         print("================================")
