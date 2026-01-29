@@ -85,13 +85,13 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
         
         # 次のループ（または最終出力）のための入力を更新
         current_input_configs = new_configs
-        print(f"token len:  avg {token_len_sum / len(outputs):.1f}, max {token_len_max}, min {token_len_min}")
-        print("token lens per sample:", token_lens)
+        # print(f"token len:  avg {token_len_sum / len(outputs):.1f}, max {token_len_max}, min {token_len_min}")
+        # print("token lens per sample:", token_lens)
         
-        print(f"Wait Attempt {attempt + 1}/{wait_count} processed.")
-        print("decoded text after Wait addition:")
-        print(tokenizer.decode(combined_ids))
-        print("================================")
+        # print(f"Wait Attempt {attempt + 1}/{wait_count} processed.")
+        # print("decoded text after Wait addition:")
+        # print(tokenizer.decode(combined_ids))
+        # print("================================")
     # --- Waitループ終了 ---
 
     # 最終的な回答生成
