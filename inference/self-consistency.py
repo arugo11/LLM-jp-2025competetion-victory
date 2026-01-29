@@ -9,6 +9,7 @@ import re
 import sys
 import copy
 from collections import Counter
+import torch
 from math_verify import parse
 from vllm import LLM, SamplingParams
 
@@ -136,7 +137,7 @@ def main():
     args = parser.parse_args()
 
     # LLMの初期化
-    llm = LLM(model=str(args.model_path.resolve()))
+    llm = LLM(model=str(args.model_path.resolve()), tensor_parallel_size=torch.cuda.device_count())
 
     # 問題ファイルの読み込み
     with open(args.input_path) as f:
@@ -163,7 +164,9 @@ def main():
     tmp_outputs = [] # 各イテレーションの出力を保存するリスト
     # parse時の同値表現と対応するTeX記法の解答を保持する辞書
     solution_dict = {} # key: parse時の同値表現, value: list(元の回答文字列)
+    nowtime = 0
     for i in range(args.num_samples):
+        nowtime = time.time()
         print("--------------------------------")
         print(f"Sampling iteration: {i+1}/{args.num_samples}")
         sampling_params = SamplingParams(
@@ -189,6 +192,7 @@ def main():
                     solution_dict[str(content[0])].append(str(content[1]))
             else:
                 all_outputs[j].append(None)
+        print(f"Iteration time: {time.time() - nowtime}(s)")
 
     # Self-Consistencyによる最終解答の決定
     final_outputs = []
