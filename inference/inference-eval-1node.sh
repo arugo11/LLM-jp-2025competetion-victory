@@ -1,14 +1,14 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q rt_HG
-#PBS -N inference-1gpu
-#PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=6:00:00
+#PBS -q rt_HF
+#PBS -N inference-1node
+#PBS -l select=1:ncpus=192:ngpus=8
+#PBS -l walltime=8:20:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
 
-# bash inference-eval-1gpu.sh
+# bash inference-eval-1node.sh
 
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
 : ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
@@ -39,8 +39,8 @@ JOBID=${PBS_JOBID%%.*}
 # ログの保存
 # 保存先は実行ディレクトリの./.logとする
 mkdir -p ./.log
-LOGFILE=./.log/inference-1gpu-$JOBID.out
-ERRFILE=./.log/inference-1gpu-$JOBID.err
+LOGFILE=./.log/inference-1node-$JOBID.out
+ERRFILE=./.log/inference-1node-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -67,7 +67,8 @@ singularity build --fakeroot --force \
 # 推論の実行
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
-    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/${MODEL_REPO}${NAME}.sif \
+    --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+    --net --network none dist/${MODEL_REPO}${NAME}.sif \
     --model_path $MODEL_PATH \
     --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}.jsonl" \
