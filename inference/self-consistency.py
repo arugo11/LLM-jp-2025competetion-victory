@@ -110,7 +110,7 @@ def main():
     # コマンドライン引数のパース
     parser = argparse.ArgumentParser(description="Singularity Submission Example")
     parser.add_argument(
-        "--model_path", type=Path, required=True, help="Path to the model directory"
+        "--model_path", type=Path, default="models/HayatoHongoEveryonesAI/open-instruct-grpo-fast", help="Path to the model directory"
     )
     parser.add_argument(
         "--input_path", type=Path, required=True, help="Path to the input file"
@@ -120,15 +120,15 @@ def main():
     )
     # 最大トークン数
     parser.add_argument(
-        "--max_tokens", type=int, default=4096, help="Maximum number of tokens"
+        "--max_tokens", type=int, default=16384, help="Maximum number of tokens"
     )
     # サンプリング数
     parser.add_argument(
-        "--num_samples", type=int, default=10, help="Number of samples for self-consistency"
+        "--num_samples", type=int, default=100, help="Number of samples for self-consistency"
     )
     # サンプリング時の温度パラメータ
     parser.add_argument(
-        "--temperature", type=float, default=0.5, help="Temperature for sampling"
+        "--temperature", type=float, default=0.7, help="Temperature for sampling"
     )
     parser.add_argument(
         "--wait_count", type=int, default=1, help="Number of waits for LLM readiness"

@@ -71,11 +71,11 @@ singularity run --nv --writable-tmpfs \
     --net --network none dist/${MODEL_REPO}${NAME}.sif \
     --input_path input/dev_500.jsonl \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}.jsonl" \
-    --model_path $MODEL_PATH \
-    --max_tokens 16384 \
-    --num_samples 40 \
-    --wait_count $WAIT \
-    --temperature $T
+    # --model_path $MODEL_PATH \
+    # --max_tokens 16384 \
+    # --num_samples 40 \
+    # --wait_count $WAIT \
+    # --temperature $T
 
 # 推論結果の評価
 echo "Start evaluation"
