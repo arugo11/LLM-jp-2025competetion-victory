@@ -62,13 +62,13 @@ echo "Build singularity image"
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
        --build-arg MODEL_NAMES="$MODEL_NAME" \
-       dist/${MODEL_REPO}${NAME}.sif self-consistency.def
+       dist/team025_team_victory.sif self-consistency.def
 
 # 推論の実行
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-    --net --network none dist/${MODEL_REPO}${NAME}.sif \
+    --net --network none dist/team025_team_victory.sif \
     --input_path input/dev_500.jsonl \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}.jsonl" \
     # --model_path $MODEL_PATH \
