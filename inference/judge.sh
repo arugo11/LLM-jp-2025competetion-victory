@@ -1,32 +1,28 @@
 #!/bin/bash
 #PBS -P gch51701
 #PBS -q rt_HG
-#PBS -N inference-1gpu
+#PBS -N judge-1gpu
 #PBS -l select=1:ncpus=192:ngpus=1
-#PBS -l walltime=4:00:00
+#PBS -l walltime=2:00:00
 #PBS -m n
 #PBS -o /dev/null
 #PBS -e /dev/null
 
-# bash inference-eval-1gpu.sh
+# qsub -v MODEL_REPO=open-instruct-grpo-fast,NAME=GRPO_MODEL judge.sh
 
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
 : ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
 : ${MODEL_BASE_PATH:="models/"}
 : ${WAIT:=0}
 : ${NAME:="_"}
-: ${T:=0.7}
+: ${T:=0.0}
+: ${INPUT_FILE:="output/output-open-instruct-grpo-fast_WAIT0-math_all_samples.jsonl"}
 
 MODEL_NAME="${MODEL_USER}/${MODEL_REPO}"
 MODEL_PATH="$MODEL_BASE_PATH/$MODEL_NAME"
 
 echo "Model name: $MODEL_NAME"
 echo "Model path: $MODEL_PATH"
-
-# Singularityイメージ保存用ディレクトリの作成
-mkdir -p ./dist
-# 推論結果の出力ディレクトリの作成
-mkdir -p ./output
 
 source /etc/profile.d/modules.sh
 module load cuda/12.8
@@ -57,35 +53,6 @@ if [ ! -d "$(pwd)/$MODEL_PATH" ]; then
     uv run python download_model.py --model_name "$MODEL_NAME"
 fi
 
-#export MKSQUASHFS_PROCESSORS=64
-
-# Singularityイメージのビルド
-echo "Build singularity image"
-singularity build --fakeroot --force \
-       --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
-       --build-arg MODEL_NAMES="$MODEL_NAME" \
-       dist/${MODEL_REPO}${NAME}.sif self-consistency.def
-
-# 推論の実行
-echo "Start inference"
-singularity run --nv --writable-tmpfs \
-    --env CUDA_VISIBLE_DEVICES=0 --net --network none dist/${MODEL_REPO}${NAME}.sif \
-    --model_path $MODEL_PATH \
-    --input_path input/dev.jsonl \
-    --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}.jsonl" \
-    --max_tokens 16384 \
-    --num_samples 40 \
-    --wait_count $WAIT \
-    --temperature $T
-
-# 推論結果の評価
-echo "Start evaluation"
-cd ..
-cd math-eval
-uv sync
 source .venv/bin/activate
-python src/math_eval/eval_consistency.py \
-       ../inference/output/output-${MODEL_REPO}${NAME}_all_samples.jsonl \
-       ./targets/dev.jsonl \
-       -o ./accuracy/acc-${MODEL_REPO}${NAME}-dev.jsonl \
-       -k "1,20,40"
+
+python judge.py --model_path "$MODEL_PATH" --t "$T" --name "$NAME" --input_file "$INPUT_FILE"

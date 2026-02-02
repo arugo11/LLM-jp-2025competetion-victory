@@ -9,7 +9,7 @@ def main():
     parser.add_argument(
         "--model_name",
         type=str,
-        default="llm-jp/llm-jp-3.1-1.8b-instruct4",
+        default="HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-expand-checkpoint-1900",
         help="Model name on Hugging Face Hub",
     )
     args = parser.parse_args()
@@ -20,9 +20,9 @@ def main():
     # リビジョンはモデルリポジトリのリンクの"tree"以降を見るとわかる
     model_path = snapshot_download(
         repo_id=args.model_name,
-        local_dir=Path("models") / args.model_name,
+        local_dir=Path("models") / (args.model_name + "-12B-1000"),
         local_dir_use_symlinks=False,
-        # revision="grpo_fast__3__1766613992",
+        # revision="grpo_fast__3__1769920398",
     )
 
     print(f"Model downloaded to: {model_path}")
