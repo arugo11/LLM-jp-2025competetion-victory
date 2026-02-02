@@ -134,19 +134,20 @@ def calculate_cons_k(samples: List[str], gold: str) -> bool:
 def calculate_cons_k_counter(samples: List[str], gold: str) -> bool:
     """Calculate Consistency@k (Majority Vote) using exact string match."""
     if not samples:
+        print("No samples provided for Consistency@k calculation.", f"gold: {gold}")
         return False
     
     # 文字列の完全一致で多数決を行い、最も多い回答を取得
     # most_common(1) は [(element, count)] のリストを返すので [0][0] で要素を取得
     majority_rep = Counter(samples).most_common(1)[0][0]
     
-    # if check_equivalence("$$"+majority_rep+"$$", gold) == False:
-    #     for sample in samples:
-    #         print(f"Sample: {sample}")
-    # print(f"Majority representative: {majority_rep}, Count: {Counter(samples)[majority_rep]}")
+    # if check_equivalence(majority_rep, gold) == False and len(samples) ==40:
+    #     # for sample in samples:
+    #     #     print(f"Sample: {sample}")
+    #     print(f"Majority representative: {majority_rep}, gold {gold}, Count: {Counter(samples)[majority_rep]}")
     
     # 選ばれた回答が正解と一致するか判定（正誤判定自体は verify を使用して柔軟に行う）
-    return check_equivalence(majority_rep, gold)
+    return check_equivalence(majority_rep, gold), majority_rep
 
 
 def calculate_pass_k(samples: List[str], gold: str) -> bool:
@@ -227,7 +228,7 @@ def math_eval(
         # 1. main (Main Output)
         res_pass1 = check_equivalence(prediction.output, gold.solution)
         # if res_pass1 == False:
-        #     print(prediction.output,",   ", gold.solution, ",   ", res_pass1)  # デバッグ用出力
+        #     print(id_, "  ",prediction.output,",   ", gold.solution, ",   ", res_pass1)  # デバッグ用出力
         
         category_results[category].setdefault('main', []).append(res_pass1)
         unit_results[unit].setdefault('main', []).append(res_pass1) # Unitにも追加
@@ -239,10 +240,17 @@ def math_eval(
             current_samples = samples[:k] if samples else []
             
             # cons@k
-            res_cons_k = calculate_cons_k_counter(current_samples, gold.solution)
+            res_cons_k, majority_rep = calculate_cons_k_counter(current_samples, gold.solution)
             category_results[category].setdefault(f'cons@{k}', []).append(res_cons_k)
             unit_results[unit].setdefault(f'cons@{k}', []).append(res_cons_k) # Unitにも追加
             overall_results.setdefault(f'cons@{k}', []).append(res_cons_k)
+            
+            # if id_ == 35 and k == 40:
+            #     print(f"ID: {id_}, prediction: {majority_rep}, gold: {gold.solution}")
+            #     for sample in current_samples:
+            #         print(f"Sample: {sample}")
+            if res_cons_k == False and k==max(k_list):
+                print(f"ID: {id_}, Predicrion: {prediction.output}, gold {gold.solution}, failed.")
             
             # pass@k
             res_pass_k = calculate_pass_k(current_samples, gold.solution)

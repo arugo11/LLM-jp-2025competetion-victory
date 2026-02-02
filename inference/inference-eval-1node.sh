@@ -73,7 +73,7 @@ singularity run --nv --writable-tmpfs \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}.jsonl" \
     --model_path $MODEL_PATH \
     --max_tokens 16384 \
-    --num_samples 40 \
+    --num_samples 80 \
     --wait_count $WAIT \
     --temperature $T
 
@@ -87,4 +87,4 @@ python src/math_eval/eval_consistency.py \
        ../inference/output/output-${MODEL_REPO}${NAME}_all_samples.jsonl \
        ./targets/dev.jsonl \
        -o ./accuracy/acc-${MODEL_REPO}${NAME}-dev.jsonl \
-       -k "1,20,40"
+       -k "1,20,40,80,160"
