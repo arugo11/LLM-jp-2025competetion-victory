@@ -71,7 +71,7 @@ singularity run --nv --writable-tmpfs \
     --model_path $MODEL_PATH \
     --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}.jsonl" \
-    --max_tokens 16384 \
+    --max_tokens 8192 \
     --num_samples 40 \
     --wait_count $WAIT \
     --temperature $T

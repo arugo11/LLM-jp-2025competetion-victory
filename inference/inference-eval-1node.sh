@@ -72,7 +72,7 @@ singularity run --nv --writable-tmpfs \
     --input_path input/dev_500.jsonl \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}-cons40-replace_pm.jsonl" \
     --model_path $MODEL_PATH \
-    --max_tokens 16384 \
+    --max_tokens 8192 \
     --num_samples 40 \
     --wait_count $WAIT \
     --temperature $T
