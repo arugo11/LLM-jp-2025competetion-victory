@@ -11,9 +11,9 @@
 # bash inference-eval-1node.sh
 
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
-: ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-long-v5"}
+: ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-expand-checkpoint-1900"}
 : ${MODEL_BASE_PATH:="models/"}
-: ${WAIT:=0}
+: ${WAIT:=1}
 : ${NAME:="_"}
 : ${T:=0.7}
 
@@ -39,8 +39,8 @@ JOBID=${PBS_JOBID%%.*}
 # ログの保存
 # 保存先は実行ディレクトリの./.logとする
 mkdir -p ./.log
-LOGFILE=./.log/inference-1node-$JOBID.out
-ERRFILE=./.log/inference-1node-$JOBID.err
+LOGFILE=./.log/inference-1node-submit-$JOBID.out
+ERRFILE=./.log/inference-1node-submit-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 

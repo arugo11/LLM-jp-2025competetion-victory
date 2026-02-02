@@ -11,7 +11,7 @@
 # bash inference-eval-1node.sh
 
 : ${MODEL_USER:="HayatoHongoEveryonesAI"}
-: ${MODEL_REPO:="llm-jp-4-8b-instruct-sft-expand-checkpoint-1900"}
+: ${MODEL_REPO:="open-instruct-grpo-fast"}
 : ${MODEL_BASE_PATH:="models/"}
 : ${WAIT:=1}
 : ${NAME:="_"}
@@ -39,8 +39,8 @@ JOBID=${PBS_JOBID%%.*}
 # ログの保存
 # 保存先は実行ディレクトリの./.logとする
 mkdir -p ./.log
-LOGFILE=./.log/inference-1node-$JOBID.out
-ERRFILE=./.log/inference-1node-$JOBID.err
+LOGFILE=./.log/1node-8b-grpo-$JOBID.out
+ERRFILE=./.log/1node-8b-grpo-$JOBID.err
 exec > $LOGFILE 2> $ERRFILE
 echo "JOBID=${JOBID}"
 
@@ -62,18 +62,18 @@ echo "Build singularity image"
 singularity build --fakeroot --force \
        --bind "${UV_CACHE_DIR}:/root/.cache/uv" \
        --build-arg MODEL_NAMES="$MODEL_NAME" \
-       dist/${MODEL_REPO}${NAME}-replace_pm.sif self-consistency.def
+       dist/${MODEL_REPO}${NAME}8b.sif self-consistency.def
 
 # 推論の実行
 echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
-    --net --network none dist/${MODEL_REPO}${NAME}-replace_pm.sif \
-    --input_path input/dev_500.jsonl \
-    --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}-cons40-replace_pm.jsonl" \
+    --net --network none dist/${MODEL_REPO}${NAME}8b.sif \
+    --input_path input/dev.jsonl \
+    --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}8b.jsonl" \
     --model_path $MODEL_PATH \
-    --max_tokens 16384 \
-    --num_samples 40 \
+    --max_tokens 8192 \
+    --num_samples 80 \
     --wait_count $WAIT \
     --temperature $T
 
@@ -84,7 +84,7 @@ cd math-eval
 uv sync
 source .venv/bin/activate
 python src/math_eval/eval_consistency.py \
-       ../inference/output/output-${MODEL_REPO}${NAME}-cons40-replace_pm_all_samples.jsonl \
+       ../inference/output/output-${MODEL_REPO}${NAME}8b_all_samples.jsonl \
        ./targets/dev.jsonl \
-       -o ./accuracy/acc-${MODEL_REPO}${NAME}-dev.jsonl \
+       -o ./accuracy/acc-${MODEL_REPO}${NAME}8b.jsonl \
        -k "1,20,40"
