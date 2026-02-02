@@ -30,6 +30,7 @@ PROMPT_TEMPLATE = """\
 {question}
 """
 
+# MARK: Waitを用いた追加推論関数
 def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: SamplingParams, wait_count: int):
     """LLMの解答の最後にWaitを追加してさらに推論させる。"""
     # 1. 最初のプロンプトをトークンID化
@@ -99,7 +100,133 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
     final_outputs = llm.generate(current_input_configs, sampling_params=sampling_params)
         
     return final_outputs
+
+# MARK: Normalize Operator
+def normalize_operator(expr: str) -> str:
+    """
+    数式内の演算子(+, -)を比較用に統一する関数
+    Arg:
+        expr (str): 数式を表す文字列
+    return:
+        s: 演算子が統一された数式文字列
+    """
+    s = expr.replace(" ", "") # 空白を削除
+    s = s.replace("+", "@")
+    s = s.replace("-", "@")
+
+    return s
+
+# MARK: Compare Terms
+def compare_terms(expr1: str, expr2: str) -> bool:
+    """
+    2つの式中の数値どうか(演算子以外)を比較する関数
+    Arg:
+        expr1 (str): 数式を表す文字列1
+        expr2 (str): 数式を表す文字列2
+    return:
+        is_equal (bool): 2つの式が同じかどうか
+    """
+    normalized_expr1 = normalize_operator(expr1)
+    normalized_expr2 = normalize_operator(expr2)
+
+    # 正規化した式が不一致ならばFalseを返す
+    if normalized_expr1 != normalized_expr2:
+        return False
     
+    return True
+
+# MARK: Squeeze Expression
+def squeeze_expr(expr: str) -> str:
+    """
+    式中の空白スペースを除去する関数
+    Arg:
+        expr (str): 数式を表す文字列
+    return:
+        s: 空白スペースが除去された数式文字列
+    """
+    if expr is None:
+        return ""
+    s = expr.replace(" ", "") # 半角スペース
+    s = s.replace("　", "") # 全角スペース
+    s = s.replace("\t", "") # タブ
+    s = s.replace("\n", "") # 改行
+    
+    return s
+
+# MARK: Replace ±
+def replace_pm(expr: str):
+    """
+    'a + b', 'a - b' を 'a \\pm b'に変換する関数
+    Arg:
+        expr (str): 数式を表す文字列, カンマで区切られている数式, ex. '$a + b, a - b$'
+    return:
+        new_expr (str): 変換後の数式文字列
+        is_replaced (bool): 変換が行われたかどうかのフラグ
+    """
+    # 空白スペースを除去
+    squeezed_expr = squeeze_expr(expr)
+
+    # "\\pm"を既に含んでいる場合は明示的に前後に半角スペースを挿入して返す
+    if "\\pm" in squeezed_expr:
+        return squeezed_expr.replace("\\pm", " \\pm "), True
+
+    # カンマ区切りで2つの式を分割
+    parts = [p.strip() for p in squeezed_expr.split(",")]
+
+    # 項数の確認
+    # 2項でなければそのまま返す
+    if len(parts) != 2:
+        return expr, False
+    
+    # 2式をそれぞれ変数に代入
+    expr1, expr2 = parts
+    # $記号を削除
+    expr1 = expr1.replace("$", "")
+    expr2 = expr2.replace("$", "")
+
+    # 2式が全く同じ場合はそのまま返す
+    if expr1 == expr2:
+        return expr, False
+    
+    # 数値が異なる場合はそのまま返す
+    if compare_terms(expr1, expr2) is False:
+        return expr, False
+    
+    # "+", "-"の位置を探す
+    if "+" in expr1 and "-" in expr2:
+        base = expr1.replace("+", " \\pm ", 1)
+        return f"${base}$", True
+    if "-" in expr1 and "+" in expr2:
+        base = expr1.replace("-", " \\pm ", 1)
+        return f"${base}$", True
+    
+    return expr, False
+
+# MARK: extract_unnecessary_tokens
+def extract_unnecessary_tokens(text: str) -> str:
+    """
+    不要な箇所を削除する関数
+    Arg:
+        text (str): LLMの出力テキスト
+    return:
+        cleaned_text (str): 不要な箇所が削除されたテキスト
+    """
+    # 不要なトークンのパターン
+    patterns = [
+        r"\;",
+        r"\\;",
+        r"\!",
+        r"\\!",
+        r"\\quad",
+        r"\:",
+        r"\\:",
+    ]
+
+    cleaned_text = text
+    for pattern in patterns:
+        cleaned_text = re.sub(pattern, "", cleaned_text)
+
+    return cleaned_text
 
 # MARK: main
 def main():
@@ -110,7 +237,7 @@ def main():
     # コマンドライン引数のパース
     parser = argparse.ArgumentParser(description="Singularity Submission Example")
     parser.add_argument(
-        "--model_path", type=Path, default="models/HayatoHongoEveryonesAI/open-instruct-grpo-fast", help="Path to the model directory"
+        "--model_path", type=Path, default="models/HayatoHongoEveryonesAI/open-instruct-grpo-fast-12b", help="Path to the model directory"
     )
     parser.add_argument(
         "--input_path", type=Path, required=True, help="Path to the input file"
@@ -120,18 +247,18 @@ def main():
     )
     # 最大トークン数
     parser.add_argument(
-        "--max_tokens", type=int, default=16384, help="Maximum number of tokens"
+        "--max_tokens", type=int, default=8192, help="Maximum number of tokens"
     )
     # サンプリング数
     parser.add_argument(
-        "--num_samples", type=int, default=100, help="Number of samples for self-consistency"
+        "--num_samples", type=int, default=80, help="Number of samples for self-consistency"
     )
     # サンプリング時の温度パラメータ
     parser.add_argument(
         "--temperature", type=float, default=0.7, help="Temperature for sampling"
     )
     parser.add_argument(
-        "--wait_count", type=int, default=1, help="Number of waits for LLM readiness"
+        "--wait_count", type=int, default=2, help="Number of waits for LLM readiness"
     )
 
     args = parser.parse_args()
@@ -180,7 +307,17 @@ def main():
         outputs = chat_with_wait(llm, messages, sampling_params, args.wait_count)
         tmp_outputs.append(outputs)
         # 答えを抽出
-        extracted_contents = [parse(output.outputs[0].text) for output in outputs]
+        extracted_contents = []
+        for output in outputs:
+            # 不要なトークンを削除
+            cleaned_text = replace_pm(output.outputs[0].text)[0]
+            cleaned_text = extract_unnecessary_tokens(cleaned_text)
+            output.outputs[0].text = cleaned_text
+            # 抽出処理
+            extracted_contents.append(parse(cleaned_text))
+
+        #extracted_contents = [parse(output.outputs[0].text) for output in outputs]
+
         # 抽出結果を保存
         for j, content in enumerate(extracted_contents):
             if (content is not None) and (len(content) >= 2):
