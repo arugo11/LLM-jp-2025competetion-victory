@@ -70,7 +70,7 @@
 {"id": 70, "category": "IIB", "unit": "三角関数", "problem": "半径$R$の円に内接する四角形$ABCD$が$AB = \\sqrt{7} - 1,BC = \\sqrt{7} + 1,\\cos{\\angle ABC} = - \\frac{1}{3}$を満たしている。このとき，この円の半径$R$を求めよ。", "solution": "$\\frac{3\\sqrt{10}}{4}$", "evaluation_method": "soft"}
 {"id": 71, "category": "IIB", "unit": "三角関数", "problem": "次の値を求めよ.\n$$\\tan{\\frac{5}{3}\\pi}$$", "solution": "$- \\sqrt{3}$", "evaluation_method": "strict"}
 {"id": 72, "category": "IIB", "unit": "三角関数", "problem": "次の値を求めよ。値は有理化した形で答えること。\n$$\\sin{\\frac{5}{4}\\pi}$$", "solution": "$- \\frac{\\sqrt{2}}{2}$", "evaluation_method": "strict"}
-{"id": 73, "category": "IIB", "unit": "三角関数", "problem": "点$P(4，2)$の原点$O$を中心として$\\frac{\\pi}{3}$だけ回転させた点$Q$の座標を求めよ.", "solution": "$(2 - \\sqrt{3}，1 + 2\\sqrt{3})$", "evaluation_method": "soft"}
+{"id": 73, "category": "IIB", "unit": "三角関数", "problem": "点$P(4，2)$の原点$O$を中心として$\\frac{\\pi}{3}$だけ回転させた点$Q$の座標を求めよ.", "solution": "$(2 - \\sqrt{3},1 + 2\\sqrt{3})$", "evaluation_method": "soft"}
 {"id": 74, "category": "IIB", "unit": "微分法・積分法", "problem": "$f(x) = - x^{2} + 10xのx = 1からx = 6$における平均変化率を求めよ。", "solution": "$3$", "evaluation_method": "soft"}
 {"id": 75, "category": "IIB", "unit": "微分法・積分法", "problem": "$y = 2x^{3} - ax$が極値をもつような$a$の範囲を求めよ.", "solution": "$a > 0$", "evaluation_method": "soft"}
 {"id": 76, "category": "IIB", "unit": "微分法・積分法", "problem": "関数$f(x) = x^{2} + 4x - 1$の$x = a$における微分係数を求めよ。", "solution": "$2a + 4$", "evaluation_method": "soft"}
