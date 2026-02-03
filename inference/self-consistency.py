@@ -350,29 +350,38 @@ def main():
         tmp_outputs.append(outputs)
         # 答えを抽出
         extracted_contents = []
+        extracted_contents_cleaned = []
         for output in outputs:
             # 抽出処理
             parseed_text = parse(cleaned_text)
+            extracted_contents.append(parseed_text)
             # 不要なトークンを削除
             cleaned_text = clean_text(parseed_text)
             # cleaned_text = replace_pm(output.outputs[0].text)[0]
             # cleaned_text = extract_unnecessary_tokens(cleaned_text)
             # output.outputs[0].text = cleaned_text
-            extracted_contents.append(cleaned_text)
+            extracted_contents_cleaned.append(cleaned_text)
 
         #extracted_contents = [parse(output.outputs[0].text) for output in outputs]
 
         # 抽出結果を保存
-        for j, content in enumerate(extracted_contents):
+        for j, content in enumerate(extracted_contents_cleaned):
             if (content is not None) and (len(content) >= 2):
                 all_outputs[j].append(str(content[0]))
-                all_non_parsed_outputs[j].append(str(content[1]))
+                # all_non_parsed_outputs[j].append(str(content[1]))
                 if str(content[0]) not in list(solution_dict.keys()):
                     solution_dict[str(content[0])] = [str(content[1])]
                 else:
                     solution_dict[str(content[0])].append(str(content[1]))
             else:
                 all_outputs[j].append(None)
+                
+        for j, content in enumerate(extracted_contents):
+            if (content is not None) and (len(content) >= 2):
+                all_non_parsed_outputs[j].append(str(content[1]))
+            else:
+                all_non_parsed_outputs[j].append(None)
+                
         print(f"Iteration time: {time.time() - nowtime}(s)")
 
     # Self-Consistencyによる最終解答の決定
