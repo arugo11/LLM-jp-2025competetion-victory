@@ -213,18 +213,39 @@ def extract_unnecessary_tokens(text: str) -> str:
     """
     # 不要なトークンのパターン
     patterns = [
-        r"\;",
+        r"\\\\;",  # 長いものを先に書くか、自動ソートする仕組みにする
         r"\\;",
-        r"\!",
+        r"\\\\!",
         r"\\!",
-        r"\\quad",
-        r"\:",
+        r"\\\\quad",
+        r"\\\\:",
         r"\\:",
+        r"\\\\,",
+        r"\\,",
     ]
 
     cleaned_text = text
     for pattern in patterns:
         cleaned_text = re.sub(pattern, "", cleaned_text)
+
+    return cleaned_text
+
+
+def clean_text(text: str) -> str:
+    """
+    LLMの出力テキストをクリーンアップする関数
+    Arg:
+        text (str): LLMの出力テキスト
+    return:
+        cleaned_text (str): クリーンアップされたテキスト
+    """
+    if text is None:
+        return None
+    # 不要なトークンを削除
+    text = extract_unnecessary_tokens(text)
+    # ±変換を適用
+    cleaned_text, _ = replace_pm(text)
+
 
     return cleaned_text
 
@@ -262,6 +283,8 @@ def main():
     )
 
     args = parser.parse_args()
+    
+    print("Arguments:", args)
 
     # LLMの初期化
     llm = LLM(model=str(args.model_path.resolve()), tensor_parallel_size=torch.cuda.device_count())
@@ -309,12 +332,14 @@ def main():
         # 答えを抽出
         extracted_contents = []
         for output in outputs:
-            # 不要なトークンを削除
-            cleaned_text = replace_pm(output.outputs[0].text)[0]
-            cleaned_text = extract_unnecessary_tokens(cleaned_text)
-            output.outputs[0].text = cleaned_text
             # 抽出処理
-            extracted_contents.append(parse(cleaned_text))
+            parseed_text = parse(cleaned_text)
+            # 不要なトークンを削除
+            cleaned_text = clean_text(parseed_text)
+            # cleaned_text = replace_pm(output.outputs[0].text)[0]
+            # cleaned_text = extract_unnecessary_tokens(cleaned_text)
+            # output.outputs[0].text = cleaned_text
+            extracted_contents.append(cleaned_text)
 
         #extracted_contents = [parse(output.outputs[0].text) for output in outputs]
 
