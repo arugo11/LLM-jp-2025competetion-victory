@@ -368,7 +368,8 @@ def main():
             if (content is not None) and (len(content) >= 2):
                 # content[0] = clean_text(str(content[0]))
                 content_original = str(content[1])
-                content[1] = clean_text(str(content[1]))
+                if content[1] is not None:
+                    content[1] = clean_text(str(content[1]))
                 all_outputs[j].append(str(content[0]))
                 all_non_parsed_outputs[j].append(content_original)
                 if str(content[0]) not in list(solution_dict.keys()):
