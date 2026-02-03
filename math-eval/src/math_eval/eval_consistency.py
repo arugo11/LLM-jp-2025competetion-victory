@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 from math_verify import parse, verify
 from collections import Counter
+import re
 
 app = typer.Typer()
 
@@ -42,6 +43,156 @@ class GoldExample:
     category: str
     unit: str
     evaluation_method: str
+    
+
+# MARK: Normalize Operator
+def normalize_operator(expr: str) -> str:
+    """
+    数式内の演算子(+, -)を比較用に統一する関数
+    Arg:
+        expr (str): 数式を表す文字列
+    return:
+        s: 演算子が統一された数式文字列
+    """
+    s = expr.replace(" ", "") # 空白を削除
+    s = s.replace("+", "@")
+    s = s.replace("-", "@")
+
+    return s
+
+# MARK: Compare Terms
+def compare_terms(expr1: str, expr2: str) -> bool:
+    """
+    2つの式中の数値どうか(演算子以外)を比較する関数
+    Arg:
+        expr1 (str): 数式を表す文字列1
+        expr2 (str): 数式を表す文字列2
+    return:
+        is_equal (bool): 2つの式が同じかどうか
+    """
+    normalized_expr1 = normalize_operator(expr1)
+    normalized_expr2 = normalize_operator(expr2)
+
+    # 正規化した式が不一致ならばFalseを返す
+    if normalized_expr1 != normalized_expr2:
+        return False
+    
+    return True
+
+# MARK: Squeeze Expression
+def squeeze_expr(expr: str) -> str:
+    """
+    式中の空白スペースを除去する関数
+    Arg:
+        expr (str): 数式を表す文字列
+    return:
+        s: 空白スペースが除去された数式文字列
+    """
+    if expr is None:
+        return ""
+    s = expr.replace(" ", "") # 半角スペース
+    s = s.replace("　", "") # 全角スペース
+    s = s.replace("\t", "") # タブ
+    s = s.replace("\n", "") # 改行
+    
+    return s
+
+# MARK: Replace ±
+def replace_pm(expr: str):
+    """
+    'a + b', 'a - b' を 'a \\pm b'に変換する関数
+    Arg:
+        expr (str): 数式を表す文字列, カンマで区切られている数式, ex. '$a + b, a - b$'
+    return:
+        new_expr (str): 変換後の数式文字列
+        is_replaced (bool): 変換が行われたかどうかのフラグ
+    """
+    # 空白スペースを除去
+    squeezed_expr = squeeze_expr(expr)
+
+    # "\\pm"を既に含んでいる場合は明示的に前後に半角スペースを挿入して返す
+    if "\\pm" in squeezed_expr:
+        return squeezed_expr.replace("\\pm", " \\pm "), True
+
+    # カンマ区切りで2つの式を分割
+    parts = [p.strip() for p in squeezed_expr.split(",")]
+
+    # 項数の確認
+    # 2項でなければそのまま返す
+    if len(parts) != 2:
+        return expr, False
+    
+    # 2式をそれぞれ変数に代入
+    expr1, expr2 = parts
+    # $記号を削除
+    expr1 = expr1.replace("$", "")
+    expr2 = expr2.replace("$", "")
+
+    # 2式が全く同じ場合はそのまま返す
+    if expr1 == expr2:
+        return expr, False
+    
+    # 数値が異なる場合はそのまま返す
+    if compare_terms(expr1, expr2) is False:
+        return expr, False
+    
+    # "+", "-"の位置を探す
+    if "+" in expr1 and "-" in expr2:
+        base = expr1.replace("+", " \\pm ", 1)
+        return f"${base}$", True
+    if "-" in expr1 and "+" in expr2:
+        base = expr1.replace("-", " \\pm ", 1)
+        return f"${base}$", True
+    
+    return expr, False
+
+# MARK: extract_unnecessary_tokens
+def extract_unnecessary_tokens(text: str) -> str:
+    """
+    不要な箇所を削除する関数
+    Arg:
+        text (str): LLMの出力テキスト
+    return:
+        cleaned_text (str): 不要な箇所が削除されたテキスト
+    """
+    # 不要なトークンのパターン
+    patterns = [
+        r"\\\\;",  # 長いものを先に書くか、自動ソートする仕組みにする
+        r"\\;",
+        r"\\\\!",
+        r"\\!",
+        r"\\\\quad",
+        r"\\\\:",
+        r"\\:",
+        r"\\\\,",
+        r"\\,",
+    ]
+
+    cleaned_text = text
+    for pattern in patterns:
+        cleaned_text = re.sub(pattern, "", cleaned_text)
+
+    return cleaned_text
+
+
+def clean_text(text: str) -> str:
+    """
+    LLMの出力テキストをクリーンアップする関数
+    Arg:
+        text (str): LLMの出力テキスト
+    return:
+        cleaned_text (str): クリーンアップされたテキスト
+    """
+    if text is None:
+        return None
+    # 不要なトークンを削除
+    text = extract_unnecessary_tokens(text)
+    # ±変換を適用
+    cleaned_text, _ = replace_pm(text)
+
+
+    return cleaned_text
+
 
 
 def load_examples(file_path: str, example_cls: type) -> dict[str, Any]:
@@ -224,17 +375,29 @@ def math_eval(
 
         prediction = id_prediction_map[id_]
         
+        cleaned_output = clean_text(prediction.output)
+        # if prediction.output != cleaned_output:
+        #     print("Original Output:", prediction.output, "Cleaned Output:", cleaned_output)  # デバッグ用出力
+        
         # 1. main (Main Output)
-        res_pass1 = check_equivalence(prediction.output, gold.solution)
-        # if res_pass1 == False:
-        #     print(prediction.output,",   ", gold.solution, ",   ", res_pass1)  # デバッグ用出力
+        res_pass1 = check_equivalence(cleaned_output, gold.solution)
+        if res_pass1 == False:
+            print(cleaned_output,",   ", gold.solution, ",   ", res_pass1)  # デバッグ用出力
         
         category_results[category].setdefault('main', []).append(res_pass1)
         unit_results[unit].setdefault('main', []).append(res_pass1) # Unitにも追加
         overall_results.setdefault('main', []).append(res_pass1)
 
         # 2. cons@k, pass@k
-        samples = prediction.parsed_final_answers
+        _samples = prediction.parsed_final_answers
+        samples = [clean_text(s) for s in _samples if s is not None]
+        
+        # for s, _s in zip(samples, _samples):
+        #     if s != _s:
+        #         print(f"Original: {_s} --> Cleaned: {s}")  # デバッグ用出力
+        
+        # samples = _samples  
+        
         for k in k_list:
             current_samples = samples[:k] if samples else []
             
