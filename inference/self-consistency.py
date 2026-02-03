@@ -31,10 +31,13 @@ PROMPT_TEMPLATE = """\
 """
 
 # MARK: Waitを用いた追加推論関数
-def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: SamplingParams, wait_count: int):
+def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: SamplingParams, wait_count: int, num_samples: int):
     """LLMの解答の最後にWaitを追加してさらに推論させる。"""
     # 1. 最初のプロンプトをトークンID化
-    prompts_data = llm.preprocess_chat(messages=messages)
+    prompts_data_2 = llm.preprocess_chat(messages=messages)
+    prompts_data = []
+    for _ in range(num_samples):
+        prompts_data.extend(copy.deepcopy(prompts_data_2))
     tokenizer = llm.get_tokenizer()
     
     # " Wait" のトークンIDを取得
@@ -74,15 +77,26 @@ def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: Sampli
                 + generated_ids 
                 + wait_token_ids
             )
+            error = 0
             if len(combined_ids) < sampling_params.max_tokens:
                 new_configs.append({"prompt_token_ids": combined_ids})
             else:
                 if len(new_configs) > 0:
                     new_configs.append({"prompt_token_ids": new_configs[-1]["prompt_token_ids"]})
+                else:
+                    error += 1
             token_lens.append(len(combined_ids))
             token_len_sum += len(combined_ids)
             token_len_max = max(token_len_max, len(combined_ids))
             token_len_min = min(token_len_min, len(combined_ids))
+            
+            if error > 0:
+                if len(new_configs) > 0:
+                    for e in range(error):
+                        new_configs.append({"prompt_token_ids": new_configs[-1]["prompt_token_ids"]})
+                else:
+                    for e in range(error):
+                        new_configs.append({"prompt_token_ids": current_input_configs[i]["prompt_token_ids"]})
         
         # 次のループ（または最終出力）のための入力を更新
         current_input_configs = new_configs
@@ -262,6 +276,8 @@ def main():
     )
 
     args = parser.parse_args()
+    
+    print("Arguments:", args)
 
     # LLMの初期化
     llm = LLM(model=str(args.model_path.resolve()), tensor_parallel_size=torch.cuda.device_count())
@@ -292,11 +308,8 @@ def main():
     # parse時の同値表現と対応するTeX記法の解答を保持する辞書
     solution_dict = {} # key: parse時の同値表現, value: list(元の回答文字列)
     nowtime = 0
-    for i in range(args.num_samples):
-        nowtime = time.time()
-        print("--------------------------------")
-        print(f"Sampling iteration: {i+1}/{args.num_samples}")
-        sampling_params = SamplingParams(
+    
+    sampling_params = SamplingParams(
             temperature=args.temperature,
             max_tokens=args.max_tokens,
             top_k=40,
@@ -304,7 +317,15 @@ def main():
         # outputs = llm.chat(
         #     messages, sampling_params=sampling_params
         # )
-        outputs = chat_with_wait(llm, messages, sampling_params, args.wait_count)
+    outputs_2 = chat_with_wait(llm, messages, sampling_params, args.wait_count, args.num_samples)
+    
+    for i in range(args.num_samples):
+        nowtime = time.time()
+        print("--------------------------------")
+        print(f"Sampling iteration: {i+1}/{args.num_samples}")
+        
+        outputs = outputs_2[i*len(messages):(i+1)*len(messages)]
+        
         tmp_outputs.append(outputs)
         # 答えを抽出
         extracted_contents = []
