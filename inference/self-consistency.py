@@ -353,7 +353,7 @@ def main():
         extracted_contents_cleaned = []
         for output in outputs:
             # 抽出処理
-            parseed_text = parse(cleaned_text)
+            parseed_text = parse(output.outputs[0].text)
             extracted_contents.append(parseed_text)
             # 不要なトークンを削除
             cleaned_text = clean_text(parseed_text)
