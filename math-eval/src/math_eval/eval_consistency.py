@@ -146,7 +146,9 @@ def calculate_cons_k_counter(samples: List[str], gold: str) -> bool:
     # print(f"Majority representative: {majority_rep}, Count: {Counter(samples)[majority_rep]}")
     
     # 選ばれた回答が正解と一致するか判定（正誤判定自体は verify を使用して柔軟に行う）
-    return check_equivalence(majority_rep, gold)
+    # if check_equivalence(majority_rep, gold) == False and len(samples) == 80:
+    #     print(f"Majority representative: {majority_rep}, Count: {Counter(samples)[majority_rep]}")
+    return check_equivalence(majority_rep, gold), majority_rep
 
 
 def calculate_pass_k(samples: List[str], gold: str) -> bool:
@@ -226,8 +228,8 @@ def math_eval(
         
         # 1. main (Main Output)
         res_pass1 = check_equivalence(prediction.output, gold.solution)
-        # if res_pass1 == False:
-        #     print(prediction.output,",   ", gold.solution, ",   ", res_pass1)  # デバッグ用出力
+        if res_pass1 == False:
+            print("main: ", id_, ",  ", prediction.output,",   ", gold.solution, ",   ", res_pass1)  # デバッグ用出力
         
         category_results[category].setdefault('main', []).append(res_pass1)
         unit_results[unit].setdefault('main', []).append(res_pass1) # Unitにも追加
@@ -239,10 +241,13 @@ def math_eval(
             current_samples = samples[:k] if samples else []
             
             # cons@k
-            res_cons_k = calculate_cons_k_counter(current_samples, gold.solution)
+            res_cons_k, majority_rep = calculate_cons_k_counter(current_samples, gold.solution)
             category_results[category].setdefault(f'cons@{k}', []).append(res_cons_k)
             unit_results[unit].setdefault(f'cons@{k}', []).append(res_cons_k) # Unitにも追加
             overall_results.setdefault(f'cons@{k}', []).append(res_cons_k)
+            
+            if k == max(k_list) and res_cons_k == False:
+                print("cons: ", id_, ",  ", majority_rep,",   ", gold.solution, ",   ", res_cons_k)  # デバッグ用出力
             
             # pass@k
             res_pass_k = calculate_pass_k(current_samples, gold.solution)

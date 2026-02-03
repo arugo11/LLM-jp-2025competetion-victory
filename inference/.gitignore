@@ -6,3 +6,4 @@ datasets/
 output/
 .log/
 !input/dev.jsonl
+output-copy/

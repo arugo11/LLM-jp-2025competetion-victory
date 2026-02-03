@@ -69,11 +69,11 @@ echo "Start inference"
 singularity run --nv --writable-tmpfs \
     --env CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
     --net --network none dist/${MODEL_REPO}${NAME}-replace_pm.sif \
-    --input_path input/dev_500.jsonl \
+    --input_path input/dev.jsonl \
     --output_path "$(pwd)/output/output-${MODEL_REPO}${NAME}-cons40-replace_pm.jsonl" \
     --model_path $MODEL_PATH \
     --max_tokens 8192 \
-    --num_samples 80 \
+    --num_samples 40 \
     --wait_count $WAIT \
     --temperature $T
 
