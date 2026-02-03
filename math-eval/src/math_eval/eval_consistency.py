@@ -251,8 +251,14 @@ def math_eval(
             overall_results.setdefault(f'pass@{k}', []).append(res_pass_k)
 
     # --- テーブル作成 (Category) ---
-    table_cat = Table(title="Evaluation Results (Category)")
-    table_cat.add_column("Category", justify="left")
+    table_cat = Table(
+        title="Evaluation Results (Category)",
+        expand=False,       # コンテンツに合わせて幅を調整
+        min_width=100,      # 必要に応じて最小幅を指定
+        show_edge=True,
+        collapse_padding=True
+    )
+    table_cat.add_column("Category", justify="left", no_wrap=True)
     
     metric_names = ['main']
     for k in k_list:
@@ -260,7 +266,7 @@ def math_eval(
         metric_names.append(f'pass@{k}')
         
     for name in metric_names:
-        table_cat.add_column(name, justify="right")
+        table_cat.add_column(name, justify="right", min_width=8)
 
     final_metrics_data = {"overall": {}, "categories": {}, "units": {}}
 
