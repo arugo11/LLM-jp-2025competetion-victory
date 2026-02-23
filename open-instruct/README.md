@@ -1,205 +1,170 @@
-[![Beaker Experiment Launch](https://github.com/allenai/open-instruct/actions/workflows/beaker-experiment.yml/badge.svg)](https://github.com/allenai/open-instruct/actions/workflows/beaker-experiment.yml) [![build_open_instruct](https://github.com/allenai/open-instruct/actions/workflows/push-image.yml/badge.svg)](https://github.com/allenai/open-instruct/actions/workflows/push-image.yml)
+## このディレクトリについて
 
-# Training Open Instruction-Following Language Models
+AllenAIのopen-instructを使用しGRPO学習を行います。
 
-This repo serves as an open effort on instruction-tuning and post-training popular pretrained language models on publicly available datasets. We release this repo and will keep updating it with:
+データ供給とアルゴリズムの連携。
 
-1. Code for finetuning language models with latest techniques and instruction datasets in a unified format.
-2. Code for DPO, preference finetuning and reinforcement learning with verifiable rewards (RLVR).
-3. Checkpoints or other useful artifacts that we build in our exploration.
+データ供給側が動的に中難易度帯のサンプル群を用意し、目的関数側は回答が高分散になるようなサンプル群と相性のよい、標準偏差で正規化しないアドバンテージの計算により、損得による報酬信号の抑制を抑えています。
 
-We also support some evaluations natively in the codebase, but these are now unmaintained and instead we suggest using [OLMES](https://github.com/allenai/olmes), which we used for TÜLU 3.
+モデル長文化のダイナミズムに関して。
 
-The latest details on open post-training are found in [TÜLU 3: Pushing Frontiers in Open Language Model Post-Training](https://arxiv.org/abs/2411.15124).
+vLLMアクターが、最大生成長を超えて出力しようとした場合は強制終了されますが、強制終了されたこと自体に罰則を与えず、報酬サンプル群からそのサンプルをフィルタリングします。なぜなら、その長文回答の仕方は良かったのか悪かったのか判定できないからです。したがって、過度な長文化の抑制を避けています。
 
-Please see our first paper [How Far Can Camels Go? Exploring the State of Instruction Tuning on Open Resources](https://arxiv.org/abs/2306.04751) for more thoughts behind this project and our initial findings.
-Please see our second paper [Camels in a Changing Climate: Enhancing LM Adaptation with Tulu 2](https://arxiv.org/abs/2311.10702) for results using Llama-2 models and direct preference optimization. We are still working on more models.
-For more recent results involving PPO and DPO please see our third paper [Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback](https://arxiv.org/abs/2406.09279).
+目的関数における損得の集約の仕方は、元祖GRPOのグループ内サンプル平均集約ではなく、バッチ内トークン平均集約を用いています。そのため、vLLMが長い系列長を生成すればするほど、その分、正解ならばアドバンテージが強調されます。なぜなら、アドバンテージはトークンごとの項に掛かる重みとして働く一方で、サンプル平均では、サンプル長による正規化を経るため、系列長の差が均され、長文サンプルの更新寄与が相対的に弱まるからです。同様に、長文かつ不正解ならば負のアドバンテージも強まります（Aの定義により負になりうる）。
 
-<p align="center" width="100%">
-      <img src="assets/images/tulu_logo.png" alt="Tülu (a hybrid camel) represents a suite of LLaMa models that we built by fully-finetuning them on a strong mix of datasets." style="width: 20%; min-width: 200px; display: block; margin: auto;">
-</p>
+参考
 
-Try some of the models we train with Open Instruct. There is a [free demo](https://playground.allenai.org/) or download them from HuggingFace:
+詳細については、OLMo-3論文4.4.1節を参照してください。
 
-| **Stage**           | **Llama 3.1 8B**                                                                                          | **Llama 3.1 70B**                                                                                         | **OLMo-2 7B**                                                                                          | **OLMo-2 13B**                                                                                         |
-|----------------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| **Base Model**       | [meta-llama/Llama-3.1-8B](https://huggingface.co/meta-llama/Llama-3.1-8B)                                | [meta-llama/Llama-3.1-70B](https://huggingface.co/meta-llama/Llama-3.1-70B)                              | [allenai/OLMo2-7B-1124](https://huggingface.co/allenai/OLMo2-7B-1124)                                | [allenai/OLMo-2-13B-1124](https://huggingface.co/allenai/OLMo-2-13B-1124)                             |
-| **SFT**              | [allenai/Llama-3.1-Tulu-3-8B-SFT](https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B-SFT)                | [allenai/Llama-3.1-Tulu-3-70B-SFT](https://huggingface.co/allenai/Llama-3.1-Tulu-3-70B-SFT)              | [allenai/OLMo-2-1124-7B-SFT](https://huggingface.co/allenai/OLMo-2-1124-7B-SFT)                | [allenai/OLMo-2-1124-13B-SFT](https://huggingface.co/allenai/OLMo-2-1124-13B-SFT)              |
-| **DPO**              | [allenai/Llama-3.1-Tulu-3-8B-DPO](https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B-DPO)                | [allenai/Llama-3.1-Tulu-3-70B-DPO](https://huggingface.co/allenai/Llama-3.1-Tulu-3-70B-DPO)              | [allenai/OLMo-2-1124-7B-DPO](https://huggingface.co/allenai/OLMo-2-1124-7B-DPO)                | [allenai/OLMo-2-1124-13B-DPO](https://huggingface.co/allenai/OLMo-2-1124-13B-DPO)              |
-| **Final Models (RLVR)** | [allenai/Llama-3.1-Tulu-3-8B](https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B)                        | [allenai/Llama-3.1-Tulu-3-70B](https://huggingface.co/allenai/Llama-3.1-Tulu-3-70B)                      | [allenai/OLMo-2-1124-7B-Instruct](https://huggingface.co/allenai/OLMo-2-1124-7B-Instruct)                        | [allenai/OLMo-2-1124-13B-Instruct](https://huggingface.co/allenai/OLMo-2-1124-13B-Instruct)                      |
-| **Reward Model (RM)**| [allenai/Llama-3.1-Tulu-3-8B-RM](https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B-RM)                                                     | (Same as 8B)                                                     | [allenai/OLMo-2-1124-7B-RM](https://huggingface.co/allenai/OLMo-2-1124-7B-RM)                                                     | (Same as 7B)                                                     |
+## 環境構築コマンド
+```
+cd /home/your_account_name/LLM-jp-2025competetion-victory/open-instruct/installers/abci
+bash run_setup.sh ${HOME}/LLM-jp-2025competetion-victory/env
+```
 
-## News
+## コマンドライン引数
 
-- [2024-11-22] We released [TÜLU 3: Pushing Frontiers in Open Language Model Post-Training](https://arxiv.org/abs/2411.15124) and updated our entire stack of open post-training recipes with both Llama 3.1 and OLMo 2.
-- [2024-07-01] We released [Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback](https://arxiv.org/abs/2406.09279) and have majorly updated our codebase to support new models and package versions.
-- [2023-11-27] We released [Camels in a Changing Climate: Enhancing LM Adaptation with Tulu 2](https://arxiv.org/abs/2311.10702). Check out our models [here](https://huggingface.co/collections/allenai/tulu-v2-suite-6551b56e743e6349aab45101). We have added a DPO finetuning script for replicating our results.
-- [2023-09-26] We switched to use the official [alpaca-eval](https://github.com/tatsu-lab/alpaca_eval) library to run AlpacaFarm evaluation but use regenerated longer reference outputs. This will change our numbers reported in the paper. We will update the paper soon.
-- [2023-09-25] Supported using [vLLM](https://github.com/vllm-project/vllm/) for our evaluations, which speeds up the evaluation by 10x.
-- [2023-09-17] Supported [LoRA](https://arxiv.org/abs/2106.09685) and [QLoRA](https://arxiv.org/abs/2305.14314) finetuning. See [here](#parameter-efficient-finetuning) for more details.
-- [2023-08-18] Added support for [ToxiGen](https://github.com/microsoft/TOXIGEN)/[TruthfulQA](https://github.com/sylinrl/TruthfulQA) evaluation. Check our `scripts/eval/` for examples of running them.
-- [2023-08-08] Supported several new instruction dataset, including [LIMA](https://huggingface.co/datasets/GAIR/lima) / [WizardLM](https://github.com/nlpxucan/WizardLM) / [Open-Orca](https://huggingface.co/datasets/Open-Orca/OpenOrca). See the [preparation script](./scripts/data/prepare_train_data.sh) for details. Performance hasn't been evaluated yet.
-- [2023-08-06] Supported LLaMa 2 finetuning and FlashAttention-2 by bumping the version of transformers and many other dependencies.
-- [2023-06-29] Added [licensing info](#licensing) for our released models.
-- [2023-06-09] Released Tülu (a suite of LLaMa models fully-finetuned on a strong mix of datasets) and many other checkpoints on HuggingFace [[Links]](#released-checkpoints).
-- [2023-06-09] Initial release of the codebase containing the training and evaluation code for our [arxiv paper](https://arxiv.org/abs/2306.04751).
+ほとんどの引数はgrpo_fast.pyのArgsクラスに定義されています。
 
-## Setup
+バッチサイズ = num_unique_prompts_rollout * num_samples_per_prompt_rollout = 256
+```
+python open_instruct/grpo_fast.py \
+    --dataset_mixer_list HayatoHongoEveryonesAI/qa_verify_cot_new_6M_v6 1.0 \
+    --dataset_mixer_list_splits train \
+    --dataset_skip_cache \
+    --max_prompt_token_length 1024 \
+    --response_length 7168 \
+    --pack_length 8192 \
+    --per_device_train_batch_size 1 \
+    --num_unique_prompts_rollout 8 \
+    --num_samples_per_prompt_rollout 32 \
+    --model_name_or_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-expand-checkpoint-1900 \
+    --apply_verifiable_reward true \
+    --remap_verifier qa_10k=math-verify \
+    --temperature 1.018 \
+    --ground_truths_key ground_truth \
+    --chat_template_name math_problem_with_boxed \
+    --learning_rate 1e-6 \
+    --total_episodes 441600 \
+    --deepspeed_stage 3 \
+    --num_epochs 1 \
+    --num_learners_per_node 3 \
+    --vllm_tensor_parallel_size 1 \
+    --lr_scheduler_type constant \
+    --vllm_num_engines 5 \
+    --vllm_gpu_memory_utilization 0.65 \
+    --beta 0.00 \
+    --load_ref_policy false \
+    --seed 3 \
+    --vllm_sync_backend nccl \
+    --vllm_enable_prefix_caching \
+    --save_traces \
+    --vllm_enforce_eager \
+    --gradient_checkpointing \
+    --save_freq 100 \
+    --local_eval_every -1 \
+    --checkpoint_state_dir output/grpo_fast_12b_checkpoint_state \
+    --checkpoint_state_freq 100 \
+    --push_to_hub \
+    --hf_entity HayatoHongoEveryonesAI \
+    --hf_repo_id open-instruct-grpo-fast \
+    --active_sampling \
+    --filter_zero_std_samples \
+    --async_steps 4 \
+    --inflight_updates \
+    --truncated_importance_sampling_ratio_cap 2.0 \
+    --advantage_normalization_type centered \
+    --clip_higher 0.272 \
+    --mask_truncated_completions \
+    --with_tracking \
+    --wandb_entity hongo-hayato-6281k-university-of-tokyo \
+    --wandb_project_name open-instruct-grpo-fast \
+    --verbose
+```
 
-Our setup follows our [Dockerfile](./Dockerfile). *Note that Open Instruct is a research codebase and does not guarantee backward compatibility.*
+## 温度スケジュール
 
-### Installation with uv
+ステップ1000以降、温度スィープを実施し、以下のように確定しました。
+小数点第1位のオーダーでは、truncation maskによってバッチサイズの維持が困難になったり、生成出力長が両極の長さに割れてしまったりすることで、モデルの学習が崩壊しました。
 
-We use [uv](https://docs.astral.sh/uv/) for installation and running code. You can install with `uv sync`.
+| ステップ範囲 | 温度 |
+|---|---|
+| 0〜999 | 1.0 |
+| 1000〜1300 | 1.01 |
+| 1300〜1400 | 1.02 |
+| 1400〜1500 | 1.015 |
+| 1500〜1600 | 1.02 |
+| 1600〜1700 | 1.015 |
+| 1700〜1725 | 1.018 |
 
-* **Docker installation**: You can also use the Dockerfile to build a Docker image. You can build the image with the following command:
+## 1️⃣ HF_TOKEN の設定
 
 ```bash
-docker build . \
-    --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) \
-	--build-arg GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-	-t open_instruct_dev
+# トークンを環境変数に設定
+export HF_TOKEN="hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
-# if you are internally at AI2, you can create a beaker image like this:
-beaker_user=$(beaker account whoami --format json | jq -r '.[0].name')
-beaker image delete $beaker_user/open_instruct_dev
-beaker image create open_instruct_dev -n open_instruct_dev -w ai2/$beaker_user
+# 設定内容を確認
+echo $HF_TOKEN
+# → hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX が表示される
 ```
 
-If you are internally at AI2, you may launch experiments using our always-up-to-date auto-built image `nathanl/open_instruct_auto`.
-
-
-## Training
-
-After having setup the environment, you are ready to launch some experiments. We provide a few examples below. To learn more about how to reproduce the Tulu 3 models, please refer to the [Tulu 3 README](./docs/tulu3.md). The instructions and documentations for Tulu 1 and Tulu 2 are in [Tulu 1 and 2 README](./docs/tulu1_tulu2.md).
-
-### Finetuning
-
-You can run the following command for getting started:
 
 ```bash
-# train an 8B tulu3 model using 8 GPU
-bash scripts/train/tulu3/finetune_8b.sh
+cd \~/.cache/huggingface/      # トークンが保存されるディレクトリ
+ls
+# token   ← ここに現在使用中のトークンが書かれています
+cat token
+# → hf_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX が表示されれば OK
 ```
 
-
-### Preference Tuning
+### export で設定したHF_TOKENと、キャッシュに設定されているtokenが一致しない場合
 
 ```bash
-# train an 8B tulu3 model using 8 GPU
-bash scripts/train/tulu3/dpo_8b.sh
+# Hugging Face CLI からログアウト
+hf auth logout
+
+# 再度ログイン（ブラウザで認証コードを入力）
+hf auth login
 ```
 
 
-### Reinforcement Learning with Verifiable Rewards (RLVR)
+---
+
+## 2️⃣ Hugging Face アクセス確認
 
 ```bash
-# quick debugging run using 1 GPU (0.5 for inference, 0.5 for training)
-# here we are using a small model, so it's prob not gonna train good models, but it's easy to test run and print stuff.
-bash scripts/train/debug/single_gpu_on_beaker.sh
+# 必要なライブラリをインストール
+pip install -U huggingface_hub
 
-# train an 8B tulu3 model using 8 GPU (1 for inference, 7 for training)
-bash scripts/train/rlvr/tulu_rlvr.sh
+# モデル情報を取得できるかテスト
+python -c "from huggingface_hub import HfApi; \
+print(HfApi().model_info('HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-expand-checkpoint-1900'))"
+# 情報が出力されればトークンは正しく認証されています
 ```
 
 
-## Contamination checks
+---
 
-We release our scripts for measuring the overlap between instruction tuning datasets and evaluation datasets in `./decontamination`. See the [README](./decontamination/README.md) for more details.
+## 4️⃣ wandb にログイン
 
-### Developing
-When submitting a PR to this repo, we check the core code in `open_instruct/` for style with the following:
-```
-make style
-make quality
+```bash
+# wandb のログイン（APIキーをブラウザに貼り付け）
+wandb login
 ```
 
-Run the tests with `uv run pytest`.
+---
 
-### Repo structure
-```
-├── assets/                     <- Images, licenses, etc.
-├── configs/
-|     ├── beaker_configs/       <- AI2 Beaker configs
-|     ├── ds_configs/           <- DeepSpeed configs
-|     └── train_configs/        <- Training configs
-├── decontamination/            <- Scripts for measuring train-eval overlap
-├── eval/                       <- Evaluation suite for fine-tuned models
-├── human_eval/                 <- Human evaluation interface (not maintained)
-├── open_instruct/              <- Source code (flat)
-├── quantize/                   <- Scripts for quantization
-├── scripts/                    <- Core training and evaluation scripts
-└── Dockerfile                  <- Dockerfile
-```
+## ✅ 確認チェックリスト
 
+- [ ] `HF_TOKEN` が `echo $HF_TOKEN` で正しく表示される  
+- [ ] `~/.cache/huggingface/token` に同一のトークンが保存されている  
+- [ ] `python -c …model_info…` が成功し、モデル情報が取得できる  
+- [ ] 必要なら `hf auth logout && hf auth login` を実行した  
+- [ ] `wandb login` が成功した
 
-## Licensing
+## 学習実行
 
-This codebase is licensed under Apache 2.0 as given in [LICENSE](./LICENSE).
-
-The license we use for V1 models released (along with the base model licenses) can be found in [assets/model_licenses/tulu_license.txt](./assets/model_licenses/tulu_license.txt) - just replace `<MODELNAME>` with the actual model name (i.e., the name on HuggingFace).
-
-V2 models are licensed under the [low-risk AI2 ImpACT license](https://allenai.org/licenses/impact-lr). See [here](https://allenai.org/impact-license) for more details.
-
-
-## Acknowledgements
-
-Open Instruct is a project that benefited from many open-source projects and libraries. We would like to particularly thank the following projects:
-
-* [HuggingFace Transformers](https://github.com/huggingface/transformers): We adapted Hugging Face's Trainer for our finetuning scripts.
-* [HuggingFace TRL](https://github.com/huggingface/trl) and [eric-mitchell/direct-preference-optimization](https://github.com/eric-mitchell/direct-preference-optimization): our preference tuning code is adapted from TRL and from Eric Mitchell's DPO code.
-* OpenAI's [lm-human-preferences](https://github.com/openai/lm-human-preferences), [summarize-from-feedback](https://github.com/openai/summarize-from-feedback), and [vwxyzjn/summarize_from_feedback_details](https://github.com/vwxyzjn/summarize_from_feedback_details): Our core PPO code is adapted from OpenAI's original RLHF code and [Huang et al (2024)'s reproduction work](https://openreview.net/forum?id=kHO2ZTa8e3) of OpenAI's summarize from feedback work.
-* [OpenRLHF](https://github.com/OpenRLHF/OpenRLHF): We adapted OpenRLHF's Ray + vLLM distributed code for scaling up PPO RLVR training into the 70B scale.
-
-## Citation
-
-If you used this repository or our models, please cite our work:
-
-Tulu 1:
-```bibtex
-@misc{wang2023far,
-   title={How Far Can Camels Go? Exploring the State of Instruction Tuning on Open Resources},
-   author={Yizhong Wang and Hamish Ivison and Pradeep Dasigi and Jack Hessel and Tushar Khot and Khyathi Raghavi Chandu and David Wadden and Kelsey MacMillan and Noah A. Smith and Iz Beltagy and Hannaneh Hajishirzi},
-   year={2023},
-   eprint={2306.04751},
-   archivePrefix={arXiv},
-   primaryClass={cs.CL}
-}
-```
-
-Tulu 2:
-```bibtex
-@misc{ivison2023camels,
-      title={Camels in a Changing Climate: Enhancing LM Adaptation with Tulu 2},
-      author={Hamish Ivison and Yizhong Wang and Valentina Pyatkin and Nathan Lambert and Matthew Peters and Pradeep Dasigi and Joel Jang and David Wadden and Noah A. Smith and Iz Beltagy and Hannaneh Hajishirzi},
-      year={2023},
-      eprint={2311.10702},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
-}
-```
-
-Tulu 2.5:
-```bibtex
-@misc{ivison2024unpacking,
-      title={Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback},
-      author={Hamish Ivison and Yizhong Wang and Jiacheng Liu and Zeqiu Wu and Valentina Pyatkin and Nathan Lambert and Noah A. Smith and Yejin Choi and Hannaneh Hajishirzi},
-      year={2024},
-      eprint={2406.09279},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-}
-```
-
-Tulu 3:
-```bibtex
-@article{lambert2024tulu3,
-  title = {Tülu 3: Pushing Frontiers in Open Language Model Post-Training},
-  author = {
-    Nathan Lambert and Jacob Morrison and Valentina Pyatkin and Shengyi Huang and Hamish Ivison and Faeze Brahman and Lester James V. Miranda and Alisa Liu and Nouha Dziri and Shane Lyu and Yuling Gu and Saumya Malik and Victoria Graf and Jena D. Hwang and Jiangjiang Yang and Ronan Le Bras and Oyvind Tafjord and Chris Wilhelm and Luca Soldaini and Noah A. Smith and Yizhong Wang and Pradeep Dasigi and Hannaneh Hajishirzi
-  },
-  year = {2024},
-  email = {tulu@allenai.org}
-}
+```bash
+cd open-instruct
+qsub scripts/abci/train/qsub_grpo_fast_12b.sh
 ```
