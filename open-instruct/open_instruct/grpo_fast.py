@@ -27,6 +27,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# ---------------------------------------------------------------------
+# MODIFIED by Shota Kaji, 2025.
+# Original copyright and license notices are preserved above.
 # isort: off
 import contextlib
 import os
@@ -364,6 +367,8 @@ class Args:
     """whether to offload parameters to CPU (reduces GPU memory usage)"""
     deepspeed_offload_optimizer: bool = False
     """whether to offload optimizer states to CPU (reduces GPU memory usage)"""
+    deepspeed_cpu_adam: bool = False
+    """Whether to use DeepSpeedCPUAdam optimizer"""
     gather_whole_model: bool = True
     """whether to gather the whole model to boardcast (not doable for 70B but can be faster for 8B)"""
     enable_queue_dashboard: bool = True
@@ -768,7 +773,15 @@ class PolicyTrainerRayProcess(RayProcess):
             optim_params = get_optimizer_grouped_parameters(self.policy, args.weight_decay)
         else:
             optim_params = self.policy.parameters()
-        self.optimizer = torch.optim.AdamW(optim_params, lr=args.learning_rate, fused=args.fused_optimizer)
+        # DeepSpeedCPUAdamを使用する場合
+        if args.deepspeed_cpu_adam:
+            from deepspeed.ops.adam import DeepSpeedCPUAdam
+            self.optimizer = DeepSpeedCPUAdam(optim_params, lr=args.learning_rate)
+            logger.info(f"[Rank {self.local_rank}] Using DeepSpeedCPUAdam optimizer")
+            logger.info(f"[Rank {self.local_rank}] Optimizer offload enabled: {args.deepspeed_offload_optimizer}")
+        else:
+            self.optimizer = torch.optim.AdamW(optim_params, lr=args.learning_rate, fused=args.fused_optimizer)
+            logger.info(f"[Rank {self.local_rank}] Using torch.optim.AdamW optimizer")
         num_scheduler_steps = args.num_training_steps * args.num_epochs * args.num_mini_batches
         warm_up_steps = args.warm_up_steps
         if args.warmup_ratio > 0.0:
@@ -3091,10 +3104,10 @@ def run_training(
                     return_partial_on_timeout=True,
                 )
                 
-                # 状態の分類
-                done = [i for i, t in enumerate(times) if t is not None]  # 完了（成功+失敗）
-                errs = [i for i in done if isinstance(results[i], Exception)]  # 完了したが例外
-                ok = [i for i in done if (results[i] is not None and not isinstance(results[i], Exception))]  # 完了して成功
+                # 状態の分類（例外は再レイズされるため、完了したものはすべて成功）
+                done = [i for i, t in enumerate(times) if t is not None]  # 完了（成功のみ）
+                errs = []  # 例外は再レイズされているため空
+                ok = done  # 完了したものはすべて成功
                 pending = [i for i, t in enumerate(times) if t is None]  # 未完了
                 
                 # 成功したものの統計
@@ -3119,13 +3132,24 @@ def run_training(
                     )
             else:  # NOT_SYNCING
                 # 通常時: 厳格にチェック
-                ray_get_with_progress(
-                    [engine.check_background_threads.remote() for engine in vllm_engines],
-                    desc="Checking vLLM engine health",
-                    enable=False,
-                    timeout=None,  # デフォルトタイムアウト
-                )
-                logger.debug(f"[Health Check] ✅ vLLM engines health check passed")
+                # ただし、実行前にsync_stateを再チェック（レースコンディション対策）
+                try:
+                    is_weight_syncing_now = ray.get(actor_manager.should_stop.remote(), timeout=0.5)
+                    if is_weight_syncing_now:
+                        # Weight syncが開始された場合はスキップ
+                        logger.debug("[Health Check] ⏭️ Skipping vLLM engine health check (weight sync started)")
+                    else:
+                        ray_get_with_progress(
+                            [engine.check_background_threads.remote() for engine in vllm_engines],
+                            desc="Checking vLLM engine health",
+                            enable=False,
+                            timeout=10.0,  # タイムアウトを設定（デフォルトではNone）
+                        )
+                        logger.debug(f"[Health Check] ✅ vLLM engines health check passed")
+                except Exception as e:
+                    # 再チェック時のエラーは無視（weight sync開始の可能性）
+                    logger.debug(f"[Health Check] ⚠️ Re-check failed (weight sync may have started): {e}")
+                    # ヘルスチェックをスキップ
         except Exception as e:
             # UNKNOWN状態でのエラーは既に警告レベルで処理済み
             # SYNCING状態ではここには到達しない

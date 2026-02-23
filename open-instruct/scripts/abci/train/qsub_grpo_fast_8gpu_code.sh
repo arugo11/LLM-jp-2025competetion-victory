@@ -1,9 +1,9 @@
 #!/bin/bash
 #PBS -P gch51701
-#PBS -q rt_HF
-#PBS -N grpo_8gpu_code_lb
+#PBS -q rt_HG
+#PBS -N grpo_fast_8gpu_code
 #PBS -l select=1
-#PBS -l walltime=40:00:00
+#PBS -l walltime=12:00:00
 #PBS -m n
 
 # Setup logs
@@ -248,11 +248,8 @@ RAY_NODE_PORT_DEBUG=8889
 RAY_ADDRESS_DEBUG="localhost:${RAY_NODE_PORT_DEBUG}"
 
 # tool_serverポートの分離（本番は1212、デバッグは1213）
-# ロードバランサー用の設定
-NUM_TOOL_SERVERS=4  # 起動するtool_serverの数
-TOOL_SERVER_BASE_PORT=1214  # 最初のtool_serverポート番号
-LOAD_BALANCER_PORT=1213  # ロードバランサーのポート
-TOOL_SERVER_URL_DEBUG="http://localhost:${LOAD_BALANCER_PORT}/execute"
+TOOL_SERVER_PORT_DEBUG=1213
+TOOL_SERVER_URL_DEBUG="http://localhost:${TOOL_SERVER_PORT_DEBUG}/execute"
 
 # TMPDIRの分離（デバッグ専用）
 ORIGINAL_TMPDIR="${TMPDIR:-/tmp}"
@@ -261,10 +258,8 @@ export TMPDIR="${DEBUG_TMPDIR}"
 mkdir -p "${DEBUG_TMPDIR}"
 echo "デバッグ用TMPDIR: ${TMPDIR}"
 echo "Rayポート（デバッグ）: ${RAY_NODE_PORT_DEBUG}"
-echo "tool_server数: ${NUM_TOOL_SERVERS}"
-echo "tool_serverベースポート: ${TOOL_SERVER_BASE_PORT}"
-echo "ロードバランサーポート: ${LOAD_BALANCER_PORT}"
-echo "tool_server URL（ロードバランサー経由）: ${TOOL_SERVER_URL_DEBUG}"
+echo "tool_serverポート（デバッグ）: ${TOOL_SERVER_PORT_DEBUG}"
+echo "tool_server URL（デバッグ）: ${TOOL_SERVER_URL_DEBUG}"
 echo "=========================================="
 
 # Set vLLM environment variables (from grpo_fast.sh)
@@ -312,6 +307,8 @@ if torch.cuda.is_available():
     if torch.cuda.device_count() < 8:
         print(f"WARNING: Expected 8 GPUs but only {torch.cuda.device_count()} detected!")
         print("This may cause Placement Group creation to fail.")
+    elif torch.cuda.device_count() == 8:
+        print(f"✅ All 8 GPUs detected successfully!")
 else:
     print("ERROR: CUDA is not available!")
 EOF
@@ -438,26 +435,16 @@ echo "Python executable: $(which python)"
 echo "Python version: $(python --version)"
 echo "=========================================="
 
-# ========== 複数のtool_server起動 + ロードバランサー ==========
-echo "========== tool_server起動（複数インスタンス + ロードバランサー） =========="
+# ========== tool_server起動 ==========
+echo "========== tool_server起動 =========="
 TOOL_SERVER_DIR="${OPEN_INSTRUCT_ROOT}/open_instruct/tool_utils"
 
-# 既存のプロセスをクリーンアップ
-for ((i=0; i<NUM_TOOL_SERVERS; i++)); do
-    PORT=$((TOOL_SERVER_BASE_PORT + i))
-    if lsof -ti:${PORT} > /dev/null 2>&1; then
-        echo "警告: ポート${PORT}は既に使用中です。プロセスを停止します..."
-        lsof -ti:${PORT} | xargs kill -9 || true
-    fi
-done
-
-# ロードバランサーのポートもクリーンアップ
-if lsof -ti:${LOAD_BALANCER_PORT} > /dev/null 2>&1; then
-    echo "警告: ポート${LOAD_BALANCER_PORT}は既に使用中です。プロセスを停止します..."
-    lsof -ti:${LOAD_BALANCER_PORT} | xargs kill -9 || true
+# 既存のtool_serverプロセスをチェック（自分のポートのみ）
+if lsof -ti:${TOOL_SERVER_PORT_DEBUG} > /dev/null 2>&1; then
+    echo "警告: ポート${TOOL_SERVER_PORT_DEBUG}は既に使用中です。プロセスを停止します..."
+    lsof -ti:${TOOL_SERVER_PORT_DEBUG} | xargs kill -9 || true
+    sleep 2
 fi
-
-sleep 2
 
 # tool_serverディレクトリに移動
 cd "${TOOL_SERVER_DIR}" || {
@@ -467,107 +454,63 @@ cd "${TOOL_SERVER_DIR}" || {
 
 # ログディレクトリ作成
 mkdir -p "${OPEN_INSTRUCT_ROOT}/logs"
+TOOL_SERVER_LOG="${OPEN_INSTRUCT_ROOT}/logs/tool_server_${TOOL_SERVER_PORT_DEBUG}-${JOBID}.log"
 
 # 環境変数設定
 export PREIMPORT_PKGS="pandas,numpy,sympy,time,math,networkx"
-# ProcessPoolExecutorのワーカー数を各サーバーに分散
-TOTAL_CPUS=$(nproc)
-POOL_SIZE_PER_SERVER=$((TOTAL_CPUS / NUM_TOOL_SERVERS))
-if [ ${POOL_SIZE_PER_SERVER} -lt 1 ]; then
-    POOL_SIZE_PER_SERVER=1
-fi
-export POOL_SIZE=${POOL_SIZE_PER_SERVER}
-echo "POOL_SIZE per server=${POOL_SIZE} (Total CPU cores: ${TOTAL_CPUS}, Servers: ${NUM_TOOL_SERVERS})"
+# ProcessPoolExecutorのワーカー数を設定（CPUコア数に合わせる）
+export POOL_SIZE=$(nproc)
+echo "POOL_SIZE=${POOL_SIZE} (CPU cores: $(nproc))"
 
-# 複数のtool_serverを起動
-TOOL_SERVER_PIDS=()
-TOOL_SERVER_BASE_URLS=""
+# バックグラウンドでtool_serverを起動
+echo "tool_serverを起動中... (port: ${TOOL_SERVER_PORT_DEBUG})"
+echo "ログファイル: ${TOOL_SERVER_LOG}"
 
-for ((i=0; i<NUM_TOOL_SERVERS; i++)); do
-    PORT=$((TOOL_SERVER_BASE_PORT + i))
-    TOOL_SERVER_LOG="${OPEN_INSTRUCT_ROOT}/logs/tool_server_${PORT}-${JOBID}.log"
-    
-    echo "tool_serverを起動中... (port: ${PORT})"
-    nohup python -m uvicorn tool_server:app --host 0.0.0.0 --port ${PORT} > "${TOOL_SERVER_LOG}" 2>&1 &
-    PID=$!
-    TOOL_SERVER_PIDS+=(${PID})
-    TOOL_SERVER_BASE_URLS="${TOOL_SERVER_BASE_URLS},http://localhost:${PORT}"
-    
-    echo "tool_server started with PID: ${PID} on port ${PORT}"
-done
+nohup python -m uvicorn tool_server:app --host 0.0.0.0 --port ${TOOL_SERVER_PORT_DEBUG} > "${TOOL_SERVER_LOG}" 2>&1 &
+TOOL_SERVER_PID=$!
+echo "tool_server started with PID: ${TOOL_SERVER_PID}"
 
-# 先頭のカンマを削除
-TOOL_SERVER_BASE_URLS="${TOOL_SERVER_BASE_URLS:1}"
-
-# tool_serverの起動確認（最大30秒待機）
+# 起動確認（最大30秒待機）
 echo "tool_serverの起動を確認中..."
-for ((i=0; i<NUM_TOOL_SERVERS; i++)); do
-    PORT=$((TOOL_SERVER_BASE_PORT + i))
-    SERVER_READY=false
-    for j in {1..30}; do
-        if curl -s http://localhost:${PORT}/ > /dev/null 2>&1; then
-            echo "✓ tool_server is responding on port ${PORT}"
-            SERVER_READY=true
-            break
-        fi
-        if [ $j -eq 30 ]; then
-            echo "❌ tool_serverの起動に失敗しました（port: ${PORT}）"
-            tail -20 "${OPEN_INSTRUCT_ROOT}/logs/tool_server_${PORT}-${JOBID}.log"
-            exit 1
-        fi
-        sleep 1
-    done
-done
-
-# ロードバランサーを起動
-echo "ロードバランサーを起動中... (port: ${LOAD_BALANCER_PORT})"
-export TOOL_SERVER_BASE_URLS="${TOOL_SERVER_BASE_URLS}"
-LOAD_BALANCER_LOG="${OPEN_INSTRUCT_ROOT}/logs/loadbalancer_${LOAD_BALANCER_PORT}-${JOBID}.log"
-
-nohup python -m uvicorn simple_loadbalancer:app --host 0.0.0.0 --port ${LOAD_BALANCER_PORT} > "${LOAD_BALANCER_LOG}" 2>&1 &
-LOAD_BALANCER_PID=$!
-echo "Load balancer started with PID: ${LOAD_BALANCER_PID}"
-
-# ロードバランサーの起動確認
-echo "ロードバランサーの起動を確認中..."
-LOAD_BALANCER_READY=false
+TOOL_SERVER_READY=false
 for i in {1..30}; do
-    if curl -s http://localhost:${LOAD_BALANCER_PORT}/health > /dev/null 2>&1; then
-        echo "✓ Load balancer is responding on port ${LOAD_BALANCER_PORT}"
-        LOAD_BALANCER_READY=true
+    if curl -s http://localhost:${TOOL_SERVER_PORT_DEBUG}/ > /dev/null 2>&1; then
+        echo "✓ tool_server is responding on port ${TOOL_SERVER_PORT_DEBUG}"
+        TOOL_SERVER_READY=true
         break
     fi
     if [ $i -eq 30 ]; then
-        echo "❌ ロードバランサーの起動に失敗しました"
-        tail -20 "${LOAD_BALANCER_LOG}"
+        echo "❌ tool_serverの起動に失敗しました（30秒待機）"
+        echo "ログを確認してください: ${TOOL_SERVER_LOG}"
+        tail -20 "${TOOL_SERVER_LOG}"
         exit 1
     fi
+    echo "  Waiting for tool_server... ($i/30)"
     sleep 1
 done
 
 # テストリクエストで動作確認
-echo "ロードバランサーの動作確認中..."
-TEST_RESPONSE=$(curl -s -X POST "http://localhost:${LOAD_BALANCER_PORT}/execute" \
+echo "tool_serverの動作確認中..."
+TEST_RESPONSE=$(curl -s -X POST "http://localhost:${TOOL_SERVER_PORT_DEBUG}/execute" \
     -H "Content-Type: application/json" \
     -d '{"code": "print(42)", "timeout": 3}' \
     || echo "FAILED")
 
 if echo "${TEST_RESPONSE}" | grep -q "output"; then
-    echo "✅ ロードバランサーは正常に動作しています"
+    echo "✅ tool_serverは正常に動作しています"
 else
-    echo "⚠️  ロードバランサーのテストリクエストに失敗しました"
+    echo "⚠️  tool_serverのテストリクエストに失敗しました"
     echo "レスポンス: ${TEST_RESPONSE}"
 fi
 
 # 環境変数を設定（grpo_fast.pyで使用）
 export CODE_OUTPUT_API_URL="${TOOL_SERVER_URL_DEBUG}"
 echo "CODE_OUTPUT_API_URL=${CODE_OUTPUT_API_URL}"
-echo "TOOL_SERVER_BASE_URLS=${TOOL_SERVER_BASE_URLS}"
 
 # 元のディレクトリに戻る
 cd "${OPEN_INSTRUCT_ROOT}"
 
-echo "========== tool_server + ロードバランサー起動完了 =========="
+echo "========== tool_server起動完了 =========="
 echo ""
 
 # Rayを事前に起動
@@ -575,8 +518,7 @@ echo "========== Rayクラスターの起動（デバッグ用） =========="
 
 # 1. 自分のRayクラスターのみをクリーンアップ（ポート番号を指定）
 echo "デバッグ用Rayクラスターのクリーンアップを実行中..."
-# デバッグ用アドレスのRayクラスターのみ停止（他のジョブには影響しない）
-ray stop --address="${RAY_ADDRESS_DEBUG}" --force 2>/dev/null || true
+ray stop --force || true
 
 # 自分のポートで実行中のRayプロセスのみを確認して終了
 RAY_PIDS=$(lsof -ti:${RAY_NODE_PORT_DEBUG} 2>/dev/null || true)
@@ -585,15 +527,6 @@ if [ -n "${RAY_PIDS}" ]; then
     echo "${RAY_PIDS}" | xargs kill -9 || true
     sleep 5
 fi
-
-# PyTorch distributedが使用する可能性のあるポートをクリーンアップ
-echo "PyTorch distributedポートのクリーンアップ中..."
-for port in 49717; do
-    if lsof -ti:${port} > /dev/null 2>&1; then
-        echo "ポート${port}を使用しているプロセスを停止..."
-        lsof -ti:${port} | xargs kill -9 || true
-    fi
-done
 
 # Rayの一時ファイル保存先を確認してからクリーンアップ
 echo "========== Ray一時ファイル保存先の確認 =========="
@@ -679,31 +612,30 @@ echo "========== Rayクラスター起動完了 =========="
 # # HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 \
 # Pythonスクリプトを実行
 python open_instruct/grpo_fast.py \
-    --dataset_mixer_list HayatoHongoEveryonesAI/qa_verify_2M_v5 1.0 \
+    --dataset_mixer_list HayatoHongoEveryonesAI/dev-TIR_v3 1.0 \
     --dataset_mixer_list_splits train \
     --dataset_skip_cache \
     --max_prompt_token_length 1024 \
-    --response_length 3072 \
-    --pack_length 4096 \
+    --response_length 7168 \
+    --pack_length 8192 \
     --per_device_train_batch_size 1 \
-    --num_unique_prompts_rollout 8 \
-    --num_samples_per_prompt_rollout 32 \
-    --model_name_or_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-code \
+    --num_unique_prompts_rollout 12 \
+    --num_samples_per_prompt_rollout 30 \
+    --model_name_or_path Qwen/Qwen3-0.6B \
     --apply_verifiable_reward true \
     --remap_verifier qa_10k=code-output \
     --temperature 1.0 \
     --ground_truths_key ground_truth \
     --chat_template_name r1_simple_chat_postpend_think_code_execution \
-    --stop_strings "</PYTHON>" "</python>" "</answer>" \
     --learning_rate 1e-6 \
-    --total_episodes 768000 \
+    --total_episodes 7200 \
     --deepspeed_stage 3 \
     --num_epochs 1 \
     --num_learners_per_node 2 \
     --vllm_tensor_parallel_size 1 \
     --lr_scheduler_type constant \
     --vllm_num_engines 6 \
-    --vllm_gpu_memory_utilization 0.35 \
+    --vllm_gpu_memory_utilization 0.3 \
     --beta 0.00 \
     --load_ref_policy false \
     --seed 3 \
@@ -714,7 +646,7 @@ python open_instruct/grpo_fast.py \
     --gradient_checkpointing \
     --save_freq 100 \
     --local_eval_every -1 \
-    --checkpoint_state_dir output/grpo_fast_code_checkpoint_state \
+    --checkpoint_state_dir output/grpo_fast_checkpoint_state \
     --checkpoint_state_freq 100 \
     --hf_entity HayatoHongoEveryonesAI \
     --hf_repo_id open-instruct-grpo-fast \
@@ -724,12 +656,13 @@ python open_instruct/grpo_fast.py \
     --inflight_updates \
     --truncated_importance_sampling_ratio_cap 2.0 \
     --advantage_normalization_type centered \
+    --no_resampling_pass_rate 0.9 \
     --clip_higher 0.272 \
     --mask_truncated_completions \
     --with_tracking \
     --wandb_entity hongo-hayato-6281k-university-of-tokyo \
     --wandb_project_name open-instruct-grpo-fast \
-    --push_to_hub \
+    --push_to_hub false \
     --verbose 
 
 echo "End time: $(date)"
@@ -738,62 +671,24 @@ echo "Training completed!"
 # ========== デバッグ環境のクリーンアップ ==========
 echo "========== デバッグ環境のクリーンアップ =========="
 
-# ロードバランサーを停止
-if [ -n "${LOAD_BALANCER_PID}" ] && kill -0 ${LOAD_BALANCER_PID} 2>/dev/null; then
-    echo "ロードバランサーを停止中: PID ${LOAD_BALANCER_PID}"
-    kill ${LOAD_BALANCER_PID} || true
+# tool_serverを停止
+if [ -n "${TOOL_SERVER_PID}" ] && kill -0 ${TOOL_SERVER_PID} 2>/dev/null; then
+    echo "tool_serverを停止中: PID ${TOOL_SERVER_PID}"
+    kill ${TOOL_SERVER_PID} || true
     sleep 2
 else
-    echo "ロードバランサープロセスが見つかりません（既に停止している可能性があります）"
+    echo "tool_serverプロセスが見つかりません（既に停止している可能性があります）"
 fi
 
-# ロードバランサーのポートで動作しているプロセスを停止
-if lsof -ti:${LOAD_BALANCER_PORT} > /dev/null 2>&1; then
-    echo "ポート${LOAD_BALANCER_PORT}で動作中のロードバランサープロセスを停止..."
-    lsof -ti:${LOAD_BALANCER_PORT} | xargs kill -9 || true
+# 自分のポートで動作しているtool_serverプロセスのみを停止
+if lsof -ti:${TOOL_SERVER_PORT_DEBUG} > /dev/null 2>&1; then
+    echo "ポート${TOOL_SERVER_PORT_DEBUG}で動作中のtool_serverプロセスを停止..."
+    lsof -ti:${TOOL_SERVER_PORT_DEBUG} | xargs kill -9 || true
 fi
-
-# 複数のtool_serverを停止
-for ((i=0; i<NUM_TOOL_SERVERS; i++)); do
-    PORT=$((TOOL_SERVER_BASE_PORT + i))
-    PID_INDEX=$i
-    if [ ${PID_INDEX} -lt ${#TOOL_SERVER_PIDS[@]} ]; then
-        PID=${TOOL_SERVER_PIDS[${PID_INDEX}]}
-        if [ -n "${PID}" ] && kill -0 ${PID} 2>/dev/null; then
-            echo "tool_server (port ${PORT}) を停止中: PID ${PID}"
-            kill ${PID} || true
-        fi
-    fi
-    
-    # ポートで動作しているプロセスも停止
-    if lsof -ti:${PORT} > /dev/null 2>&1; then
-        echo "ポート${PORT}で動作中のtool_serverプロセスを停止..."
-        lsof -ti:${PORT} | xargs kill -9 || true
-    fi
-done
 
 # 自分のRayクラスターのみを停止
 echo "デバッグ用Rayクラスターを停止中..."
-# デバッグ用アドレスのRayクラスターのみ停止（他のジョブには影響しない）
-ray stop --address="${RAY_ADDRESS_DEBUG}" --force 2>/dev/null || true
-
-# vLLMエンジンのプロセスも確認して停止（ポート競合を防ぐため）
-echo "vLLMエンジンのプロセスをクリーンアップ中..."
-pkill -9 -f "EngineCore" || true
-pkill -9 -f "vllm.*EngineCore" || true
-# PyTorch distributedのプロセスも確認
-pkill -9 -f "torch.distributed" || true
-# 使用されている可能性のあるポートを確認（例：41163など）
-for port in 41163 41164 41165 41166 41167 41168 49717; do
-    if lsof -ti:${port} > /dev/null 2>&1; then
-        echo "ポート${port}を使用しているプロセスを停止..."
-        lsof -ti:${port} | xargs kill -9 || true
-    fi
-done
-
-# 念のため、すべてのRayプロセスも確認（他のジョブに影響しないよう注意）
-# ただし、デバッグ用アドレスのみを対象とする
-sleep 2
+ray stop --force || true
 
 # デバッグ用TMPDIRをクリーンアップ（オプション: デバッグ時に残したい場合はコメントアウト）
 # rm -rf "${DEBUG_TMPDIR}" || true

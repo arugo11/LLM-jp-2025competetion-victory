@@ -161,8 +161,19 @@ local_dataset_cache/
 scratch/
 
 # PBS job logs
-grpo_fast_test.e*
-grpo_fast_test.o*
+grpo_*.e*
+grpo_*.o*
+
+# Trace files
+rl_traces*.json
+traces_flattened.*
+traces_statistics.csv
+
+# HTML output
+decoded_responses*.html
+
+# Trace analysis
+trace_analysis/
 
 # Logs directory
 logs/output/

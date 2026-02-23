@@ -1,3 +1,7 @@
+# Originally from https://github.com/allenai/open-instruct
+# Licensed under the Apache License, Version 2.0
+# MODIFIED by Shota Kaji, 2025.
+#
 # this file deals with dataset pre-processing before training
 
 # 1. PPO (prompt)
@@ -679,6 +683,31 @@ CHAT_TEMPLATES = {
         "{{ message['role'].capitalize() + ': ' + message['content'] + '\n' }}"
         "{% if loop.last and add_generation_prompt %}"
         "{{ 'Assistant: <think>' }}"
+        "{% endif %}"
+        "{% endfor %}"
+    ),
+    "math_problem_with_boxed": (
+        "以下は数学の問題です。"
+        "解答を段階的に考え、最終的な答えとなる数値や解を\\boxedタグ内に記述してください。"
+        "\n\n"
+        "### 制約事項\n"
+        "- 最終的な解答を必ず\\boxedタグ内に記述する。\n"
+        "- 最終的な解答は必ず数値または数式で出力する。\n"
+        "- \\displaystyleを用いてはいけない。\n"
+        "- 最終的な解答では単位を出力してはならない。\n"
+        "- 数式は必ずlatex表記で出力する。\n"
+        "\n"
+        "### 問題\n"
+        "{% for message in messages %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '\n\n### 指示:\n' + message['content'] }}"
+        "{% elif message['role'] == 'system' %}"
+        "{{ '以下は、タスクを説明する指示です。要求を適切に満たす応答を書きなさい。' }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ '\n\n### 応答:\n' + message['content'] }}"
+        "{% endif %}"
+        "{% if loop.last and add_generation_prompt %}"
+        "{{ '\n\n### 応答:\nanalysisWe' }}"
         "{% endif %}"
         "{% endfor %}"
     ),

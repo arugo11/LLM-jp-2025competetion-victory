@@ -576,7 +576,7 @@ python open_instruct/grpo_fast.py \
     --vllm_tensor_parallel_size 1 \
     --lr_scheduler_type constant \
     --vllm_num_engines 1 \
-    --vllm_gpu_memory_utilization 0.5 \
+    --vllm_gpu_memory_utilization 0.25 \
     --beta 0.00 \
     --load_ref_policy false \
     --seed 3 \

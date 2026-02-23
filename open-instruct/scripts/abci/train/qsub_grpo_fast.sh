@@ -3,7 +3,7 @@
 #PBS -q rt_HF
 #PBS -N grpo_fast_test
 #PBS -l select=1
-#PBS -l walltime=25:00:00
+#PBS -l walltime=10:00:00
 #PBS -m n
 
 # Setup logs
@@ -250,7 +250,6 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 # We need to set NCCL_CUMEM_ENABLE=0 for performance reasons; see:
 # https://github.com/vllm-project/vllm/issues/5723#issuecomment-2554389656
 #export NCCL_CUMEM_ENABLE=0
-echo "[DEBUG] qsub_grpo_fast.sh: NCCL_CUMEM_ENABLE=${NCCL_CUMEM_ENABLE:-NOT SET}"
 
 # Fix Ray GPU device ID issue with single_gpu_mode
 export RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO=0
@@ -417,24 +416,6 @@ echo "=========================================="
 # Rayを事前に起動
 echo "========== Rayクラスターの起動 =========="
 
-# 0. デバッグ用スクリプトのプロセスもクリーンアップ（ポート競合を防ぐため）
-echo "デバッグ用スクリプトのプロセスをクリーンアップ中..."
-# デバッグ用Rayクラスターを停止（ポート8889）
-ray stop --address="localhost:8889" --force 2>/dev/null || true
-# vLLMエンジンのプロセスも確認して停止
-pkill -9 -f "EngineCore" || true
-pkill -9 -f "vllm.*EngineCore" || true
-# PyTorch distributedのプロセスも確認
-pkill -9 -f "torch.distributed" || true
-# 使用されている可能性のあるポートを確認（例：41163など）
-for port in 41163 41164 41165 41166 41167 41168; do
-    if lsof -ti:${port} > /dev/null 2>&1; then
-        echo "ポート${port}を使用しているプロセスを停止..."
-        lsof -ti:${port} | xargs kill -9 || true
-    fi
-done
-echo "デバッグ用プロセスのクリーンアップ完了"
-
 # 1. Rayクラスターの完全なクリーンアップ
 echo "Rayクラスターの完全なクリーンアップを実行中..."
 ray stop --force || true
@@ -582,21 +563,20 @@ python open_instruct/grpo_fast.py \
     --num_unique_prompts_rollout 12 \
     --num_samples_per_prompt_rollout 30 \
     --model_name_or_path HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 \
-    --stop_strings "</answer>" \
     --apply_verifiable_reward true \
-    --remap_verifier qa_10k=math \
+    --remap_verifier qa_10k=math-verify \
     --temperature 1.0 \
     --ground_truths_key ground_truth \
-    --chat_template_name r1_simple_chat_postpend_think \
+    --chat_template_name math_problem_with_boxed \
     --learning_rate 1e-6 \
-    --total_episodes 360000 \
+    --total_episodes 522000 \
     --deepspeed_stage 3 \
     --num_epochs 1 \
     --num_learners_per_node 2 \
     --vllm_tensor_parallel_size 1 \
     --lr_scheduler_type constant \
     --vllm_num_engines 6 \
-    --vllm_gpu_memory_utilization 0.25 \
+    --vllm_gpu_memory_utilization 0.5 \
     --beta 0.00 \
     --load_ref_policy false \
     --seed 3 \
@@ -612,19 +592,18 @@ python open_instruct/grpo_fast.py \
     --push_to_hub \
     --hf_entity HayatoHongoEveryonesAI \
     --hf_repo_id open-instruct-grpo-fast \
-    --system_prompt_override_file scripts/train/debug/cute_debug_system_prompt.txt \
     --active_sampling \
     --filter_zero_std_samples \
     --async_steps 4 \
     --inflight_updates \
     --truncated_importance_sampling_ratio_cap 2.0 \
     --advantage_normalization_type centered \
-    --no_resampling_pass_rate 0.9 \
     --clip_higher 0.272 \
     --mask_truncated_completions \
     --with_tracking \
     --wandb_entity hongo-hayato-6281k-university-of-tokyo \
     --wandb_project_name open-instruct-grpo-fast \
+    --gather_whole_model false \
     --verbose 
 
 echo "End time: $(date)"

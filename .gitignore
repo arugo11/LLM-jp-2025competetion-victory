@@ -227,3 +227,10 @@ output/
 
 # コード生成特化型GRPOリポジトリ（開発中）
 open-instruct_code_grpo/
+
+# PBS job logs
+grpo_*.e*
+grpo_*.o*
+
+# Logs directory
+logs/

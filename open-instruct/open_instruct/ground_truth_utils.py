@@ -1,3 +1,6 @@
+# Originally from https://github.com/allenai/open-instruct
+# Licensed under the Apache License, Version 2.0
+# MODIFIED by Shota Kaji and Shinji Kotani (math-verify), 2025.
 """
 Collection of 'ground truth rewards' for different datasets/tasks.
 Used to give feedback to the model based on the ground truth answer.
@@ -96,74 +99,182 @@ def last_non_empty_line(text: str) -> str:
     return ""
 
 
+# Regular expressions for number matching
+_num_re = re.compile(r"^[\+\-]?\d+(?:\.\d+)?$")                 # 12, -3.5
+_num_commas_re = re.compile(r"^[\+\-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$")  # 1,234 or 1,234.56
+
+
+def _strip_math_delims(s: str) -> str:
+    """Remove $ or $$ delimiters from LaTeX string."""
+    s = (s or "").strip()
+    if not s:
+        return ""
+    if s.startswith("$$") and s.endswith("$$"):
+        return s[2:-2].strip()
+    if s.startswith("$") and s.endswith("$"):
+        return s[1:-1].strip()
+    return s
+
+
+def _is_wrapped_math(s: str) -> bool:
+    """Check if string is wrapped in $ or $$ delimiters."""
+    s = (s or "").strip()
+    if not s:
+        return False
+    if s.startswith("$$") and s.endswith("$$"):
+        return True
+    if s.startswith("$") and s.endswith("$"):
+        return True
+    return False
+
+
+def _ensure_display_math(s: str) -> str:
+    """Ensure $$...$$ wrapping (display math) safely."""
+    s = (s or "").strip()
+    if not s:
+        return ""
+    if s.startswith("$$") and s.endswith("$$"):
+        return s
+    if s.startswith("$") and s.endswith("$"):
+        inner = s[1:-1].strip()
+        return f"$${inner}$$"
+    return f"$${s}$$"
+
+
+def _looks_mathish(s: str) -> bool:
+    """Check if string looks like a mathematical expression (lightweight guard)."""
+    s = (s or "").strip()
+    if not s:
+        return False
+
+    # ✅ already explicit math environment
+    if _is_wrapped_math(s):
+        return True
+
+    # LaTeX command
+    if "\\" in s:
+        return True
+
+    # Pure number (strict)
+    if _num_re.match(s) or _num_commas_re.match(s):
+        return True
+
+    # If digits exist, allow common math punctuation/operators
+    if any(ch.isdigit() for ch in s):
+        if any(op in s for op in "+-*/^=()<>"):
+            return True
+        if "." in s or "," in s:
+            return True
+
+    # Variables with equality/inequality even without digits
+    if any(op in s for op in ("=", "<", ">", "≤", "≥")):
+        return True
+
+    return False
+
+
+def _try_equiv_with_math_verify(a: str, g: str, timeout_s: float = 3.0) -> tuple[bool, str | None]:
+    """Try equivalence check using math-verify. Return (ok, err_repr).
+
+    Important:
+    - Do NOT strip $ delimiters before parse() (LaTeX extraction may fail)
+    - verify() takes (gold, answer) order, but we try both directions for safety
+    """
+    try:
+        a_in = (a or "").strip()
+        g_in = (g or "").strip()
+        if not a_in or not g_in:
+            return False, "empty_input"
+
+        # Guard: if it looks like plain text, skip math-verify quickly
+        if not _looks_mathish(a_in) or not _looks_mathish(g_in):
+            return False, "not_mathish"
+
+        # Wrap only if not already wrapped on both ends
+        if not _is_wrapped_math(a_in):
+            a_in = _ensure_display_math(a_in)
+        if not _is_wrapped_math(g_in):
+            g_in = _ensure_display_math(g_in)
+
+        pa = parse(a_in, parsing_timeout=timeout_s)
+        pg = parse(g_in, parsing_timeout=timeout_s)
+        if not pa or not pg:
+            return False, "parse_failed_or_empty"
+        if len(pa) < 2 or len(pg) < 2:
+            return False, "parse_result_insufficient"
+
+        a_ex = _ensure_display_math(str(pa[1]))
+        g_ex = _ensure_display_math(str(pg[1]))
+
+        # Parse extracted expressions once and reuse
+        pa_ex = parse(a_ex, parsing_timeout=timeout_s)
+        pg_ex = parse(g_ex, parsing_timeout=timeout_s)
+        if not pa_ex or not pg_ex:
+            return False, "parse_extracted_failed_or_empty"
+        if len(pa_ex) < 2 or len(pg_ex) < 2:
+            return False, "parse_extracted_result_insufficient"
+
+        # verify() は gold→answer の順が仕様（重要！）
+        # ただし、非対称性を考慮して両方向を試す
+        ok_ga = verify(pg_ex, pa_ex, timeout_seconds=timeout_s)
+        if ok_ga:
+            return True, None
+
+        # 逆順も試す（安全策）
+        ok_ag = verify(pa_ex, pg_ex, timeout_seconds=timeout_s)
+        if ok_ag:
+            return True, "verify_asymmetric_order"  # ログ用（本来の順序で失敗したが逆順で成功）
+
+        return False, "verify_failed_both_directions"
+    except Exception as e:
+        return False, repr(e)
+
+
 def to_latex_scalar(text: str) -> str:
-    """Convert raw string to LaTeX scalar for evaluation.
-    
-    Matches the normalization logic used in the inference system.
-    Handles lists, dicts, and converts expressions to LaTeX format.
-    Also handles already-LaTeX-formatted strings (e.g., "$\\frac{1}{2}$").
-    
-    Args:
-        text: Raw string to normalize (may already be LaTeX format)
-    
-    Returns:
-        Normalized LaTeX scalar string (e.g., "$\\frac{1}{2}$") or original text if conversion fails
+    """
+    Convert raw string to a LaTeX-ish scalar for *logging only*.
+
+    IMPORTANT:
+    - Do NOT use this for correctness comparison.
+    - Correctness comparison should use is_equiv/hendrycks_is_equiv.
+
+    Behavior:
+    - Tries to parse LaTeX first if backslashes exist
+    - Falls back to sympify
+    - Handles list/dict-ish by taking first element/value
+    - If parsing fails, returns the stripped original
     """
     if latex is None or sympify is None:
-        # Fallback if sympy is not available
         return text.strip()
-    
+
     stripped = text.strip()
     if not stripped or stripped.lower().startswith("error"):
         return ""
 
-    # If already in LaTeX format ($...$), extract the content and try to parse
-    if stripped.startswith("$") and stripped.endswith("$"):
-        inner = stripped[1:-1].strip()
-        # Try to parse the LaTeX directly using sympy's latex parser
-        try:
-            from sympy.parsing.latex import parse_latex
-            expr = parse_latex(inner)
-            return f"${latex(expr)}$"
-        except (ImportError, Exception):
-            # If LaTeX parsing fails or not available, try sympify on the inner content
-            try:
-                expr = sympify(inner)
-                # Handle lists/tuples: take first element
-                if isinstance(expr, (list, tuple)):
-                    expr = expr[0] if expr else None
-                # Handle dict-like objects: take first value
-                if hasattr(expr, "values"):
-                    values = list(expr.values())
-                    expr = values[0] if values else None
-                if expr is None:
-                    return ""
-                return f"${latex(expr)}$"
-            except Exception:
-                # If both fail, return the original LaTeX string (already normalized)
-                return stripped
+    stripped = re.sub(r"\\arcsin", r"\\operatorname{asin}", stripped)
+    stripped = re.sub(r"\\arccos", r"\\operatorname{acos}", stripped)
+    stripped = re.sub(r"\\arctan", r"\\operatorname{atan}", stripped)
 
-    # Check if the string contains LaTeX commands (e.g., \sqrt, \frac) but is not wrapped in $
-    # This handles ground truth values that are already in LaTeX format without $ delimiters
-    if "\\" in stripped and any(cmd in stripped for cmd in ["\\sqrt", "\\frac", "\\left", "\\right", "\\cdot", "\\times", "\\pm", "\\mp"]):
+    # ✅ FIX: handle both $...$ and $$...$$ correctly
+    candidate = _strip_math_delims(stripped)
+
+    # Prefer LaTeX parsing if it looks like LaTeX
+    if "\\" in candidate:
         try:
             from sympy.parsing.latex import parse_latex
-            expr = parse_latex(stripped)
+            expr = parse_latex(candidate)
             return f"${latex(expr)}$"
-        except (ImportError, Exception):
-            # If LaTeX parsing fails, fall through to sympify attempt
+        except Exception:
             pass
 
-    candidate = stripped
-    # Extract first element from list: [1, 2, 3] -> 1
-    if stripped.startswith("[") and stripped.endswith("]"):
-        inner = stripped[1:-1].strip()
+    # list/dict first item/value (compat)
+    if candidate.startswith("[") and candidate.endswith("]"):
+        inner = candidate[1:-1].strip()
         candidate = inner.split(",", maxsplit=1)[0].strip() if inner else ""
         if not candidate:
             return ""
-    # Extract first value from dict: {"a": 1, "b": 2} -> 1
-    elif stripped.startswith("{") and stripped.endswith("}"):
-        inner = stripped[1:-1]
+    elif candidate.startswith("{") and candidate.endswith("}"):
+        inner = candidate[1:-1]
         parts = [p for p in inner.split(",") if ":" in p]
         candidate = parts[0].split(":", maxsplit=1)[1].strip() if parts else ""
         if not candidate:
@@ -174,16 +285,14 @@ def to_latex_scalar(text: str) -> str:
     except Exception:
         return stripped
 
-    # Handle lists/tuples: take first element
     if isinstance(expr, (list, tuple)):
         expr = expr[0] if expr else None
-    # Handle dict-like objects: take first value
     if hasattr(expr, "values"):
         values = list(expr.values())
         expr = values[0] if values else None
     if expr is None:
         return ""
-    
+
     return f"${latex(expr)}$"
 
 
@@ -953,7 +1062,7 @@ class LMJudgeVerifier(VerifierFunction):
             raise RuntimeError(
                 "Cannot call synchronous __call__ method from within an async context. "
                 "Use async_call() instead."
-            )
+                )
         except RuntimeError:
             # No event loop is running - safe to use asyncio.run()
             return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
@@ -1109,7 +1218,7 @@ class CodeVerifier(VerifierFunction):
             raise RuntimeError(
                 "Cannot call synchronous __call__ method from within an async context. "
                 "Use async_call() instead."
-            )
+                )
         except RuntimeError:
             # No event loop is running - safe to use asyncio.run()
             return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
@@ -1128,11 +1237,13 @@ class CodeVerifier(VerifierFunction):
 class CodeOutputVerifier(VerifierFunction):
     """
     Verifier that executes Python code and compares output to ground truth.
-    
-    Matches the inference system's logic:
-    - Extracts code from <python> tags (or assistantfinal<PYTHON> for backward compatibility)
-    - Extracts answer from stdout (priority) or <result> tags (fallback)
-    - Normalizes both answer and ground truth using to_latex_scalar()
+
+    Logic:
+    - Extract code from <python> tags (or assistantfinal<PYTHON> for backward compatibility)
+    - Execute code and capture stdout
+    - Extract answer from stdout (priority) or <result> tag (fallback)
+    - Compare using is_equiv()/hendrycks_is_equiv() as PRIMARY correctness
+    - Use to_latex_scalar() ONLY for logging display
     """
 
     PYTHON_BEGIN = "<python>"
@@ -1216,13 +1327,13 @@ class CodeOutputVerifier(VerifierFunction):
     ) -> VerificationResult:
         """
         Asynchronously verify code execution by comparing output to ground truth.
-        
-        Matches inference system logic:
+
+        Logic:
         1. Extract code from <python> tags (or backward-compatible formats)
         2. Execute code and capture stdout
         3. Extract answer: stdout (priority) or <result> tag (fallback)
-        4. Normalize both answer and ground truth using to_latex_scalar()
-        5. Compare normalized values
+        4. Compare using is_equiv()/hendrycks_is_equiv() as PRIMARY correctness
+        5. Use to_latex_scalar() ONLY for logging display
 
         Args:
             tokenized_prediction: Unused tokenized representation
@@ -1231,7 +1342,7 @@ class CodeOutputVerifier(VerifierFunction):
             query: Unused original query
 
         Returns:
-            VerificationResult with score 1.0 if normalized answer matches normalized ground_truth, else 0.0
+            VerificationResult with score 1.0 if answer is equivalent to ground_truth, else 0.0
         """
         # Extract Python code and result tags
         python_code = self.extract_python_code(prediction)
@@ -1314,24 +1425,63 @@ class CodeOutputVerifier(VerifierFunction):
             logger.debug("CodeOutputVerifier: No answer found (no stdout and no result tag)")
             return VerificationResult(score=0.0)
         
-        # Normalize both answer and ground truth using inference system logic
+        # --- PRIMARY correctness: equivalence check ---
+        score = 0.0
+        equiv_error = None
+
+        a_raw = answer
+        g_raw = str(label)
+
+        a_stripped = _strip_math_delims(a_raw)
+        g_stripped = _strip_math_delims(g_raw)
+
+        def _try_equiv(a: str, g: str) -> tuple[bool, str | None]:
+            """Try equivalence check. Return (ok, err_repr)."""
+            try:
+                return (is_equiv(a, g) or hendrycks_is_equiv(a, g)), None
+            except Exception as e:
+                return False, repr(e)
+
+        if not a_stripped or not g_stripped:
+            equiv_error = "empty_after_strip"
+        else:
+            # 優先1: math-verifyのverify()を試す（$を保持）
+            ok1, err1 = _try_equiv_with_math_verify(a_raw, g_raw)  # $を剥がさない
+            if ok1:
+                score = 1.0
+            else:
+                # 優先2: is_equiv()を試す（$を剥がす）
+                ok2, err2 = _try_equiv(a_stripped, g_stripped)
+                if ok2:
+                    score = 1.0
+                else:
+                    # 優先3: is_equiv()で$をラップして試す
+                    a_wrapped = f"${a_stripped}$"
+                    g_wrapped = f"${g_stripped}$"
+                    ok3, err3 = _try_equiv(a_wrapped, g_wrapped)
+                    if ok3:
+                        score = 1.0
+                    else:
+                        equiv_error = f"math_verify_err={err1} is_equiv_stripped_err={err2} is_equiv_wrapped_err={err3}"
+
+        # --- Logging-only normalization ---
         normalized_answer = to_latex_scalar(answer)
         normalized_ground_truth = to_latex_scalar(str(label))
-        
-        score = 1.0 if normalized_answer == normalized_ground_truth else 0.0
-        
-        # Debug: Log mismatch details (only for mismatches)
+
         if score == 0.0:
             logger.warning(
-                f"CodeOutputVerifier: Output mismatch. "
-                f"Answer (raw): '{answer}', "
-                f"Answer (normalized): '{normalized_answer}', "
-                f"Ground truth (raw): '{str(label)}', "
-                f"Ground truth (normalized): '{normalized_ground_truth}', "
-                f"Used stdout: {used_stdout}, Used result tag: {used_result_fallback}"
+                "CodeOutputVerifier: Output mismatch. "
+                f"Answer(raw): '{answer}', "
+                f"Answer(stripped): '{a_stripped}', "
+                f"Answer(latex_norm_log): '{normalized_answer}', "
+                f"GT(raw): '{g_raw}', "
+                f"GT(stripped): '{g_stripped}', "
+                f"GT(latex_norm_log): '{normalized_ground_truth}', "
+                f"Used stdout: {used_stdout}, Used result tag: {used_result_fallback}, "
+                f"Equiv error: {equiv_error}"
             )
         else:
-            logger.debug(f"CodeOutputVerifier: Output match! Answer: '{normalized_answer}'")
+            logger.debug(f"CodeOutputVerifier: Output match! Answer(stripped): '{a_stripped}'")
 
         return VerificationResult(score=score)
 
@@ -1345,16 +1495,16 @@ class CodeOutputVerifier(VerifierFunction):
         Use async_call() instead when in an async context.
         """
         try:
-            # get_running_loop() raises RuntimeError if no loop is running
-            # If it succeeds, we're in an async context - raise error
             asyncio.get_running_loop()
+        except RuntimeError:
+            # event loop が無い: 同期コンテキスト
+            return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
+        else:
+            # event loop がある: 非同期コンテキスト
             raise RuntimeError(
                 "Cannot call synchronous __call__ method from within an async context. "
                 "Use async_call() instead."
             )
-        except RuntimeError:
-            # No event loop is running - safe to use asyncio.run()
-            return asyncio.run(self.async_call(tokenized_prediction, prediction, label, query))
 
     @classmethod
     def get_config_class(cls) -> type:

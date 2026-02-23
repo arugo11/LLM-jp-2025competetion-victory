@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# ---------------------------------------------------------------------
+# MODIFIED by Shota Kaji, 2025.
+# Original copyright and license notices are preserved above.
 # isort: off
 import os
 
@@ -184,13 +187,15 @@ def ray_get_with_progress(
     Returns:
         (results, completion_times)
         - results: List of results in the same order as ray_refs. 
-                   May contain Exception objects for failed tasks, or None for incomplete tasks.
+                   If return_partial_on_timeout=False, all results are valid (exceptions are raised).
+                   If return_partial_on_timeout=True, may contain None for incomplete tasks (exceptions are still raised).
         - completion_times: time from function start until each ref completed (seconds), 
                            aligned to ray_refs (None for incomplete tasks)
 
     Raises:
         TimeoutError: If timeout is specified and operations don't complete in time
                      (unless return_partial_on_timeout=True)
+        Exception: If any task fails, the exception is raised immediately
     """
     t0 = time.perf_counter()
 
@@ -210,8 +215,8 @@ def ray_get_with_progress(
             try:
                 results[idx] = future.result()
             except Exception as ex:
-                # 例外を格納して継続（呼び出し側で判定可能）
-                results[idx] = ex
+                # 例外を常に再レイズ（根本原因を解決）
+                raise
             # 成功/失敗に関わらず完了時刻を記録
             completion_times[idx] = time.perf_counter() - t0
     except TimeoutError as e:

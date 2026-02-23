@@ -670,7 +670,7 @@ echo "========== Rayクラスター起動完了 =========="
 # # HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-v5-2 \
 # Pythonスクリプトを実行
 python open_instruct/grpo_fast.py \
-    --dataset_mixer_list HayatoHongoEveryonesAI/dev-TIR_v3 1.0 \
+    --dataset_mixer_list HayatoHongoEveryonesAI/qa_verify_2M_v5 1.0 \
     --dataset_mixer_list_splits train \
     --dataset_skip_cache \
     --max_prompt_token_length 1024 \
