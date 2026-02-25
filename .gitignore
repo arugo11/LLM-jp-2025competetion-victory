@@ -223,6 +223,7 @@ wandb/
 output
 models
 accuracy
+<<<<<<< rlvr-math
 
 # Backup directories
 open-instruct*backup*
@@ -242,3 +243,5 @@ output/
 
 # コード生成特化型GRPOリポジトリ（開発中）
 open-instruct_code_grpo/
+=======
+>>>>>>> main

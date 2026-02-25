@@ -1,0 +1,8 @@
+dist/
+models/
+datasets/
+
+# Others
+output/
+.log/
+!input/dev.jsonl

@@ -3,25 +3,21 @@
 # venvを使う
 
 # cd openr1-training
-# module load python/3.12/3.12.9
-# module load cuda/12.8
+module load python/3.12/3.12.9
+module load cuda/12.8
 
-uv venv env # venvの作成
-source env/bin/activate # venvの有効化
+uv venv venv # venvの作成
+source venv/bin/activate # venvの有効化
 uv pip install --upgrade pip # pipのアップグレード
 
 
 uv pip install trl[vllm]
-uv pip install setuptools && uv pip install flash-attn --no-build-isolation 
 GIT_LFS_SKIP_SMUDGE=1 uv pip install -e "open-r1[dev]" 
-uv pip install peft
-
-# vllmのインストール
-# uv pip install vllm==0.8.5.post1 
+uv pip install setuptools
 
 # flash-attnのインストール
+uv pip install flash-attn --no-build-isolation 
 
+# peftのインストール
+uv pip install peft 
 
-# uv pip install peft
-
-# open-r1及び、他のライブラリのインストール

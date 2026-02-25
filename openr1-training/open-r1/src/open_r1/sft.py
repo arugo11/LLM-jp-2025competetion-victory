@@ -165,7 +165,7 @@ def main(script_args, training_args, model_args, data_config: DataConfig):
             if not set_flag:
                 print("[MoE][WARN] Could not find a SparseMoeBlock; ZeRO-3 leaf NOT set (collectives may hang).")
 
-    if tokenizer.chat_template is None:
+    if tokenizer.chat_template is None and training_args.apply_chat_template:
         logger.info("No chat template provided, defaulting to ChatML.")
         model, tokenizer = setup_chat_format(model, tokenizer, format="chatml")
 

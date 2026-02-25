@@ -1,0 +1,7 @@
+neko_sft_datasets:
+  - name: togethercomputer/RedPajama-Data-1T
+    config: arxiv
+    text_field: text
+    split: train
+    # from_id: 1
+    # to_id: 1000
