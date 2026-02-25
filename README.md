@@ -36,7 +36,7 @@ LLM-jpの2025年度の数学むけタスクのコンペティションのリポ�
 
 ### `open-instruct/`
 
-**RLVR（Reinforcement Learning with Verifiable Rewards）** によるGRPO学習を行うためのフォルダです。
+**GRPO学習** を行うためのフォルダです。
 
 * AllenAIの [open-instruct](https://github.com/allenai/open-instruct) をベースに改変
 
