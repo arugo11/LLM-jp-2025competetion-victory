@@ -1,6 +1,6 @@
-## このディレクトリについて
+# LLM-jp-2025competetion-victory
+LLM-jpの2025年度の数学むけタスクのコンペティションのリポジトリです。
 
-<<<<<<< HEAD
 # 注意！
 `main`を直接編集せず、自分のブランチを作成してください！
 
@@ -34,26 +34,18 @@
 
 ---
 
+### `open-instruct/`
+
+**GRPO学習** を行うためのフォルダです。
+
+* AllenAIの [open-instruct](https://github.com/allenai/open-instruct) をベースに改変
+* 詳細は `open-instruct/README.md` を参照してください
+
+---
+
 ### `openr1-training/`
 
 **SFT（Supervised Fine-Tuning）** を行うためのフォルダです。
 
 * フォルダ名に `R1` とありますが、**GRPO は使用していません**
 * 混同しないよう注意してください
-=======
-AllenAIのopen-instructを使用しGRPO学習を行います。
-
-## 環境構築コマンド
-`cd /home/your_account_name/LLM-jp-2025competetion-victory/open-instruct/installers/abci`
-
-`bash run_setup.sh ${HOME}/LLM-jp-2025competetion-victory/env`
-
-## コマンドライン引数
-
-## デバッグランを走らせる場合、single gpu mode
-
-## 本番学習ラン実行
-`cd open-instruct`
-
-`qsub scripts/abci/train/qsub_grpo_fast.sh`
->>>>>>> f12eda6 (Convert open-instruct submodule to regular directory)
