@@ -34,7 +34,6 @@ LLM-jpの2025年度の数学むけタスクのコンペティションのリポ�
 
 ---
 
-<<<<<<< rlvr-math
 ### `open-instruct/`
 
 **GRPO学習** を行うためのフォルダです。
@@ -44,8 +43,6 @@ LLM-jpの2025年度の数学むけタスクのコンペティションのリポ�
 
 ---
 
-=======
->>>>>>> main
 ### `openr1-training/`
 
 **SFT（Supervised Fine-Tuning）** を行うためのフォルダです。
