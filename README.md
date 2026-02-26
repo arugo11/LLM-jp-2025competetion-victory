@@ -39,7 +39,6 @@ LLM-jpの2025年度の数学むけタスクのコンペティションのリポ�
 **GRPO学習** を行うためのフォルダです。
 
 * AllenAIの [open-instruct](https://github.com/allenai/open-instruct) をベースに改変
-* 詳細は `open-instruct/README.md` を参照してください
 
 ---
 
