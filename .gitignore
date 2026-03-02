@@ -223,3 +223,22 @@ wandb/
 output
 models
 accuracy
+
+# Backup directories
+open-instruct*backup*
+open-instruct-backup*
+*backup*
+*-backup
+*_backup
+
+# PBS job logs
+grpo_*.e*
+grpo_*.o*
+
+# Logs directory
+logs/
+
+output/
+
+# コード生成特化型GRPOリポジトリ（開発中）
+open-instruct_code_grpo/

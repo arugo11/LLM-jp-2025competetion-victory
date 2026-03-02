@@ -1,0 +1,54 @@
+#!/bin/bash
+#PBS -P gch51701
+#PBS -q rt_HG
+#PBS -N install_open_instruct
+#PBS -v RTYPE=rt_HG
+#PBS -l select=1:ncpus=8:mem=160gb
+#PBS -l walltime=10:00:00
+#PBS -o /dev/null
+#PBS -e /dev/null
+
+cd $PBS_O_WORKDIR
+
+TIMESTAMP=$(date +%Y%m%d%H%M%S)
+JOBID=${PBS_JOBID%%.*}
+mkdir -p logs
+LOGFILE=logs/install-$JOBID.out
+ERRFILE=logs/install-$JOBID.err
+exec > $LOGFILE 2> $ERRFILE
+
+set -eu -o pipefail
+
+echo "ENV_DIR=${ENV_DIR}"
+
+# Set TARGET_DIR to ENV_DIR (used by install scripts)
+export TARGET_DIR=${ENV_DIR}
+
+# Find the script directory
+if [ -n "${PBS_JOBID:-}" ]; then
+    SCRIPT_PATH="$PBS_O_WORKDIR/$(basename "$0")"
+else
+    SCRIPT_PATH=$(realpath "$0")
+fi
+SCRIPT_DIR=$(dirname "${SCRIPT_PATH}")
+echo "SCRIPT_DIR=${SCRIPT_DIR}"
+
+mkdir -p ${ENV_DIR}/src
+
+# Copy necessary scripts
+cp -r ${SCRIPT_DIR}/scripts ${ENV_DIR}
+
+# Set variables
+source ${ENV_DIR}/scripts/environment.sh
+set > ${ENV_DIR}/installer_envvar.log
+
+# Install Libraries
+source ${SCRIPT_DIR}/src/install_python.sh
+source ${SCRIPT_DIR}/src/install_venv.sh
+source ${SCRIPT_DIR}/src/install_pytorch.sh
+source ${SCRIPT_DIR}/src/install_requirements.sh
+source ${SCRIPT_DIR}/src/install_flash_attention.sh
+
+echo "Done"
+
+exit 0
