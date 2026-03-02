@@ -76,17 +76,36 @@ def load_examples(file_path: str, example_cls: type) -> dict[str, Any]:
     return id_example_map
 
 
-def check_equivalence(pred_str: str, gold_str: str) -> bool:
-    """Helper to parse and verify single prediction against gold."""
-    
-    try:
-        if "$$" not in pred_str:
-            pred_str = "$$" + pred_str + "$$"
-        if "$$" not in gold_str:
-            gold_str = "$$" + gold_str + "$$"
-        return verify(parse(pred_str), parse(gold_str))
-    except Exception:
-        return False
+def _string_candidates(value: Any) -> List[str]:
+    """Expand scalar or list answers into parser candidates."""
+    raw_values = value if isinstance(value, list) else [value]
+    candidates: List[str] = []
+    for item in raw_values:
+        if item is None:
+            continue
+        text = item if isinstance(item, str) else str(item)
+        candidates.append(text)
+        if "$$" not in text and "\\[" not in text and "\\(" not in text and "$" not in text:
+            candidates.append(f"$${text}$$")
+    return candidates
+
+
+def check_equivalence(pred_value: Any, gold_value: Any) -> bool:
+    """Helper to parse and verify prediction against one or more gold forms."""
+    pred_candidates = _string_candidates(pred_value)
+    gold_candidates = _string_candidates(gold_value)
+    for pred_str in pred_candidates:
+        try:
+            parsed_pred = parse(pred_str)
+        except Exception:
+            continue
+        for gold_str in gold_candidates:
+            try:
+                if verify(parsed_pred, parse(gold_str)):
+                    return True
+            except Exception:
+                continue
+    return False
 
 
 def calculate_cons_k(samples: List[str], gold: str) -> bool:

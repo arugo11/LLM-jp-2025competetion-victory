@@ -151,11 +151,15 @@ activemq-data/
 .env
 .envrc
 .venv
+.venv-cu118/
+.venv-py311-cu118/
+.venv-vllm-cu118-match/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+vendor-cu118-v2/
 
 # Spyder project settings
 .spyderproject

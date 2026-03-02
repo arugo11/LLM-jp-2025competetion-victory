@@ -1,6 +1,95 @@
 # このディレクトリについて
 このディレクトリでは推論コードについてまとめています。
 
+## final-eval ブランチでのローカル再現
+このリポジトリを `final-eval` 系ブランチで使う場合は、`.sif` を使わずに提出時の推論条件を Python 直実行で再現できます。H100 など CUDA 12 系の環境では、`uv sync` で作る通常の `.venv` を使う想定です。
+
+前提条件
+- GPU が利用可能であること
+- [uv](https://docs.astral.sh/uv/)
+- Hugging Face の `HayatoHongoEveryonesAI/open-instruct-grpo-fast` revision `grpo_fast__3__1770120411` にアクセスできること
+- `input/final.jsonl` をローカルに持っていること
+
+最終提出モデルの取得先
+- repository: `HayatoHongoEveryonesAI/open-instruct-grpo-fast`
+- revision: `grpo_fast__3__1770120411`
+- local model path: `models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct-sft-expand-checkpoint-1900-12B-1725`
+
+`final.jsonl` は `id` を持たないため、そのままでは `math-eval` に渡せません。`prepare_eval_jsonl.py` で `final-000001` 形式の `id` を付与した派生ファイルを作り、それを推論入力と評価用 gold の両方に使います。
+
+一括実行
+```bash
+cd inference
+bash inference-eval-final-local.sh
+```
+
+このスクリプトのデフォルト
+- `max_tokens=8192`
+- `num_samples=40`
+- `temperature=0.7`
+- `wait_count=0`
+- `CUDA_VISIBLE_DEVICES=0`
+
+このスクリプトは以下を自動で行います。
+- `inference/.venv/bin/python` があればそれを使う
+- 無ければ `uv sync` を実行して `.venv` を作る
+- 互換性のため、ローカル専用の `.venv-vllm-cu118-match` がある場合はそれも fallback として使う
+- モデルが無ければ Hugging Face から自動ダウンロードする
+- `final.jsonl` に `id` を補って評価可能な派生ファイルを作る
+- 推論後に `math-eval` で `cons@k` / `pass@k` を計算する
+
+主な環境変数
+- `MODEL_REPO`
+- `MODEL_REVISION`
+- `MODEL_PATH`
+- `INPUT_PATH`
+- `PREPARED_FINAL_PATH`
+- `NUM_SAMPLES`
+- `EVAL_K_VALUES`
+- `RUN_LABEL`
+- `OUTPUT_STEM`
+- `MAX_TOKENS`
+- `TEMPERATURE`
+- `WAIT_COUNT`
+- `CUDA_VISIBLE_DEVICES_VALUE`
+- `INFERENCE_PYTHON`
+
+例: 最終提出モデルを `cons40` で実行
+```bash
+cd inference
+NUM_SAMPLES=40 \
+EVAL_K_VALUES=1,20,40 \
+RUN_LABEL=cons40 \
+bash inference-eval-final-local.sh
+```
+
+例: H100 で `cons160` を試す
+```bash
+cd inference
+NUM_SAMPLES=160 \
+EVAL_K_VALUES=1,20,40,80,160 \
+RUN_LABEL=cons160 \
+bash inference-eval-final-local.sh
+```
+
+例: base model を `cons1` で実行
+```bash
+cd inference
+MODEL_REPO=HayatoHongoEveryonesAI/llm-jp-4-8b-instruct \
+MODEL_REVISION=main \
+MODEL_PATH="$(pwd)/models/HayatoHongoEveryonesAI/llm-jp-4-8b-instruct" \
+NUM_SAMPLES=1 \
+EVAL_K_VALUES=1 \
+RUN_LABEL=cons1 \
+bash inference-eval-final-local.sh
+```
+
+生成される成果物
+- 前処理済み入力: `../output/final_with_id.jsonl`
+- 推論結果: `output/output-${OUTPUT_STEM}-reproduce-final.jsonl`
+- 全サンプル出力: `output/output-${OUTPUT_STEM}-reproduce-final_all_samples.jsonl`
+- 評価結果: `../math-eval/accuracy/acc-${OUTPUT_STEM}-final.jsonl`
+
 # 簡単な推論と評価
 
 ## バッチジョブによる実行

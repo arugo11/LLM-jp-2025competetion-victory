@@ -30,10 +30,35 @@ PROMPT_TEMPLATE = """\
 {question}
 """
 
+
+def build_chat_prompts(llm: LLM, messages: list[list[dict]]):
+    """Build prompt inputs across vLLM versions."""
+    if hasattr(llm, "preprocess_chat"):
+        return llm.preprocess_chat(messages=messages)
+
+    tokenizer = llm.get_tokenizer()
+    chat_template = getattr(tokenizer, "chat_template", None)
+    if not chat_template:
+        template_path = Path(getattr(tokenizer, "name_or_path", "")) / "chat_template.jinja"
+        if template_path.exists():
+            chat_template = template_path.read_text()
+            tokenizer.chat_template = chat_template
+
+    prompt_inputs = []
+    for conversation in messages:
+        prompt_token_ids = tokenizer.apply_chat_template(
+            conversation,
+            chat_template=chat_template,
+            tokenize=True,
+            add_generation_prompt=True,
+        )
+        prompt_inputs.append({"prompt_token_ids": prompt_token_ids})
+    return prompt_inputs
+
 def chat_with_wait(llm: LLM, messages: list[list[dict]], sampling_params: SamplingParams, wait_count: int):
     """LLMの解答の最後にWaitを追加してさらに推論させる。"""
     # 1. 最初のプロンプトをトークンID化
-    prompts_data = llm.preprocess_chat(messages=messages)
+    prompts_data = build_chat_prompts(llm, messages)
     tokenizer = llm.get_tokenizer()
     
     # " Wait" のトークンIDを取得
