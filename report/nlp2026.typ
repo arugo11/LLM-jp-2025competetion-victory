@@ -45,6 +45,16 @@
   #body
 ]
 
+#let detail-block(body) = block(
+  breakable: false,
+  above: 0.2em,
+  below: 0.6em,
+  inset: (left: 1.2em),
+)[
+  #set par(first-line-indent: 0em, justify: false, leading: 4.2pt)
+  #body
+]
+
 #let _heading(size, it) = {
   let number = if it.numbering == none {
     []
