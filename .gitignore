@@ -239,11 +239,7 @@ open-instruct-backup*
 grpo_*.e*
 grpo_*.o*
 
-# Local workspace files
-.devcontainer.json
-.vscode/
-Dockerfile
-docker-bake.hcl
+
 
 # Logs directory
 logs/

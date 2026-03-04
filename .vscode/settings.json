@@ -1,0 +1,5 @@
+{
+  "tinymist.fontPaths": [
+    "${workspaceFolder}/nlp2026-template_v1_1/fonts"
+  ]
+}
