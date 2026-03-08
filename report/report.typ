@@ -2,12 +2,14 @@
 #import "lib/components.typ": flow-step, flow-arrow, stage-card
 #import "lib/metadata.typ": title, authors, abstract
 #import "lib/backmatter.typ": backmatter
+#import "lib/appendix.typ": appendix
 
 #show: nlp2026.with(
   title: title,
   authors: authors,
   abstract: abstract,
   backmatter: backmatter,
+  appendix: appendix,
 )
 
 #include "chapters/01-introduction.typ"
