@@ -46,29 +46,40 @@
       )
     ]
 
-    #appendix-table(size: 8.4pt)[
+    #appendix-table(size: 7.5pt)[
       #figure(
         kind: table,
         supplement: [表],
         caption: [GRPO 実行時の主要設定],
         centered-table[
           #table(
-            columns: 4,
-            align: (left, left, left, left),
+            columns: 2,
+            align: (left, left),
             inset: 2.5pt,
             stroke: (x, y) => if y == 0 { 0.8pt } else { 0.4pt },
-            [*項目*], [*設定*], [*項目*], [*設定*],
-            [verifier], [`qa_10k=math-verify`], [ground truths], [`ground_truth`],
-            [template], [`math_problem_with_boxed`], [DeepSpeed stage], [`3`],
-            [epochs], [`1`], [learners / node], [`3`],
-            [vLLM engines], [`5`], [tensor parallel], [`1`],
-            [GPU mem util], [`0.65`], [beta], [`0.00`],
-            [ref policy], [`false`], [sync backend], [`nccl`],
-            [prefix caching], [on], [save traces], [on],
-            [eager mode], [on], [grad checkpoint], [on],
-            [active sampling], [on], [zero-std filter], [on],
-            [async steps], [`4`], [inflight updates], [on],
-            [mask truncation], [on], [GRPO steps], [`1725`],
+            [*項目*], [*設定*],
+            [verifier], [`qa_10k=math-verify`],
+            [ground truths], [`ground_truth`],
+            [template], [`math_problem_with_boxed`],
+            [DeepSpeed stage], [`3`],
+            [epochs], [`1`],
+            [learners / node], [`3`],
+            [vLLM engines], [`5`],
+            [tensor parallel], [`1`],
+            [GPU mem util], [`0.65`],
+            [beta], [`0.00`],
+            [ref policy], [`false`],
+            [sync backend], [`nccl`],
+            [prefix caching], [on],
+            [save traces], [on],
+            [eager mode], [on],
+            [grad checkpoint], [on],
+            [active sampling], [on],
+            [zero-std filter], [on],
+            [async steps], [`4`],
+            [inflight updates], [on],
+            [mask truncation], [on],
+            [GRPO steps], [`1725`],
           )
         ],
       )
