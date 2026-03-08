@@ -6,10 +6,10 @@
   #super[1]東京大学　#super[2]独立研究者　#super[3]大阪公立大学 \
   #super[4]芝浦工業大学　#super[5]中京大学　#super[6]筑波大学 \
   #set text(size: 8.5pt)
-  本郷: hongo-hayato977g\@g.ecc.u-tokyo.ac.jp　加地: shotak.5207\@gmail.com \
-  小谷: s18574s18574\@gmail.com　嶋中: al23088\@shibaura-it.ac.jp \
-  宮川: t32406m\@m.chukyo-u.ac.jp　中島: n_yuki0817\@outlook.jp \
-  安孫子: astronaut017\@g.ecc.u-tokyo.ac.jp　松田: kokei0418\@gmail.com
+  `本郷: hongo-hayato977g@g.ecc.u-tokyo.ac.jp`　`加地: shotak.5207@gmail.com` \
+  `小谷: s18574s18574@gmail.com`　`嶋中: al23088@shibaura-it.ac.jp` \
+  `宮川: t32406m@m.chukyo-u.ac.jp`　`中島: n_yuki0817@outlook.jp` \
+  `安孫子: astronaut017@g.ecc.u-tokyo.ac.jp`　`松田: kokei0418@gmail.com`
 ]
 
 #let abstract = [
