@@ -47,7 +47,7 @@
 
 #let detail-block(body) = block(
   breakable: false,
-  above: 0.2em,
+  above: 0.5em,
   below: 0.6em,
   inset: (left: 1.2em),
 )[
