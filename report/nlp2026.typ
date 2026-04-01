@@ -91,16 +91,19 @@
   show emph: it => text(font: heading-fonts, weight: "bold")[#it.body]
   show strong: it => text(weight: "bold")[#it.body]
   show raw.where(block: false): it => text(font: mono-fonts)[#it.text]
+  show figure.caption: set text(size: 9pt)
+  show figure: it => align(center)[#it]
   show footnote.entry: set text(size: 9pt)
   show heading.where(level: 1): it => _heading(14pt, it)
   show heading.where(level: 2): it => _heading(12pt, it)
   show heading.where(level: 3): it => _heading(11pt, it)
 
   align(center)[
-    #set text(font: heading-fonts, size: 16pt, weight: "bold")
+    #v(20pt)
+    #set text(font: heading-fonts, size: 17pt, weight: "bold")
     #title
-    #v(0.9em)
-    #set text(font: body-fonts, size: 10.5pt, weight: "regular")
+    #v(1em)
+    #set text(font: body-fonts, size: 12pt, weight: "regular")
     #authors
   ]
 
