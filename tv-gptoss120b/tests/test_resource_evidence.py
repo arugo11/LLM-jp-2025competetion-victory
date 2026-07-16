@@ -110,6 +110,37 @@ def test_resource_usage_rejects_qstat_tampering(tmp_path: Path) -> None:
         derive_resource_usage(config, evidence)
 
 
+def test_failed_job_counts_for_budget_but_not_release(tmp_path: Path) -> None:
+    config, evidence, qstat = make_evidence(tmp_path)
+    payload = json.loads(qstat.read_text(encoding="utf-8"))
+    payload["Jobs"]["123.abci"]["Exit_status"] = 1
+    qstat.write_text(json.dumps(payload), encoding="utf-8")
+    record = json.loads(evidence.read_text(encoding="utf-8"))
+    record["qstat_final"]["sha256"] = sha256_file(qstat)
+    evidence.write_text(json.dumps(record), encoding="utf-8")
+
+    usage = derive_resource_usage(config, evidence, require_success=False)
+
+    assert usage["node_hours"] == pytest.approx(0.5)
+    assert usage["exit_status"] == 1
+    assert usage["successful"] is False
+    with pytest.raises(ValueError, match="finished successful"):
+        derive_resource_usage(config, evidence)
+
+
+def test_resource_usage_rejects_missing_exit_status_even_for_budget(tmp_path: Path) -> None:
+    config, evidence, qstat = make_evidence(tmp_path)
+    payload = json.loads(qstat.read_text(encoding="utf-8"))
+    del payload["Jobs"]["123.abci"]["Exit_status"]
+    qstat.write_text(json.dumps(payload), encoding="utf-8")
+    record = json.loads(evidence.read_text(encoding="utf-8"))
+    record["qstat_final"]["sha256"] = sha256_file(qstat)
+    evidence.write_text(json.dumps(record), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lacks PBS Exit_status"):
+        derive_resource_usage(config, evidence, require_success=False)
+
+
 def test_resource_usage_accepts_narrow_opportunistic_reserved_smoke(tmp_path: Path) -> None:
     config, evidence, _ = make_evidence(tmp_path)
     record = json.loads(evidence.read_text(encoding="utf-8"))

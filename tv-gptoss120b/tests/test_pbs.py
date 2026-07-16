@@ -210,12 +210,12 @@ def test_pbs_uses_evidence_derived_prior_usage_for_reserve_gate(
         "allowed_resource_types": ["rt_HF"],
         "resource_shapes": {"rt_HF": {"cpus_per_node": 192, "gpus_per_node": 8}},
     }))
-    monkeypatch.setattr(pbs_module, "derive_resource_usage", lambda _config, path: {
+    monkeypatch.setattr(pbs_module, "derive_resource_usage", lambda _config, path, *, require_success: {
         "pbs_job_id": "123.abci",
         "resource_type": "rt_HF",
         "budget_stage": "generation_validation",
         "node_hours": 1.9,
-    } if path == evidence else None)
+    } if path == evidence and require_success is False else None)
 
     with pytest.raises(RuntimeError, match="reserve may be used only to complete a fixed stage"):
         render_pbs(config, manifest, policy, tmp_path / "job.pbs")

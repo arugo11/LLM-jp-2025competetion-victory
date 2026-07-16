@@ -39,6 +39,7 @@ def write_resource_evidence_record(
     qstat_final_path: Path,
     storage_audit_path: Path,
     output_path: Path,
+    require_success: bool = True,
 ) -> ResourceEvidenceRecord:
     record = ResourceEvidenceRecord(
         schema_version=1,
@@ -51,7 +52,7 @@ def write_resource_evidence_record(
     )
     with output_path.open("xb") as handle:
         handle.write(canonical_json(record.model_dump(mode="json")) + b"\n")
-    derive_resource_usage(config, output_path)
+    derive_resource_usage(config, output_path, require_success=require_success)
     return record
 
 
@@ -224,7 +225,12 @@ def derive_pre_qsub_storage_metrics(config: ExperimentConfig, storage_audit_path
     }
 
 
-def derive_resource_usage(config: ExperimentConfig, evidence_path: Path) -> dict[str, Any]:
+def derive_resource_usage(
+    config: ExperimentConfig,
+    evidence_path: Path,
+    *,
+    require_success: bool = True,
+) -> dict[str, Any]:
     evidence = ResourceEvidenceRecord.model_validate_json(evidence_path.read_text(encoding="utf-8"))
     experiment_id = config.require_assigned_id()
     root = config.experiment_root().resolve()
@@ -280,7 +286,15 @@ def derive_resource_usage(config: ExperimentConfig, evidence_path: Path) -> dict
     job = _qstat_job(qstat_path, evidence.pbs_job_id)
     if job.get("Job_Name") != manifest["job_name"]:
         raise ValueError("qstat job name does not match the immutable job manifest")
-    if job.get("job_state") != "F" or int(job.get("Exit_status", -1)) != 0:
+    if job.get("job_state") != "F":
+        raise ValueError("resource evidence requires a finished PBS job")
+    raw_exit_status = job.get("Exit_status")
+    if raw_exit_status is None:
+        raise ValueError("resource evidence lacks PBS Exit_status")
+    exit_status = int(raw_exit_status)
+    if exit_status < 0:
+        raise ValueError("resource evidence has an invalid PBS Exit_status")
+    if require_success and exit_status != 0:
         raise ValueError("release evidence requires a finished successful PBS job")
     resources_used = job.get("resources_used")
     resource_list = job.get("Resource_List")
@@ -320,6 +334,8 @@ def derive_resource_usage(config: ExperimentConfig, evidence_path: Path) -> dict
         "nodes": nodes,
         "actual_walltime_seconds": actual_seconds,
         "node_hours": nodes * actual_seconds / 3600,
+        "exit_status": exit_status,
+        "successful": exit_status == 0,
         "measured_storage_bytes": measured_bytes,
         "measured_storage_inodes": measured_inodes,
         "reserve_used": bool(manifest.get("reserve_used", False)),

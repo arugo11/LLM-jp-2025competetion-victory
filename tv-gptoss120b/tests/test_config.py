@@ -1,3 +1,4 @@
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from tv_gptoss120b.config import load_config
 
 CONFIG = Path(__file__).parents[1] / "configs" / "experiment.yaml"
+PROJECT_ROOT = Path(__file__).parents[1]
 
 
 def test_config_loads_with_approved_experiment_id() -> None:
@@ -13,6 +15,13 @@ def test_config_loads_with_approved_experiment_id() -> None:
     assert config.identity.slug == "tv-gptoss120b"
     assert config.evaluation.task == "swallow|aime_N4|0|0"
     assert config.evaluation.aime_2025.split == "train"
+
+
+def test_uv_project_is_fail_closed_to_python_312() -> None:
+    pyproject = tomllib.loads((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert pyproject["project"]["requires-python"] == ">=3.12,<3.13"
+    assert (PROJECT_ROOT / ".python-version").read_text(encoding="utf-8") == "3.12\n"
 
 
 def test_runtime_manifest_stage_aliases_are_canonical() -> None:

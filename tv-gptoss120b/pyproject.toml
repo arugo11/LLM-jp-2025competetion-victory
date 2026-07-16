@@ -3,7 +3,7 @@ name = "tv-gptoss120b"
 version = "0.1.0"
 description = "Fail-closed Team Victory pilot for paired gpt-oss math generation and llm-jp-4 post-training"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
   "datasketch>=1.8,<2",
   "numpy>=2.1,<3",

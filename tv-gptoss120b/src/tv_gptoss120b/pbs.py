@@ -59,7 +59,10 @@ def derive_projected_resource_usage(config: ExperimentConfig, manifest: dict) ->
         isinstance(item, str) and item for item in prior_evidence
     ):
         raise ValueError("prior_resource_evidence_records must be a list of non-empty paths")
-    prior_usage = [derive_resource_usage(config, Path(item)) for item in prior_evidence]
+    prior_usage = [
+        derive_resource_usage(config, Path(item), require_success=False)
+        for item in prior_evidence
+    ]
     prior_job_ids = [str(item["pbs_job_id"]) for item in prior_usage]
     if len(prior_job_ids) != len(set(prior_job_ids)):
         raise ValueError("prior_resource_evidence_records contains a duplicate PBS job")
