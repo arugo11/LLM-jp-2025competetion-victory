@@ -160,19 +160,19 @@ def derive_storage_metrics(config: ExperimentConfig, storage_audit_path: Path) -
 
 
 def derive_pre_qsub_storage_metrics(config: ExperimentConfig, storage_audit_path: Path) -> dict[str, Any]:
-    """Read a bounded login-node audit used only for the next qsub decision.
+    """Read a complete bounded or deep audit used for the next qsub decision.
 
     Release/resource evidence continues to require ``derive_storage_metrics`` and a
-    complete PBS-side deep audit.  Keeping the two evidence classes separate avoids
-    making the first compute job depend on evidence that can only be produced by a
-    compute job.
+    complete PBS-side deep audit.  The initial compute job may use a bounded
+    login-node audit; subsequent jobs may reuse a newer complete deep audit instead
+    of discarding stronger evidence.
     """
     root = config.experiment_root().resolve()
     path = storage_audit_path.resolve()
     if not path.is_file() or not path.is_relative_to(root):
         raise ValueError("pre-qsub storage audit evidence must be a file under EXP_DIR")
     values: dict[str, str] = {}
-    allowed = {
+    base_fields = {
         "audit_mode",
         "storage_audit_target",
         "created_at",
@@ -180,8 +180,8 @@ def derive_pre_qsub_storage_metrics(config: ExperimentConfig, storage_audit_path
         "bytes",
         "inode",
         "scan_status",
-        "file_scan_limit",
     }
+    allowed = base_fields | {"file_scan_limit"}
     for line in path.read_text(encoding="utf-8").splitlines():
         if "=" not in line:
             continue
@@ -191,28 +191,32 @@ def derive_pre_qsub_storage_metrics(config: ExperimentConfig, storage_audit_path
         if key in values:
             raise ValueError(f"pre-qsub storage audit contains duplicate field: {key}")
         values[key] = value
-    if set(values) != allowed:
-        raise ValueError(f"pre-qsub storage audit fields are incomplete: {sorted(allowed - values.keys())}")
+    mode = values.get("audit_mode")
+    required = allowed if mode == "bounded-pre-qsub" else base_fields
+    if mode not in {"bounded-pre-qsub", "deep"} or not required.issubset(values):
+        raise ValueError(f"pre-qsub storage audit fields are incomplete: {sorted(required - values.keys())}")
     if (
-        values["audit_mode"] != "bounded-pre-qsub"
-        or values["scan_status"] != "complete"
+        values["scan_status"] != "complete"
         or values["target_group"] != config.identity.group
         or Path(values["storage_audit_target"]).resolve() != root
     ):
-        raise ValueError("qsub requires a complete bounded audit for the canonical EXP_DIR")
+        raise ValueError("qsub requires a complete bounded or deep audit for the canonical EXP_DIR")
     measured_bytes = int(values["bytes"])
     measured_inodes = int(values["inode"])
-    file_scan_limit = int(values["file_scan_limit"])
+    file_scan_limit = int(values["file_scan_limit"]) if mode == "bounded-pre-qsub" else None
     from datetime import datetime
 
     captured_at = datetime.fromisoformat(values["created_at"])
     if captured_at.tzinfo is None:
         raise ValueError("pre-qsub storage audit created_at must be timezone-aware")
-    if measured_bytes < 0 or measured_inodes < 0 or file_scan_limit != 100_000:
+    if measured_bytes < 0 or measured_inodes < 0 or (
+        mode == "bounded-pre-qsub" and file_scan_limit != 100_000
+    ):
         raise ValueError("pre-qsub storage audit metrics or fixed 100000-file limit are invalid")
-    if measured_inodes > file_scan_limit:
+    if file_scan_limit is not None and measured_inodes > file_scan_limit:
         raise ValueError("pre-qsub storage audit exceeded its bounded login-node scan limit")
     return {
+        "audit_mode": mode,
         "bytes": measured_bytes,
         "inodes": measured_inodes,
         "created_at": values["created_at"],

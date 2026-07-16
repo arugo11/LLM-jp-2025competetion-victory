@@ -196,6 +196,37 @@ def test_pre_qsub_storage_audit_is_distinct_from_release_deep_audit(tmp_path: Pa
     assert derive_pre_qsub_storage_metrics(config, audit)["bytes"] == 1234
 
 
+def test_pre_qsub_storage_accepts_stronger_complete_deep_audit(tmp_path: Path) -> None:
+    root = tmp_path / "9999_tv-gptoss120b"
+    root.mkdir()
+    base = load_config(CONFIG)
+    config = base.model_copy(update={
+        "identity": base.identity.model_copy(update={"experiment_id": "9999"}),
+        "paths": base.paths.model_copy(update={"experiment_root": str(root)}),
+    })
+    audit = root / "deep-storage-audit.txt"
+    audit.write_text(
+        "audit_mode=deep\n"
+        f"storage_audit_target={root}\n"
+        "created_at=2026-07-17T08:39:22+09:00\n"
+        "target_group=gcg51557\n"
+        "bytes=89089269134\n"
+        "inode=50145\n"
+        "scan_status=complete\n",
+        encoding="utf-8",
+    )
+
+    metrics = derive_pre_qsub_storage_metrics(config, audit)
+
+    assert metrics == {
+        "audit_mode": "deep",
+        "bytes": 89089269134,
+        "inodes": 50145,
+        "created_at": "2026-07-17T08:39:22+09:00",
+        "file_scan_limit": None,
+    }
+
+
 def make_release_lineage(config, evidence: Path) -> tuple[Path, dict, dict[str, Path]]:
     root = config.experiment_root()
     config_path = root / "experiment.yaml"
