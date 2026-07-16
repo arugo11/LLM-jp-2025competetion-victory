@@ -1,0 +1,254 @@
+schema_version: 1
+identity:
+  experiment_id: "0399"
+  slug: tv-gptoss120b
+  owner: arugo11
+  group: gcg51557
+  upstream_repo: HayatoHongo/LLM-jp-2025competetion-victory
+  upstream_revision: 229e52168ad3962d3215639e2d97603f28ad103d
+  fork_repo: arugo11/LLM-jp-2025competetion-victory
+paths:
+  experiment_root: /groups/gcg51557/experiments/{ID}_tv-gptoss120b
+  data_dir: data
+  model_dir: models
+  output_dir: outputs
+  log_dir: logs
+coordination:
+  matched_evaluation:
+    status: meeting-verified
+    source_id: meeting:2026-07-16-rl-math
+    note: Base and post-training models use identical inference, generation, dataset revision, and evaluator settings.
+  team_evaluation_harness:
+    status: slack-confirmed
+    source_id: slack:C08NVP29MRB:1783309971.310869
+    note: The RL team uses swallow-evaluation-instruct for AIME and LiveCodeBench.
+  common_evaluation_procedure:
+    status: unresolved
+    source_id: slack:C08NVP29MRB:1783309971.310869
+    note: The team reported that no common end-to-end procedure had been standardized.
+  aime_2025_split:
+    status: user-fixed
+    source_id: delegation:019f6be7-9f0c-7eb3-93d3-1387b0b60ae9
+    note: Keep train; the meeting note says test, so this conflict remains visible until explicitly resolved.
+runtime:
+  python: "3.12"
+  package_manager: uv
+  profiles:
+    local_audit:
+      venue: local
+      resource_class: local_cpu
+      stages: [audit]
+      uv_extras: [dev]
+      nodes: 1
+      gpus_per_node: 0
+      cpu_workers: 1
+      threads_per_worker: 4
+      io_concurrency: 1
+      environment:
+        TOKENIZERS_PARALLELISM: "false"
+        OMP_NUM_THREADS: "4"
+        MKL_NUM_THREADS: "4"
+        OPENBLAS_NUM_THREADS: "4"
+      approval_gate: none
+      hub_upload_allowed: false
+    cpu_pipeline:
+      venue: compute
+      resource_class: cpu_only
+      stages: [curate, preprocess]
+      uv_extras: [data, training, tracking]
+      nodes: 1
+      gpus_per_node: 0
+      cpu_workers: 8
+      threads_per_worker: 1
+      io_concurrency: 2
+      environment:
+        TOKENIZERS_PARALLELISM: "false"
+        OMP_NUM_THREADS: "1"
+        MKL_NUM_THREADS: "1"
+        OPENBLAS_NUM_THREADS: "1"
+      approval_gate: qsub
+      hub_upload_allowed: false
+    h200_pipeline:
+      venue: compute
+      resource_class: h200
+      stages: [generate, difficulty, sft, grpo, evaluate]
+      uv_extras: [data, generation, training, tracking]
+      nodes: 1
+      gpus_per_node: 8
+      cpu_workers: 1
+      threads_per_worker: 8
+      io_concurrency: 1
+      environment:
+        TOKENIZERS_PARALLELISM: "false"
+        OMP_NUM_THREADS: "8"
+        MKL_NUM_THREADS: "8"
+        OPENBLAS_NUM_THREADS: "8"
+      approval_gate: qsub
+      hub_upload_allowed: false
+    cpu_publication:
+      venue: decision_required
+      resource_class: cpu_only
+      stages: [publish]
+      uv_extras: [data, training, tracking]
+      nodes: 1
+      gpus_per_node: 0
+      cpu_workers: 4
+      threads_per_worker: 1
+      io_concurrency: 2
+      environment:
+        TOKENIZERS_PARALLELISM: "false"
+        OMP_NUM_THREADS: "1"
+        MKL_NUM_THREADS: "1"
+        OPENBLAS_NUM_THREADS: "1"
+      approval_gate: publication
+      hub_upload_allowed: true
+  stage_profile:
+    audit: local_audit
+    generate: h200_pipeline
+    curate: cpu_pipeline
+    difficulty: h200_pipeline
+    preprocess: cpu_pipeline
+    sft: h200_pipeline
+    grpo: h200_pipeline
+    evaluate: h200_pipeline
+    publish: cpu_publication
+  transient_cluster_fields: [queue, billing_mode, resource_type, submit_account, team_approval_ref]
+models:
+  generator_20b:
+    repo_id: openai/gpt-oss-20b
+    revision: 6cee5e81ee83917806bbde320786a8fb61efebee
+  generator_120b:
+    repo_id: openai/gpt-oss-120b
+    revision: b5c939de8f754692c1647ca79fbf85e8c1e70f8a
+  thinking:
+    repo_id: llm-jp/llm-jp-4-8b-thinking
+    revision: fc7c15c262710016c19bcda4372a96ff68875846
+  instruct:
+    repo_id: llm-jp/llm-jp-4-8b-instruct
+    revision: 098f2b2cf33021eba19a6d3582aa3d071ccc0aff
+data:
+  spec_count: 512
+  split_counts:
+    difficulty: 128
+    sft: 256
+    grpo: 128
+  difficulty_min: 6
+  difficulty_max: 10
+  seed: 37
+generation:
+  reasoning_effort: high
+  question_temperature: 1.0
+  solution_temperature: 0.0
+  top_p: 1.0
+  max_tokens: 4096
+  max_model_len: 8192
+  gpu_memory_utilization: 0.9
+  tensor_parallel_size: 1
+  data_parallel_size: 8
+validation:
+  parse_rate_min: 0.95
+  validity_noninferiority_margin: 0.02
+  valid_pair_min:
+    difficulty: 80
+    sft: 160
+    grpo: 64
+  ngram_size: 5
+  similarity_flag_threshold: 0.5
+  internal_similarity_threshold: 0.85
+  manual_review_pairs: 20
+difficulty:
+  num_samples: 4
+  reasoning_effort: medium
+  temperature: 0.6
+  top_p: 0.95
+  max_new_tokens: 32768
+  max_model_len: 65536
+  seed: 37
+  bootstrap_samples: 10000
+  pooled_delta_min: 0.10
+  arm_delta_min: 0.0
+sft:
+  max_length: 4096
+  num_train_epochs: 1.0
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 2
+  learning_rate: 5.0e-6
+  warmup_ratio: 0.03
+  weight_decay: 0.1
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  max_grad_norm: 1.0
+  seed: 37
+  packing: false
+  assistant_only_loss: true
+grpo:
+  max_steps: 32
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 1
+  num_generations: 8
+  max_prompt_length: 1024
+  max_completion_length: 2048
+  temperature: 1.0
+  learning_rate: 5.0e-6
+  warmup_steps: 1
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  beta: 0.0
+  epsilon: 0.2
+  epsilon_high: 0.28
+  loss_type: dapo
+  scale_rewards: false
+  mask_truncated_completions: true
+  use_vllm: false
+  seed: 37
+  lora_rank: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  parser_success_min: 0.95
+  informative_group_min: 0.5
+  truncation_rate_max: 0.10
+evaluation:
+  task: swallow|aime_N4|0|0
+  parser: llmjp4
+  reasoning_effort: medium
+  temperature: 0.6
+  top_p: 0.95
+  max_new_tokens: 32768
+  max_model_len: 65536
+  seed: 37
+  aime_2024:
+    repo_id: HuggingFaceH4/aime_2024
+    revision: 2fe88a2f1091d5048c0f36abc874fb997b3dd99a
+    split: train
+  aime_2025:
+    repo_id: yentinglin/aime_2025
+    revision: 6f71d77b0b89b9dabe07ab466c51df33f514df7f
+    split: train
+  swallow_revision: v202604
+  swallow_commit: e8fbf6210eeae8a9cd65ed1d58dd0e4f34239f71
+  llm_jp_eval_revision: v2.1.4
+  llm_jp_vllm_revision: v0.0.2
+  vllm_version: 0.18.0
+resources:
+  stage_node_hours:
+    generation_validation: 2.0
+    difficulty: 1.5
+    sft: 3.0
+    grpo: 4.0
+    aime: 3.5
+  h200_node_hours_planned: 14.0
+  h200_node_hours_reserve: 2.0
+  h200_node_hours_absolute_max: 16.0
+  cpu_node_hours_max: 4.0
+  storage_bytes_max: 250000000000
+tracking:
+  wandb_entity: argo-lab
+  wandb_project: llmjp4-8b-tv-gptoss120b-{ID}
+publication:
+  hf_namespace: argo11
+  dataset_repo: argo11/{ID}-tv-gptoss120b-paired
+  thinking_model_repo: argo11/{ID}-llm-jp-4-8b-thinking-tv-gptoss120b
+  instruct_model_repo: argo11/{ID}-llm-jp-4-8b-instruct-tv-gptoss120b
+  public_after_validation: true
+  license_metadata: null

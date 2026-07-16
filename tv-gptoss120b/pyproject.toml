@@ -1,0 +1,61 @@
+[project]
+name = "tv-gptoss120b"
+version = "0.1.0"
+description = "Fail-closed Team Victory pilot for paired gpt-oss math generation and llm-jp-4 post-training"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "datasketch>=1.8,<2",
+  "numpy>=2.1,<3",
+  "pydantic>=2.12,<3",
+  "pyyaml>=6.0.2,<7",
+  "typer>=0.20,<1",
+]
+
+[project.optional-dependencies]
+data = [
+  "datasets>=4.4,<5",
+  "math-verify==0.5.2",
+]
+generation = [
+  "llm-jp-vllm==0.0.2",
+  "vllm==0.18.0",
+]
+training = [
+  "accelerate>=1.12,<2",
+  "datasets>=4.4,<5",
+  "deepspeed>=0.18,<0.19",
+  "math-verify==0.5.2",
+  "peft>=0.18,<0.19",
+  "safetensors>=0.6,<0.7",
+  "transformers>=4.57,<5",
+  "trl==0.27.0",
+]
+tracking = [
+  "huggingface-hub>=0.36,<1",
+  "wandb>=0.23,<0.24",
+]
+dev = [
+  "pytest>=9.0,<10",
+  "ruff>=0.15,<0.16",
+]
+
+[project.scripts]
+tv-gptoss120b = "tv_gptoss120b.cli:app"
+
+[build-system]
+requires = ["hatchling>=1.28"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tv_gptoss120b"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
