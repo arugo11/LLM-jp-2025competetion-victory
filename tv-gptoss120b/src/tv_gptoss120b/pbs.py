@@ -272,6 +272,7 @@ def render_pbs(config: ExperimentConfig, job_manifest: Path, policy_snapshot: Pa
         'export HF_HOME="$EXP_DIR/cache/huggingface"',
         'export WANDB_DIR="$EXP_DIR/wandb"',
         'export TMPDIR="$EXP_DIR/tmp/$PBS_JOBID"',
+        f'export UV_PROJECT_ENVIRONMENT="$EXP_DIR/{config.runtime.uv_project_environment}"',
         'mkdir -p "$HF_HOME" "$WANDB_DIR" "$TMPDIR"',
         *(
             [

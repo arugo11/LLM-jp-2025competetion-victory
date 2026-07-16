@@ -57,9 +57,10 @@ def current_git_sha(repo_root: Path) -> str:
 
 
 def environment_snapshot() -> dict[str, str]:
-    keep = ["PBS_JOBID", "WANDB_MODE", "CUDA_VISIBLE_DEVICES"]
+    keep = ["PBS_JOBID", "WANDB_MODE", "CUDA_VISIBLE_DEVICES", "UV_PROJECT_ENVIRONMENT"]
     return {
         "python": sys.version.split()[0],
+        "python_executable": sys.executable,
         "platform": platform.platform(),
         **{key: os.environ[key] for key in keep if key in os.environ},
     }

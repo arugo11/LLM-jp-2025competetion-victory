@@ -22,6 +22,7 @@ def test_uv_project_is_fail_closed_to_python_312() -> None:
 
     assert pyproject["project"]["requires-python"] == ">=3.12,<3.13"
     assert (PROJECT_ROOT / ".python-version").read_text(encoding="utf-8") == "3.12\n"
+    assert load_config(CONFIG).runtime.uv_project_environment == "envs/tv-gptoss120b-py312"
 
 
 def test_runtime_manifest_stage_aliases_are_canonical() -> None:

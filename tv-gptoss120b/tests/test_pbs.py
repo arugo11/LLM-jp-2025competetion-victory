@@ -82,6 +82,7 @@ def test_pbs_is_rendered_only_from_manifest_and_policy(tmp_path: Path) -> None:
     assert "#PBS -v RTYPE=rt_HF" in script
     assert "#PBS -l select=1:ncpus=192:ngpus=8" in script
     assert str(config.experiment_root()) in script
+    assert 'export UV_PROJECT_ENVIRONMENT="$EXP_DIR/envs/tv-gptoss120b-py312"' in script
     assert "#$" not in script
     assert "export OMP_NUM_THREADS=8" in script
 

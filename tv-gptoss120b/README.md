@@ -57,7 +57,8 @@ uv run ruff check src tests
 
 科学条件、固定revision、matched AIME設定、実行profileはすべて`configs/experiment.yaml`を正本とします。
 `runtime.stage_profile`は各stageをlocal CPU、ABCI CPU、H200のいずれかへ割り当て、CPU profileはGPU数0、H200 profileはHub upload禁止をschemaで強制します。
-Pythonは3.12、package managerは`uv`に固定し、各profileの`uv_extras`とthread環境変数もYAMLから取得します。
+Pythonは3.12、package managerは`uv`に固定し、`requires-python >=3.12,<3.13`と`.python-version`の両方で3.13を拒否します。
+ABCIの共有環境はYAMLの`runtime.uv_project_environment=envs/tv-gptoss120b-py312`へ分離し、各profileの`uv_extras`とthread環境変数もYAMLから取得します。
 生成backendはvLLM 0.18の明示的multi-process data parallel方式を使い、1ノード内で`TP=1 × DP=8`を固定します。
 各rankは連続したbalanced shardを処理し、親processが入力順へ再構成します。
 20Bと120Bの間では全workerを終了・joinし、前モデルのGPU状態を次モデルへ持ち越しません。

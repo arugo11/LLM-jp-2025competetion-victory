@@ -33,6 +33,7 @@ coordination:
 runtime:
   python: "3.12"
   package_manager: uv
+  uv_project_environment: envs/tv-gptoss120b-py312
   profiles:
     local_audit:
       venue: local

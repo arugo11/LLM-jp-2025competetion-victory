@@ -11,7 +11,7 @@ from .hashing import sha256_value
 
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 EXPERIMENT_ID = re.compile(r"^[0-9]{4}$")
-PRODUCTION_CONTRACT_SHA256 = "96606d61425e150d637f8dfec582a679f7b3640d5ecf82c9dcd20cd9e46fc6dd"
+PRODUCTION_CONTRACT_SHA256 = "3c9799314ad9873a3d21a661e9506e1496c24384c20b68ae9b67f2e88d94b478"
 
 
 class StrictModel(BaseModel):
@@ -112,6 +112,7 @@ class RuntimeProfile(StrictModel):
 class RuntimeConfig(StrictModel):
     python: Literal["3.12"]
     package_manager: Literal["uv"]
+    uv_project_environment: Literal["envs/tv-gptoss120b-py312"]
     profiles: dict[str, RuntimeProfile]
     stage_profile: dict[StageName, str]
     transient_cluster_fields: list[
