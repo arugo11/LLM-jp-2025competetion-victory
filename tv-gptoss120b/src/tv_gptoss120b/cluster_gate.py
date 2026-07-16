@@ -12,6 +12,47 @@ from .pbs import derive_projected_resource_usage
 from .resource_evidence import derive_pre_qsub_storage_metrics
 
 
+def _walltime_seconds(value: object) -> int | None:
+    parts = str(value).split(":")
+    if len(parts) != 3:
+        return None
+    try:
+        hours, minutes, seconds = (int(item) for item in parts)
+    except ValueError:
+        return None
+    if hours < 0 or not 0 <= minutes < 60 or not 0 <= seconds < 60:
+        return None
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def _opportunistic_reserved_smoke_allowed(
+    approval: dict[str, Any], policy: dict[str, Any], manifest: dict[str, Any]
+) -> bool:
+    scope = policy.get("opportunistic_reserved_smoke")
+    if not isinstance(scope, dict) or scope.get("allowed") is not True:
+        return False
+    requested = _walltime_seconds(manifest.get("requested_walltime"))
+    maximum = _walltime_seconds(scope.get("max_walltime"))
+    policy_ref = scope.get("source_ref")
+    return bool(
+        approval.get("user_approved") is True
+        and approval.get("approval_scope") == "opportunistic_reserved_smoke"
+        and manifest.get("smoke") is True
+        and manifest.get("billing_mode") == "reserved"
+        and manifest.get("nodes") == 1
+        and manifest.get("array_size") == 1
+        and manifest.get("max_array_concurrency") == 1
+        and manifest.get("preemptible") is True
+        and manifest.get("automatic_retry") is False
+        and manifest.get("team_approval_ref") in {None, ""}
+        and isinstance(policy_ref, str)
+        and manifest.get("opportunistic_policy_ref") == policy_ref
+        and requested is not None
+        and maximum is not None
+        and requested <= maximum
+    )
+
+
 def verify_qsub_gate(
     config: ExperimentConfig,
     *,
@@ -44,8 +85,16 @@ def verify_qsub_gate(
         failures.append("deep storage audit is older than 60 minutes")
     if approval.get("plan_sha256") != plan_sha256:
         failures.append("approved plan hash mismatch")
-    if approval.get("user_approved") is not True or approval.get("foundation_meeting_approved") is not True:
-        failures.append("user and foundation-model meeting approvals are both required")
+    full_approval = (
+        approval.get("user_approved") is True
+        and approval.get("foundation_meeting_approved") is True
+    )
+    opportunistic_smoke = _opportunistic_reserved_smoke_allowed(approval, policy, manifest)
+    if not full_approval and not opportunistic_smoke:
+        failures.append(
+            "user and foundation-model meeting approvals are required outside the narrow "
+            "opportunistic reserved smoke scope"
+        )
     if approval.get("experiment_id") != experiment_id:
         failures.append("approval experiment ID mismatch")
     if manifest.get("plan_sha256") != plan_sha256:
@@ -156,5 +205,6 @@ def verify_qsub_gate(
         "projected_resource_usage": projected,
         "measured_storage": {"bytes": storage["bytes"], "inodes": storage["inodes"]},
         "projected_storage_bytes": storage["bytes"] + predicted_bytes,
+        "approval_mode": "opportunistic_reserved_smoke" if opportunistic_smoke else "full",
         "requires_external_cluster_preflight": True,
     }

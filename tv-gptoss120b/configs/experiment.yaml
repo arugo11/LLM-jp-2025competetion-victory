@@ -75,7 +75,7 @@ runtime:
       uv_extras: [data, generation, training, tracking]
       nodes: 1
       gpus_per_node: 8
-      cpu_workers: 1
+      cpu_workers: 8
       threads_per_worker: 8
       io_concurrency: 1
       environment:
@@ -145,6 +145,10 @@ generation:
   gpu_memory_utilization: 0.9
   tensor_parallel_size: 1
   data_parallel_size: 8
+  vllm_version: 0.18.0
+  worker_startup_timeout_seconds: 900
+  worker_request_timeout_seconds: 3600
+  worker_shutdown_timeout_seconds: 60
 validation:
   parse_rate_min: 0.95
   validity_noninferiority_margin: 0.02

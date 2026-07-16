@@ -58,6 +58,9 @@ uv run ruff check src tests
 科学条件、固定revision、matched AIME設定、実行profileはすべて`configs/experiment.yaml`を正本とします。
 `runtime.stage_profile`は各stageをlocal CPU、ABCI CPU、H200のいずれかへ割り当て、CPU profileはGPU数0、H200 profileはHub upload禁止をschemaで強制します。
 Pythonは3.12、package managerは`uv`に固定し、各profileの`uv_extras`とthread環境変数もYAMLから取得します。
+生成backendはvLLM 0.18の明示的multi-process data parallel方式を使い、1ノード内で`TP=1 × DP=8`を固定します。
+各rankは連続したbalanced shardを処理し、親processが入力順へ再構成します。
+20Bと120Bの間では全workerを終了・joinし、前モデルのGPU状態を次モデルへ持ち越しません。
 
 queue、billing mode、resource type、submit account、team approvalは恒久定数ではありません。
 これらは`runtime.transient_cluster_fields`として明示し、qsubの60分以内にSlackとlive stateから作るpolicy snapshotでのみ解決します。
@@ -74,7 +77,10 @@ AIME25 splitはユーザー固定の`train`を維持し、議事録の`test`表�
 private commitを別ディレクトリへ再downloadし、checksum、dataset viewerまたはfull model loadを確認するまでpublicへ変更しません。
 final publication manifestはrelease auditとともにW&B `publication-manifest:vN`へ格納し、public化直前にremote内容を再downloadしてcanonical digestを照合します。
 
-ABCI job manifestとPBSは、60分以内のpolicy snapshot、ユーザー承認、チーム承認、live stateを共通preflightへ渡して`PASS`を得た場合だけsubmitできます。
+ABCI job manifestとPBSは、60分以内のpolicy snapshot、ユーザー承認、live stateを共通preflightへ渡して`PASS`を得た場合だけsubmitできます。
+本実験には原則としてチーム承認を要求します。
+ただし、Slackで明示された「予約ノードが空いていれば非申請者jobも投入可」というbest-effort運用に限り、30分以下・1ノード・単一smoke・preemptible・自動retryなしをmanifestとpolicy snapshotの双方で固定したjobだけを狭い例外とします。
+この例外jobは混雑時に予告なくkillされ得るため、killを成功扱いにせず、追加投入もしません。
 job manifestは承認済みplan SHA-256へ固定し、過去jobの累積node-hoursは手書き値を受け付けず、保存した`qstat -fx -F json`の実walltimeとnode数から投入前・release時の両方で再計算します。
 `queue`、`rate_class`、`resource_type`に加え、`cpus_per_node`と`gpus_per_node`もfresh policy snapshotのscheduler factsへ一致しなければPBSを生成しません。
 初回qsub前のstorage判定は`scripts/abci_pre_qsub_storage_audit.sh`による10万inode以下・30秒以内のbounded auditを使い、現在量とjobの出力上限の合計を250 GB制限へ照合します。

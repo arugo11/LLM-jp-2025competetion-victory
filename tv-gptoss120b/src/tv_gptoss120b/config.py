@@ -11,7 +11,7 @@ from .hashing import sha256_value
 
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 EXPERIMENT_ID = re.compile(r"^[0-9]{4}$")
-PRODUCTION_CONTRACT_SHA256 = "4b06bab6c0bcfc260fca94a09d162eb068872aaf3d3b91f5289d022be0c9caeb"
+PRODUCTION_CONTRACT_SHA256 = "96606d61425e150d637f8dfec582a679f7b3640d5ecf82c9dcd20cd9e46fc6dd"
 
 
 class StrictModel(BaseModel):
@@ -93,6 +93,8 @@ class RuntimeProfile(StrictModel):
     def resource_and_concurrency_are_consistent(self) -> RuntimeProfile:
         if self.resource_class == "h200" and self.gpus_per_node != 8:
             raise ValueError("H200 profile must request the approved single 8-GPU node")
+        if self.resource_class == "h200" and self.cpu_workers != self.gpus_per_node:
+            raise ValueError("H200 profile must launch one top-level worker per GPU")
         if self.resource_class != "h200" and self.gpus_per_node != 0:
             raise ValueError("CPU profiles must request zero GPUs")
         if self.venue in {"compute", "decision_required"} and self.approval_gate == "none":
@@ -178,14 +180,24 @@ class DataConfig(StrictModel):
 
 class GenerationConfig(StrictModel):
     reasoning_effort: Literal["low", "medium", "high"]
-    question_temperature: float
-    solution_temperature: float
-    top_p: float
-    max_tokens: int
-    max_model_len: int
-    gpu_memory_utilization: float
-    tensor_parallel_size: int
-    data_parallel_size: int
+    question_temperature: float = Field(ge=0)
+    solution_temperature: float = Field(ge=0)
+    top_p: float = Field(gt=0, le=1)
+    max_tokens: int = Field(gt=0)
+    max_model_len: int = Field(gt=0)
+    gpu_memory_utilization: float = Field(gt=0, le=1)
+    tensor_parallel_size: int = Field(gt=0)
+    data_parallel_size: int = Field(gt=0)
+    vllm_version: Literal["0.18.0"]
+    worker_startup_timeout_seconds: int = Field(gt=0)
+    worker_request_timeout_seconds: int = Field(gt=0)
+    worker_shutdown_timeout_seconds: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def topology_matches_single_h200_node(self) -> GenerationConfig:
+        if self.tensor_parallel_size != 1 or self.data_parallel_size != 8:
+            raise ValueError("generation topology must remain TP=1 x explicit-process DP=8")
+        return self
 
 
 class ValidationConfig(StrictModel):
@@ -390,6 +402,14 @@ class ExperimentConfig(StrictModel):
                 "difficulty_min": 6,
                 "difficulty_max": 10,
                 "seed": 37,
+            },
+            "generation": {
+                "tensor_parallel_size": 1,
+                "data_parallel_size": 8,
+                "vllm_version": "0.18.0",
+                "worker_startup_timeout_seconds": 900,
+                "worker_request_timeout_seconds": 3600,
+                "worker_shutdown_timeout_seconds": 60,
             },
             "sft": {
                 "max_length": 4096,

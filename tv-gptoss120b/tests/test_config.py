@@ -39,6 +39,8 @@ def test_runtime_profiles_separate_cpu_gpu_and_publication() -> None:
     assert runtime.stage_profile["preprocess"] == "cpu_pipeline"
     assert runtime.profiles["cpu_pipeline"].gpus_per_node == 0
     assert runtime.stage_profile["evaluate"] == "h200_pipeline"
+    assert runtime.profiles["h200_pipeline"].cpu_workers == 8
+    assert runtime.profiles["h200_pipeline"].threads_per_worker == 8
     assert runtime.profiles["h200_pipeline"].hub_upload_allowed is False
     assert runtime.profiles["cpu_publication"].hub_upload_allowed is True
     assert runtime.profiles["cpu_publication"].venue == "decision_required"
