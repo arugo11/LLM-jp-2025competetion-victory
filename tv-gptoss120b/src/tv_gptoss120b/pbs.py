@@ -106,21 +106,30 @@ def render_pbs(config: ExperimentConfig, job_manifest: Path, policy_snapshot: Pa
         "group",
         "queue",
         "billing_mode",
+        "rate_class",
         "resource_type",
+        "resource_class",
         "nodes",
         "cpus_per_node",
         "gpus_per_node",
         "requested_walltime",
+        "array_size",
+        "max_array_concurrency",
+        "priority",
         "main_command",
         "output_root",
         "budget_stage",
         "execution_venue",
         "venue_evidence",
-        "predicted_new_files",
-        "predicted_new_bytes",
+        "predicted_new_files_upper_bound",
+        "predicted_new_bytes_upper_bound",
+        "many_file_workload",
+        "large_output_workload",
         "cpu_workers",
         "thread_plan",
         "io_concurrency",
+        "expected_bottleneck",
+        "special_spot",
         "submit_account",
         "responsible_person",
         "experiment_owner",
@@ -141,12 +150,20 @@ def render_pbs(config: ExperimentConfig, job_manifest: Path, policy_snapshot: Pa
         failures.append("job output root is not the canonical experiment root")
     if not str(manifest["job_name"]).startswith(f"{experiment_id}_"):
         failures.append("job name lacks experiment ID prefix")
-    if manifest["queue"] not in policy.get("queues", policy.get("allowed_queues", [])):
+    if manifest["queue"] not in policy.get("allowed_queues", []):
         failures.append("queue is not present in the transient policy snapshot")
     if manifest["billing_mode"] not in policy.get("allowed_billing_modes", []):
         failures.append("billing mode is not allowed by the transient policy snapshot")
     if manifest["resource_type"] not in policy.get("allowed_resource_types", []):
         failures.append("resource type is not allowed by the transient policy snapshot")
+    if manifest["rate_class"] not in policy.get("allowed_rate_classes", []):
+        failures.append("rate class is not allowed by the transient policy snapshot")
+    resource_shape = policy.get("resource_shapes", {}).get(manifest["resource_type"], {})
+    if not isinstance(resource_shape, dict) or (
+        manifest["cpus_per_node"] != resource_shape.get("cpus_per_node")
+        or manifest["gpus_per_node"] != resource_shape.get("gpus_per_node")
+    ):
+        failures.append("CPU/GPU shape does not match current scheduler facts")
     command = manifest["main_command"]
     if not isinstance(command, list) or not command or not all(isinstance(item, str) and item for item in command):
         failures.append("main_command must be a non-empty argv list")
@@ -160,11 +177,15 @@ def render_pbs(config: ExperimentConfig, job_manifest: Path, policy_snapshot: Pa
         runtime_profile = None
     if runtime_profile is not None:
         if runtime_profile.resource_class == "h200" and (
-            manifest["resource_type"] != "rt_HF" or int(manifest["gpus_per_node"]) != 8
+            manifest["resource_type"] != "rt_HF"
+            or manifest["resource_class"] != "multi_gpu_single_node"
+            or int(manifest["gpus_per_node"]) != 8
         ):
             failures.append("H200 runtime profile requires rt_HF with 8 GPUs")
         if runtime_profile.resource_class == "cpu_only" and (
-            manifest["resource_type"] != "rt_HC" or int(manifest["gpus_per_node"]) != 0
+            manifest["resource_type"] != "rt_HC"
+            or manifest["resource_class"] != "cpu_only"
+            or int(manifest["gpus_per_node"]) != 0
         ):
             failures.append("CPU runtime profile requires rt_HC with zero GPUs")
         if runtime_profile.resource_class == "local_cpu":

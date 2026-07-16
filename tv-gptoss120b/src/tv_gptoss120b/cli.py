@@ -11,6 +11,7 @@ import typer
 
 from .aime import summarize_aime, verify_matched_fingerprint
 from .cards import render_dataset_card, render_model_card, write_card
+from .cluster_gate import verify_qsub_gate
 from .config import ExperimentConfig, load_config
 from .curation import finalize_curation, prepare_review, verify_generation_inputs
 from .evaluation import run_difficulty_inference, run_matched_aime_suite, run_swallow_aime, summarize_difficulty
@@ -32,6 +33,7 @@ from .model_lineage import (
     write_merged_model_lineage,
     write_sft_model_lineage,
 )
+from .pbs import render_pbs
 from .preprocessing import prepare_grpo_dataset, prepare_sft_dataset
 from .prompts import PROMPT_REVISION
 from .publication import make_public, upload_private_then_validate, validate_private_validation_report
@@ -653,6 +655,50 @@ def summarize_evaluation(
     summary = summarize_aime(combined)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(summary, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+
+@app.command("render-pbs")
+def render_pbs_command(
+    config_path: ConfigOption,
+    job_manifest: Annotated[Path, typer.Option(exists=True, dir_okay=False)],
+    policy_snapshot: Annotated[Path, typer.Option(exists=True, dir_okay=False)],
+    output: Annotated[Path, typer.Option()],
+) -> None:
+    """Render an immutable PBS script; this command never calls qsub."""
+    config = _load(config_path)
+    render_pbs(config, job_manifest, policy_snapshot, output)
+    typer.echo(str(output))
+
+
+@app.command("verify-qsub-local")
+def verify_qsub_local_command(
+    config_path: ConfigOption,
+    approval_record: Annotated[Path, typer.Option(exists=True, dir_okay=False)],
+    policy_snapshot: Annotated[Path, typer.Option(exists=True, dir_okay=False)],
+    job_manifest: Annotated[Path, typer.Option(exists=True, dir_okay=False)],
+    pbs_script: Annotated[Path, typer.Option(exists=True, dir_okay=False)],
+    storage_audit: Annotated[Path, typer.Option(exists=True, dir_okay=False)],
+    plan_sha256: Annotated[str, typer.Option()],
+    output: Annotated[Path, typer.Option()],
+) -> None:
+    """Run the package gate; the external common cluster preflight is still required."""
+    config = _load(config_path)
+    if len(plan_sha256) != 64 or any(char not in "0123456789abcdef" for char in plan_sha256):
+        raise typer.BadParameter("--plan-sha256 must be a lowercase SHA-256")
+    report = verify_qsub_gate(
+        config,
+        approval_record=approval_record,
+        policy_snapshot=policy_snapshot,
+        job_manifest=job_manifest,
+        pbs_script=pbs_script,
+        storage_audit=storage_audit,
+        plan_sha256=plan_sha256,
+    )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x", encoding="utf-8") as handle:
+        json.dump(report, handle, ensure_ascii=False, sort_keys=True, indent=2)
+        handle.write("\n")
+    typer.echo(str(output))
 
 
 @app.command()

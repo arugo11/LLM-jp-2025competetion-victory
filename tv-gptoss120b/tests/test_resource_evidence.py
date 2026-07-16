@@ -8,7 +8,11 @@ from tv_gptoss120b.config import load_config
 from tv_gptoss120b.hashing import sha256_file, sha256_value
 from tv_gptoss120b.manifest import ArtifactRef, StageManifest
 from tv_gptoss120b.release_audit import REQUIRED_STAGE_MANIFESTS, audit_release_evidence
-from tv_gptoss120b.resource_evidence import derive_resource_usage, write_resource_evidence_record
+from tv_gptoss120b.resource_evidence import (
+    derive_pre_qsub_storage_metrics,
+    derive_resource_usage,
+    write_resource_evidence_record,
+)
 
 CONFIG = Path(__file__).parents[1] / "configs" / "experiment.yaml"
 
@@ -104,6 +108,29 @@ def test_resource_usage_rejects_qstat_tampering(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="qstat evidence SHA-256 mismatch"):
         derive_resource_usage(config, evidence)
+
+
+def test_pre_qsub_storage_audit_is_distinct_from_release_deep_audit(tmp_path: Path) -> None:
+    root = tmp_path / "9999_tv-gptoss120b"
+    root.mkdir()
+    config = load_config(CONFIG).model_copy(update={
+        "identity": load_config(CONFIG).identity.model_copy(update={"experiment_id": "9999"}),
+        "paths": load_config(CONFIG).paths.model_copy(update={"experiment_root": str(root)}),
+    })
+    audit = root / "pre-qsub-storage-audit.txt"
+    audit.write_text(
+        "audit_mode=bounded-pre-qsub\n"
+        f"storage_audit_target={root}\n"
+        "created_at=2026-07-17T06:00:00+09:00\n"
+        "target_group=gcg51557\n"
+        "bytes=1234\n"
+        "inode=12\n"
+        "scan_status=complete\n"
+        "file_scan_limit=100000\n",
+        encoding="utf-8",
+    )
+
+    assert derive_pre_qsub_storage_metrics(config, audit)["bytes"] == 1234
 
 
 def make_release_lineage(config, evidence: Path) -> tuple[Path, dict, dict[str, Path]]:

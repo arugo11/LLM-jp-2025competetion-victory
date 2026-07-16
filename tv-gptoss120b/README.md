@@ -33,6 +33,8 @@ uv run --extra generation --extra tracking tv-gptoss120b generate --help
 uv run --extra generation --extra data --extra tracking tv-gptoss120b curate --help
 uv run --extra generation --extra data --extra tracking tv-gptoss120b difficulty --help
 uv run --extra data --extra training --extra tracking tv-gptoss120b preprocess --help
+uv run tv-gptoss120b render-pbs --help
+uv run tv-gptoss120b verify-qsub-local --help
 uv run --extra training --extra tracking tv-gptoss120b sft --help
 uv run --extra training --extra tracking tv-gptoss120b grpo --help
 uv run --extra generation --extra data --extra tracking tv-gptoss120b evaluate --help
@@ -74,5 +76,8 @@ final publication manifestはrelease auditとともにW&B `publication-manifest:
 
 ABCI job manifestとPBSは、60分以内のpolicy snapshot、ユーザー承認、チーム承認、live stateを共通preflightへ渡して`PASS`を得た場合だけsubmitできます。
 job manifestは承認済みplan SHA-256へ固定し、過去jobの累積node-hoursは手書き値を受け付けず、保存した`qstat -fx -F json`の実walltimeとnode数から投入前・release時の両方で再計算します。
-storageはcanonical EXP_DIR内に保存した60分以内のcomplete deep auditからbytesとinodeを取得します。
+`queue`、`rate_class`、`resource_type`に加え、`cpus_per_node`と`gpus_per_node`もfresh policy snapshotのscheduler factsへ一致しなければPBSを生成しません。
+初回qsub前のstorage判定は`scripts/abci_pre_qsub_storage_audit.sh`による10万inode以下・30秒以内のbounded auditを使い、現在量とjobの出力上限の合計を250 GB制限へ照合します。
+このbounded auditをrelease証拠へ昇格させることはできません。各job後とrelease時のlineageは、canonical EXP_DIR内に保存したPBS-side complete deep auditだけからbytesとinodeを取得します。
 本CLI自体はqsubを実行しません。
+`render-pbs`はmanifestとfresh policyからimmutable PBSを生成するだけで、`verify-qsub-local`のPASS後も共通cluster preflightのPASSが別途必要です。

@@ -18,9 +18,11 @@ def gpu_job_payload(config, **updates) -> dict:
         "group": "gcg51557",
         "queue": "verified-fixture",
         "billing_mode": "reserved",
+        "rate_class": "development_acceleration",
         "resource_type": "rt_HF",
+        "resource_class": "multi_gpu_single_node",
         "nodes": 1,
-        "cpus_per_node": 96,
+        "cpus_per_node": 192,
         "gpus_per_node": 8,
         "requested_walltime": "00:10:00",
         "array_size": 1,
@@ -42,11 +44,15 @@ def gpu_job_payload(config, **updates) -> dict:
             "recursive_or_bulk_work": True,
             "why_login_is_insufficient": "GPU inference",
         },
-        "predicted_new_files": 100,
-        "predicted_new_bytes": 1000000,
+        "predicted_new_files_upper_bound": 100,
+        "predicted_new_bytes_upper_bound": 1000000,
+        "many_file_workload": False,
+        "large_output_workload": False,
         "cpu_workers": 8,
         "thread_plan": "8 workers x 1 thread",
         "io_concurrency": 4,
+        "expected_bottleneck": "gpu_compute",
+        "special_spot": False,
         "submit_account": "fixture-account",
         "responsible_person": "fixture-responsible",
         "experiment_owner": "fixture-owner",
@@ -65,14 +71,16 @@ def test_pbs_is_rendered_only_from_manifest_and_policy(tmp_path: Path) -> None:
     manifest.write_text(json.dumps(gpu_job_payload(config)))
     policy = tmp_path / "policy.json"
     policy.write_text(json.dumps({
-        "queues": ["verified-fixture"],
+        "allowed_queues": ["verified-fixture"],
         "allowed_billing_modes": ["reserved"],
+        "allowed_rate_classes": ["development_acceleration"],
         "allowed_resource_types": ["rt_HF"],
+        "resource_shapes": {"rt_HF": {"cpus_per_node": 192, "gpus_per_node": 8}},
     }))
     output = tmp_path / "job.pbs"
     script = render_pbs(config, manifest, policy, output)
     assert "#PBS -v RTYPE=rt_HF" in script
-    assert "#PBS -l select=1:ncpus=96:ngpus=8" in script
+    assert "#PBS -l select=1:ncpus=192:ngpus=8" in script
     assert str(config.experiment_root()) in script
     assert "#$" not in script
     assert "export OMP_NUM_THREADS=8" in script
@@ -89,11 +97,16 @@ def test_cpu_job_uses_separate_four_hour_budget(tmp_path: Path) -> None:
         "group": "gcg51557",
         "queue": "verified-cpu",
         "billing_mode": "reserved",
+        "rate_class": "development_acceleration",
         "resource_type": "rt_HC",
+        "resource_class": "cpu_only",
         "nodes": 1,
         "cpus_per_node": 32,
         "gpus_per_node": 0,
         "requested_walltime": "01:00:00",
+        "array_size": 1,
+        "max_array_concurrency": 1,
+        "priority": 0,
         "main_command": ["uv", "run", "tv-gptoss120b", "publish"],
         "output_root": str(config.experiment_root()),
         "budget_stage": "cpu",
@@ -110,11 +123,15 @@ def test_cpu_job_uses_separate_four_hour_budget(tmp_path: Path) -> None:
             "recursive_or_bulk_work": True,
             "why_login_is_insufficient": "full model validation",
         },
-        "predicted_new_files": 1000,
-        "predicted_new_bytes": 1000000000,
+        "predicted_new_files_upper_bound": 1000,
+        "predicted_new_bytes_upper_bound": 1000000000,
+        "many_file_workload": False,
+        "large_output_workload": False,
         "cpu_workers": 32,
         "thread_plan": "32 workers x 1 thread",
         "io_concurrency": 8,
+        "expected_bottleneck": "cpu_compute",
+        "special_spot": False,
         "submit_account": "fixture-account",
         "responsible_person": "fixture-responsible",
         "experiment_owner": "fixture-owner",
@@ -124,9 +141,11 @@ def test_cpu_job_uses_separate_four_hour_budget(tmp_path: Path) -> None:
     }))
     policy = tmp_path / "policy.json"
     policy.write_text(json.dumps({
-        "queues": ["verified-cpu"],
+        "allowed_queues": ["verified-cpu"],
         "allowed_billing_modes": ["reserved"],
+        "allowed_rate_classes": ["development_acceleration"],
         "allowed_resource_types": ["rt_HC"],
+        "resource_shapes": {"rt_HC": {"cpus_per_node": 32, "gpus_per_node": 0}},
     }))
     script = render_pbs(config, manifest, policy, tmp_path / "cpu.pbs")
     assert "ngpus=0" in script
@@ -142,12 +161,32 @@ def test_pbs_rejects_caller_authored_cumulative_resource_totals(tmp_path: Path) 
     )))
     policy = tmp_path / "policy.json"
     policy.write_text(json.dumps({
-        "queues": ["verified-fixture"],
+        "allowed_queues": ["verified-fixture"],
         "allowed_billing_modes": ["reserved"],
+        "allowed_rate_classes": ["development_acceleration"],
         "allowed_resource_types": ["rt_HF"],
+        "resource_shapes": {"rt_HF": {"cpus_per_node": 192, "gpus_per_node": 8}},
     }))
 
     with pytest.raises(ValueError, match="caller-authored cumulative resource fields are forbidden"):
+        render_pbs(config, manifest, policy, tmp_path / "job.pbs")
+
+
+def test_pbs_rejects_stale_scheduler_cpu_shape(tmp_path: Path) -> None:
+    config = load_config(CONFIG)
+    config = config.model_copy(update={"identity": config.identity.model_copy(update={"experiment_id": "9999"})})
+    manifest = tmp_path / "job.json"
+    manifest.write_text(json.dumps(gpu_job_payload(config, cpus_per_node=96)))
+    policy = tmp_path / "policy.json"
+    policy.write_text(json.dumps({
+        "allowed_queues": ["verified-fixture"],
+        "allowed_billing_modes": ["reserved"],
+        "allowed_rate_classes": ["development_acceleration"],
+        "allowed_resource_types": ["rt_HF"],
+        "resource_shapes": {"rt_HF": {"cpus_per_node": 192, "gpus_per_node": 8}},
+    }))
+
+    with pytest.raises(RuntimeError, match="scheduler facts"):
         render_pbs(config, manifest, policy, tmp_path / "job.pbs")
 
 
@@ -165,9 +204,11 @@ def test_pbs_uses_evidence_derived_prior_usage_for_reserve_gate(
     )))
     policy = tmp_path / "policy.json"
     policy.write_text(json.dumps({
-        "queues": ["verified-fixture"],
+        "allowed_queues": ["verified-fixture"],
         "allowed_billing_modes": ["reserved"],
+        "allowed_rate_classes": ["development_acceleration"],
         "allowed_resource_types": ["rt_HF"],
+        "resource_shapes": {"rt_HF": {"cpus_per_node": 192, "gpus_per_node": 8}},
     }))
     monkeypatch.setattr(pbs_module, "derive_resource_usage", lambda _config, path: {
         "pbs_job_id": "123.abci",

@@ -28,10 +28,11 @@ def test_qsub_gate_requires_fresh_policy_and_approvals(tmp_path: Path) -> None:
     }))
     policy = tmp_path / "policy.json"
     policy.write_text(json.dumps({
-        "captured_at": datetime.now(UTC).isoformat(),
-        "queue": "verified-fixture",
+        "checked_at": datetime.now(UTC).isoformat(),
+        "allowed_queues": ["verified-fixture"],
         "queue_verified": True,
         "quota_verified": True,
+        "resource_shapes": {"rt_HF": {"cpus_per_node": 192, "gpus_per_node": 8}},
     }))
     manifest = root / "job-manifest.json"
     manifest.write_text(json.dumps({
@@ -43,13 +44,14 @@ def test_qsub_gate_requires_fresh_policy_and_approvals(tmp_path: Path) -> None:
         "queue": "verified-fixture",
         "resource_type": "rt_HF",
         "nodes": 1,
-        "cpus_per_node": 96,
+        "cpus_per_node": 192,
         "gpus_per_node": 8,
         "requested_walltime": "00:10:00",
         "budget_stage": "generation_validation",
         "runtime_stage": "generate",
         "prior_resource_evidence_records": [],
         "main_command": ["uv", "run", "tv-gptoss120b", "generate"],
+        "predicted_new_bytes_upper_bound": 1000,
     }))
     pbs = root / "stage.pbs"
     pbs.write_text(
@@ -57,7 +59,7 @@ def test_qsub_gate_requires_fresh_policy_and_approvals(tmp_path: Path) -> None:
         "#PBS -P gcg51557\n"
         "#PBS -q verified-fixture\n"
         "#PBS -v RTYPE=rt_HF\n"
-        "#PBS -l select=1:ncpus=96:ngpus=8\n"
+        "#PBS -l select=1:ncpus=192:ngpus=8\n"
         "#PBS -l walltime=00:10:00\n"
         "export MKL_NUM_THREADS=8\n"
         "export OMP_NUM_THREADS=8\n"
@@ -68,13 +70,14 @@ def test_qsub_gate_requires_fresh_policy_and_approvals(tmp_path: Path) -> None:
     )
     storage = root / "storage-audit.txt"
     storage.write_text(
-        "audit_mode=deep\n"
+        "audit_mode=bounded-pre-qsub\n"
         f"storage_audit_target={root}\n"
         f"created_at={datetime.now(UTC).isoformat()}\n"
         "target_group=gcg51557\n"
         "bytes=1\n"
         "inode=10\n"
         "scan_status=complete\n"
+        "file_scan_limit=100000\n"
     )
     report = verify_qsub_gate(
         config,
@@ -88,6 +91,23 @@ def test_qsub_gate_requires_fresh_policy_and_approvals(tmp_path: Path) -> None:
     assert report["status"] == "PASS"
     assert report["projected_resource_usage"]["h200_after_job"] == pytest.approx(1 / 6)
     assert report["measured_storage"] == {"bytes": 1, "inodes": 10}
+    assert report["projected_storage_bytes"] == 1001
+
+    manifest_payload = json.loads(manifest.read_text())
+    manifest_payload["predicted_new_bytes_upper_bound"] = 250_000_000_000
+    manifest.write_text(json.dumps(manifest_payload))
+    with pytest.raises(RuntimeError, match="250 GB"):
+        verify_qsub_gate(
+            config,
+            approval_record=approval,
+            policy_snapshot=policy,
+            job_manifest=manifest,
+            pbs_script=pbs,
+            storage_audit=storage,
+            plan_sha256=plan_hash,
+        )
+    manifest_payload["predicted_new_bytes_upper_bound"] = 1000
+    manifest.write_text(json.dumps(manifest_payload))
 
     payload = json.loads(approval.read_text())
     payload["foundation_meeting_approved"] = False

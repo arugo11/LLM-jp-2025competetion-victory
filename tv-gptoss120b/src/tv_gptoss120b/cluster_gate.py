@@ -9,7 +9,7 @@ from typing import Any
 from .config import ExperimentConfig
 from .hashing import sha256_file
 from .pbs import derive_projected_resource_usage
-from .resource_evidence import derive_storage_metrics
+from .resource_evidence import derive_pre_qsub_storage_metrics
 
 
 def verify_qsub_gate(
@@ -29,9 +29,9 @@ def verify_qsub_gate(
     policy = json.loads(policy_snapshot.read_text(encoding="utf-8"))
     manifest = json.loads(job_manifest.read_text(encoding="utf-8"))
     projected = derive_projected_resource_usage(config, manifest)
-    storage = derive_storage_metrics(config, storage_audit)
+    storage = derive_pre_qsub_storage_metrics(config, storage_audit)
     current = now or datetime.now(UTC)
-    captured = datetime.fromisoformat(policy["captured_at"])
+    captured = datetime.fromisoformat(policy["checked_at"])
     storage_captured = datetime.fromisoformat(storage["created_at"])
     if captured.tzinfo is None:
         raise ValueError("policy snapshot timestamp must be timezone-aware")
@@ -56,12 +56,23 @@ def verify_qsub_gate(
         or Path(str(manifest.get("output_root", ""))).resolve() != config.experiment_root().resolve()
     ):
         failures.append("job manifest identity/group/output root mismatch")
-    if policy.get("queue_verified") is not True or not policy.get("queue"):
+    allowed_queues = policy.get("allowed_queues")
+    if (
+        policy.get("queue_verified") is not True
+        or not isinstance(allowed_queues, list)
+        or not allowed_queues
+    ):
         failures.append("queue/quota snapshot is not verified")
     if policy.get("quota_verified") is not True:
         failures.append("queue/quota snapshot is not verified")
-    if manifest.get("queue") != policy.get("queue"):
-        failures.append("job manifest queue does not match the verified policy snapshot")
+    if manifest.get("queue") not in (allowed_queues if isinstance(allowed_queues, list) else []):
+        failures.append("job manifest queue is not in the verified policy snapshot")
+    resource_shape = policy.get("resource_shapes", {}).get(manifest.get("resource_type"), {})
+    if not isinstance(resource_shape, dict) or (
+        manifest.get("cpus_per_node") != resource_shape.get("cpus_per_node")
+        or manifest.get("gpus_per_node") != resource_shape.get("gpus_per_node")
+    ):
+        failures.append("job manifest CPU/GPU shape does not match current scheduler facts")
     if projected["h200_after_job"] > config.resources.h200_node_hours_absolute_max:
         failures.append("H200 absolute budget would be exceeded")
     if manifest.get("nodes") != 1:
@@ -101,7 +112,11 @@ def verify_qsub_gate(
         failures.append("reserve is declared without evidence-derived need")
     if projected["cpu_after_job"] > config.resources.cpu_node_hours_max:
         failures.append("CPU absolute budget would be exceeded")
-    if storage["bytes"] > config.resources.storage_bytes_max:
+    predicted_bytes = manifest.get("predicted_new_bytes_upper_bound")
+    if not isinstance(predicted_bytes, int) or isinstance(predicted_bytes, bool) or predicted_bytes < 0:
+        failures.append("predicted_new_bytes_upper_bound must be a non-negative integer")
+        predicted_bytes = 0
+    if storage["bytes"] + predicted_bytes > config.resources.storage_bytes_max:
         failures.append("250 GB storage gate would be exceeded")
     canonical_root = config.experiment_root()
     pbs_text = pbs_script.read_text(encoding="utf-8")
@@ -132,7 +147,7 @@ def verify_qsub_gate(
     return {
         "status": "PASS",
         "experiment_id": experiment_id,
-        "queue": policy["queue"],
+        "queue": manifest["queue"],
         "approval_record_sha256": sha256_file(approval_record),
         "policy_snapshot_sha256": sha256_file(policy_snapshot),
         "job_manifest_sha256": sha256_file(job_manifest),
@@ -140,5 +155,6 @@ def verify_qsub_gate(
         "storage_audit_sha256": sha256_file(storage_audit),
         "projected_resource_usage": projected,
         "measured_storage": {"bytes": storage["bytes"], "inodes": storage["inodes"]},
+        "projected_storage_bytes": storage["bytes"] + predicted_bytes,
         "requires_external_cluster_preflight": True,
     }
