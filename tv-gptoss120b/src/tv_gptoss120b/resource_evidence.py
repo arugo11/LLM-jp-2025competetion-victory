@@ -239,13 +239,29 @@ def derive_resource_usage(config: ExperimentConfig, evidence_path: Path) -> dict
         "responsible_person",
         "experiment_owner",
         "user_execution_approval_ref",
-        "team_approval_ref",
     }
+    team_approval = manifest.get("team_approval_ref")
+    opportunistic_reserved_smoke = (
+        team_approval is None
+        and manifest.get("billing_mode") == "reserved"
+        and manifest.get("smoke") is True
+        and manifest.get("preemptible") is True
+        and manifest.get("automatic_retry") is False
+        and manifest.get("nodes") == 1
+        and manifest.get("array_size") == 1
+        and manifest.get("max_array_concurrency") == 1
+        and isinstance(manifest.get("opportunistic_policy_ref"), str)
+        and bool(manifest["opportunistic_policy_ref"])
+    )
     if (
         manifest.get("experiment_id") != experiment_id
         or Path(str(manifest.get("output_root", ""))).resolve() != root
         or manifest.get("job_name") is None
         or any(not isinstance(manifest.get(field), str) or not manifest[field] for field in approval_fields)
+        or not (
+            isinstance(team_approval, str) and bool(team_approval)
+            or opportunistic_reserved_smoke
+        )
     ):
         raise ValueError("job manifest identity/output root/ownership/approval evidence is invalid")
     resource_type = manifest.get("resource_type")

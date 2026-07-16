@@ -110,6 +110,69 @@ def test_resource_usage_rejects_qstat_tampering(tmp_path: Path) -> None:
         derive_resource_usage(config, evidence)
 
 
+def test_resource_usage_accepts_narrow_opportunistic_reserved_smoke(tmp_path: Path) -> None:
+    config, evidence, _ = make_evidence(tmp_path)
+    record = json.loads(evidence.read_text(encoding="utf-8"))
+    manifest = Path(record["job_manifest"]["path"])
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload.update({
+        "team_approval_ref": None,
+        "billing_mode": "reserved",
+        "smoke": True,
+        "preemptible": True,
+        "automatic_retry": False,
+        "array_size": 1,
+        "max_array_concurrency": 1,
+        "opportunistic_policy_ref": "https://llmjp.slack.com/archives/C07U29EDTPD/p1784095799644289",
+    })
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    record["job_manifest"]["sha256"] = sha256_file(manifest)
+    evidence.write_text(json.dumps(record), encoding="utf-8")
+
+    assert derive_resource_usage(config, evidence)["node_hours"] == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize(
+    ("field", "unsafe_value"),
+    [
+        ("billing_mode", "spot"),
+        ("smoke", False),
+        ("preemptible", False),
+        ("automatic_retry", True),
+        ("nodes", 2),
+        ("array_size", 2),
+        ("max_array_concurrency", 2),
+        ("opportunistic_policy_ref", ""),
+    ],
+)
+def test_resource_usage_rejects_broadened_opportunistic_scope(
+    tmp_path: Path,
+    field: str,
+    unsafe_value: object,
+) -> None:
+    config, evidence, _ = make_evidence(tmp_path)
+    record = json.loads(evidence.read_text(encoding="utf-8"))
+    manifest = Path(record["job_manifest"]["path"])
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload.update({
+        "team_approval_ref": None,
+        "billing_mode": "reserved",
+        "smoke": True,
+        "preemptible": True,
+        "automatic_retry": False,
+        "array_size": 1,
+        "max_array_concurrency": 1,
+        "opportunistic_policy_ref": "https://llmjp.slack.com/archives/C07U29EDTPD/p1784095799644289",
+        field: unsafe_value,
+    })
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    record["job_manifest"]["sha256"] = sha256_file(manifest)
+    evidence.write_text(json.dumps(record), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="approval evidence is invalid"):
+        derive_resource_usage(config, evidence)
+
+
 def test_pre_qsub_storage_audit_is_distinct_from_release_deep_audit(tmp_path: Path) -> None:
     root = tmp_path / "9999_tv-gptoss120b"
     root.mkdir()
