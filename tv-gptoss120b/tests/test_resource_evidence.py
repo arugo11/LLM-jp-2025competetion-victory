@@ -128,6 +128,36 @@ def test_failed_job_counts_for_budget_but_not_release(tmp_path: Path) -> None:
         derive_resource_usage(config, evidence)
 
 
+def test_failed_budget_record_does_not_require_release_storage_audit(tmp_path: Path) -> None:
+    config, existing_evidence, qstat = make_evidence(tmp_path)
+    existing = json.loads(existing_evidence.read_text(encoding="utf-8"))
+    manifest = Path(existing["job_manifest"]["path"])
+    pbs = Path(existing["pbs_script"]["path"])
+    payload = json.loads(qstat.read_text(encoding="utf-8"))
+    payload["Jobs"]["123.abci"]["Exit_status"] = 1
+    qstat.write_text(json.dumps(payload), encoding="utf-8")
+    evidence = config.experiment_root() / "failed-resource-evidence.json"
+
+    write_resource_evidence_record(
+        config,
+        pbs_job_id="123.abci",
+        job_manifest_path=manifest,
+        pbs_script_path=pbs,
+        qstat_final_path=qstat,
+        storage_audit_path=None,
+        output_path=evidence,
+        require_success=False,
+    )
+
+    usage = derive_resource_usage(config, evidence, require_success=False)
+    assert usage["node_hours"] == pytest.approx(0.5)
+    assert usage["measured_storage_bytes"] is None
+    assert usage["measured_storage_inodes"] is None
+    assert usage["evidence_sha256"]["storage_audit"] is None
+    with pytest.raises(ValueError, match="finished successful"):
+        derive_resource_usage(config, evidence)
+
+
 def test_resource_usage_rejects_missing_exit_status_even_for_budget(tmp_path: Path) -> None:
     config, evidence, qstat = make_evidence(tmp_path)
     payload = json.loads(qstat.read_text(encoding="utf-8"))

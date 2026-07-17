@@ -27,7 +27,7 @@ class ResourceEvidenceRecord(BaseModel):
     job_manifest: EvidenceFile
     pbs_script: EvidenceFile
     qstat_final: EvidenceFile
-    storage_audit: EvidenceFile
+    storage_audit: EvidenceFile | None
 
 
 def write_resource_evidence_record(
@@ -37,7 +37,7 @@ def write_resource_evidence_record(
     job_manifest_path: Path,
     pbs_script_path: Path,
     qstat_final_path: Path,
-    storage_audit_path: Path,
+    storage_audit_path: Path | None,
     output_path: Path,
     require_success: bool = True,
 ) -> ResourceEvidenceRecord:
@@ -48,7 +48,11 @@ def write_resource_evidence_record(
         job_manifest=EvidenceFile(path=str(job_manifest_path.resolve()), sha256=sha256_file(job_manifest_path)),
         pbs_script=EvidenceFile(path=str(pbs_script_path.resolve()), sha256=sha256_file(pbs_script_path)),
         qstat_final=EvidenceFile(path=str(qstat_final_path.resolve()), sha256=sha256_file(qstat_final_path)),
-        storage_audit=EvidenceFile(path=str(storage_audit_path.resolve()), sha256=sha256_file(storage_audit_path)),
+        storage_audit=(
+            EvidenceFile(path=str(storage_audit_path.resolve()), sha256=sha256_file(storage_audit_path))
+            if storage_audit_path is not None
+            else None
+        ),
     )
     with output_path.open("xb") as handle:
         handle.write(canonical_json(record.model_dump(mode="json")) + b"\n")
@@ -242,7 +246,6 @@ def derive_resource_usage(
     manifest_path = _verified_path(root, evidence.job_manifest, "job manifest")
     pbs_path = _verified_path(root, evidence.pbs_script, "PBS script")
     qstat_path = _verified_path(root, evidence.qstat_final, "qstat")
-    storage_path = _verified_path(root, evidence.storage_audit, "storage audit")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     approval_fields = {
         "submit_account",
@@ -325,7 +328,15 @@ def derive_resource_usage(
     if not any(line.startswith(select_prefix) for line in pbs_text.splitlines()):
         raise ValueError("PBS script selected nodes do not match qstat/job manifest")
 
-    measured_bytes, measured_inodes = _storage_metrics(storage_path, root)
+    if evidence.storage_audit is None:
+        if require_success:
+            raise ValueError("release evidence requires a complete deep storage audit")
+        measured_bytes = measured_inodes = None
+        storage_sha256 = None
+    else:
+        storage_path = _verified_path(root, evidence.storage_audit, "storage audit")
+        measured_bytes, measured_inodes = _storage_metrics(storage_path, root)
+        storage_sha256 = evidence.storage_audit.sha256
     return {
         "experiment_id": experiment_id,
         "pbs_job_id": evidence.pbs_job_id,
@@ -345,6 +356,6 @@ def derive_resource_usage(
             "job_manifest": evidence.job_manifest.sha256,
             "pbs_script": evidence.pbs_script.sha256,
             "qstat_final": evidence.qstat_final.sha256,
-            "storage_audit": evidence.storage_audit.sha256,
+            "storage_audit": storage_sha256,
         },
     }
